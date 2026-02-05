@@ -1,5 +1,7 @@
 import { StartScene } from './scenes/StartScene.js';
 import { ChapterSelectorScene } from './scenes/ChapterSelectorScene.js'
+import chapter1Scenes from './scenes/chapters/chapter1/index.js'
+
 const config = {
     type: Phaser.AUTO,
     title: 'Miiruku',
@@ -12,6 +14,7 @@ const config = {
     scene: [
         StartScene,
         ChapterSelectorScene,
+        ...chapter1Scenes
     ],
     scale: {
         mode: Phaser.Scale.FIT,

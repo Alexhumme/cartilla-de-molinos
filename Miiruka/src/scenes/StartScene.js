@@ -5,11 +5,22 @@ export class StartScene extends Phaser.Scene {
         super("Inicio")
     }
     preload() {
+        // UI
         this.load.audio('pop', 'assets/sounds/pop.mp3')
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
         this.load.image('illustration', 'assets/background_start_illustration.png');
         this.load.image('delete', 'assets/delete.png');
+
+        // Desierto
+        this.load.image('sky', 'assets/desert/sky.png');
+        this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');
+        this.load.image('bg_layer2', 'assets/desert/bg_layer2.png');
+        this.load.image('bg_layer3', 'assets/desert/bg_layer3.png');
+        this.load.image('bg_layer4', 'assets/desert/bg_layer4.png');
+
+        this.load.image('sun1', 'assets/desert/sol1.png');
+        this.load.image('sun2', 'assets/desert/sol2.png');
     }
 
     createButton(x, y, label, callback) {
@@ -72,10 +83,15 @@ export class StartScene extends Phaser.Scene {
 
     showGreeting() {
         this.createButton(900, 880, 'Entrar', () => {
-            this.scene.start('Capitulos', {
-                gearsOffsetX: this.gears.tilePositionX,
-                gearsOffsetY: this.gears.tilePositionY,
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+
+            this.cameras.main.once('camerafadeoutcomplete', () => {
+                this.scene.start('Capitulos', {
+                    gearsOffsetX: this.gears.tilePositionX,
+                    gearsOffsetY: this.gears.tilePositionY,
+                })
             })
+
         });
 
         const greeting = this.add.text(

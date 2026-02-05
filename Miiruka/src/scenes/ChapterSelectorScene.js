@@ -118,6 +118,12 @@ export class ChapterSelectorScene extends Phaser.Scene {
             cardBody.setInteractive({ useHandCursor: true })
             cardBody.on('pointerdown', () => {
                 this.popSound.play();
+
+                this.cameras.main.fadeOut(500, 0,0,0)
+                this.cameras.main.once('camerafadeoutcomplete', ()=> {
+                    this.scene.start(`Chp${i}_scn1`)
+                })
+                
             });
 
             cardBody.on('pointerover', () => {
@@ -146,6 +152,9 @@ export class ChapterSelectorScene extends Phaser.Scene {
     }
 
     create() {
+
+        this.cameras.main.fadeIn(500, 0, 0, 0);
+
         this.popSound = this.sound.add('pop', { volume: 0.5 });
         this.cardList = this.add.container(0, 0)
 
@@ -171,7 +180,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.createChapterCard(
             'Capitulo 1', 'cap1',
             'Ayuda a Jouktai y Kai a buscar agua y aprende de su importancia y uso responsable',
-            1, ChapterState.COMPLETED
+            1, ChapterState.AVAILABLE
         )
         this.createChapterCard(
             'Capitulo 2', 'cap2',
@@ -181,7 +190,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.createChapterCard(
             'Capitulo 3', 'cap3',
             'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
-            3, ChapterState.LOCKED
+            3, ChapterState.AVAILABLE
         )
     }
 
