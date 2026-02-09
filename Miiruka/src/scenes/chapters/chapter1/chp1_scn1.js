@@ -6,8 +6,6 @@ export class Chp1_scn1 extends Phaser.Scene {
 
     init() {
         // Initialize scene
-        
-
     }
 
     preload() {
@@ -19,6 +17,9 @@ export class Chp1_scn1 extends Phaser.Scene {
         const worldHeight = 2000;
         this.cameras.main.setBounds(0, 0, 1920, worldHeight);
         const cam = this.cameras.main;
+        this.birdsSounds = this.sound.add('birds', { volume: 1 });
+
+        this.birdsSounds.play();
 
         // Empieza arriba (cerca del sol)
         cam.scrollY = 0;
@@ -29,7 +30,7 @@ export class Chp1_scn1 extends Phaser.Scene {
             this.tweens.add({
                 targets: cam,
                 scrollY: 800,        // hasta dónde baja
-                duration: 4000,      // 4 segundos
+                duration: 6000,      // 4 segundos
                 ease: 'Sine.inOut',
                 onComplete: () => {
                     this.input.enabled = true;
