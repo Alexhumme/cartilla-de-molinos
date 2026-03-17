@@ -21,7 +21,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
     preload() {
         // Load assets
         this.load.audio('pop', 'assets/sounds/pop.mp3')
-        this.load.audio('birds', 'assets/sounds/pajaros.mp3')
+        this.load.audio('birds', 'assets/sounds/birds.mp3')
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
 
