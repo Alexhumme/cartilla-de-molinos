@@ -1,13 +1,9 @@
 import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 
-export class Chp1_scn1 extends Phaser.Scene {
+export class Chp1_scn2 extends Phaser.Scene {
     constructor() {
-        super('Chp1_scn1');
-    }
-
-    init() {
-        // Initialize scene
+        super('Chp1_scn2');
     }
 
     preload() {
@@ -36,21 +32,25 @@ export class Chp1_scn1 extends Phaser.Scene {
     }
 
     create() {
+        this.cameras.main.fadeIn(600, 0, 0, 0);
+
         this.birdsSounds = this.sound.add('birds', { volume: 1 });
         this.birdsSounds.play();
 
         const scriptText = this.cache.text.get('ch1_script');
         this.storyRunner = new StoryRunner(this, scriptText);
         this.storyRunner.initUI();
-        this.time.delayedCall(0, () => this.storyRunner.run('Inicio'));
+
+        this.time.delayedCall(0, async () => {
+            await this.storyRunner.run('Desarrollo');
+            await this.storyRunner.run('Final');
+        });
     }
 
     update(time, delta) {
         if (this.storyRunner?.isPaused) return;
         const speed = 0.0001 * delta;
-
         if (this.sun1) this.sun1.rotation += speed;
         if (this.sun2) this.sun2.rotation -= speed * 0.6;
     }
-
 }
