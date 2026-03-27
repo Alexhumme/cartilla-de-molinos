@@ -25,7 +25,7 @@ export class Chp1_scn1 extends Phaser.Scene {
         this.load.image('sun1', 'assets/desert/sol1.png');
         this.load.image('sun2', 'assets/desert/sol2.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
-        this.load.image('pause-icon', 'assets/Settings.jpg');
+        this.load.image('pause-icon', 'assets/settings.jpg');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
