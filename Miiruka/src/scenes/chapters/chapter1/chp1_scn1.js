@@ -11,9 +11,12 @@ export class Chp1_scn1 extends Phaser.Scene {
     }
 
     preload() {
+        // Guion del capítulo (texto editable).
         this.load.text('ch1_script', 'assets/scripts/chapter1.txt');
+        // Audio ambiente.
         this.load.audio('birds', 'assets/sounds/pajaros.mp3');
 
+        // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
         this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');
         this.load.image('bg_layer2', 'assets/desert/bg_layer2.png');
@@ -24,6 +27,7 @@ export class Chp1_scn1 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/Settings.jpg');
 
+        // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
             characters.forEach((emotions, name) => {
@@ -36,9 +40,11 @@ export class Chp1_scn1 extends Phaser.Scene {
     }
 
     create() {
+        // Audio de ambiente.
         this.birdsSounds = this.sound.add('birds', { volume: 1 });
         this.birdsSounds.play();
 
+        // Inicializa el runner del guion.
         const scriptText = this.cache.text.get('ch1_script');
         this.storyRunner = new StoryRunner(this, scriptText);
         this.storyRunner.initUI();
@@ -46,6 +52,7 @@ export class Chp1_scn1 extends Phaser.Scene {
     }
 
     update(time, delta) {
+        // Detiene animaciones si está en pausa.
         if (this.storyRunner?.isPaused) return;
         const speed = 0.0001 * delta;
 

@@ -33,6 +33,7 @@
 [cambiar_escena][Chp1_scn2]
 
 [escena][Desarrollo]
+[personaje][Jouktai][entra][izquierda]
 [personaje][Jouktai][habla][Hoy Kai esta practicando la Yonna con mi tio. Acompaname a buscarlo.]
 [personaje][Jouktai][habla][En mi comunidad el agua nos da vida. Cada gota cuenta.]
 [personaje][Kai][entra][derecha]
@@ -50,5 +51,4 @@
 [minijuego][sopla_el_viento][respuesta1][respuesta2]
 [if][sopla_el_viento][respuesta1][personaje][Kai][emocion][feliz][habla][Mira, el agua esta saliendo otra vez!]
 [if][sopla_el_viento][respuesta1][personaje][Jouktai][emocion][feliz][habla][Lo logramos. Recuerda cuidar el agua.]
-[mostrar][imagen][cap1f]
-[fin_escena]
+[cambiar_escena][Chp1_end]

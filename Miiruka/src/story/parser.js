@@ -1,3 +1,4 @@
+// Normaliza textos para comparar comandos sin tildes/espacios extra.
 const normalize = (value) =>
     value
         .trim()
@@ -6,11 +7,13 @@ const normalize = (value) =>
         .replace(/\p{Diacritic}/gu, '')
         .replace(/\s+/g, ' ');
 
+// Extrae tokens en formato [ ... ] de una línea.
 const extractTokens = (line) => {
     const matches = [...line.matchAll(/\[([^\]]*)\]/g)];
     return matches.map((match) => match[1].trim()).filter(Boolean);
 };
 
+// Convierte el texto del guion en una lista de escenas con eventos.
 export const parseScript = (text) => {
     const scenes = [];
     let currentScene = null;
@@ -42,6 +45,7 @@ export const parseScript = (text) => {
         });
     }
 
+    // Precalcula etiquetas para permitir saltos con goto/ir_a.
     scenes.forEach((scene) => {
         const labelMap = new Map();
         scene.events.forEach((event, index) => {
@@ -60,6 +64,7 @@ export const parseScript = (text) => {
     };
 };
 
+// Recorre el guion para descubrir personajes y emociones usadas.
 export const collectCharacterAssets = (text) => {
     const characters = new Map();
 
@@ -91,4 +96,5 @@ export const collectCharacterAssets = (text) => {
     return characters;
 };
 
+// Exporta el normalizador para reuso en el runner.
 export const normalizeKeyword = normalize;

@@ -1,7 +1,9 @@
 import { normalizeKeyword, parseScript } from './parser.js';
 
+// Textura placeholder para assets faltantes.
 const PLACEHOLDER_KEY = 'story-placeholder';
 
+// Crea (una sola vez) la textura placeholder.
 const ensurePlaceholder = (scene) => {
     if (scene.textures.exists(PLACEHOLDER_KEY)) return PLACEHOLDER_KEY;
 
@@ -18,9 +20,11 @@ const ensurePlaceholder = (scene) => {
     return PLACEHOLDER_KEY;
 };
 
+// Utilidad para esperar ms dentro de secuencias async.
 const sleep = (scene, ms) =>
     new Promise((resolve) => scene.time.delayedCall(ms, resolve));
 
+// Estilo base de texto para el diálogo.
 const defaultDialogStyle = {
     fontFamily: 'fredoka',
     fontSize: '32px',
@@ -46,10 +50,12 @@ export class StoryRunner {
         this.lastDialogMap = null;
     }
 
+    // Inicializa UI persistente (botón de pausa).
     initUI() {
         this.createPauseButton();
     }
 
+    // Ejecuta todos los eventos de una escena del guion en orden.
     async run(sceneName) {
         const scene = this.script.sceneMap.get(sceneName) ?? this.script.scenes[0];
         if (!scene) return;
@@ -66,6 +72,7 @@ export class StoryRunner {
         }
     }
 
+    // Resuelve un comando del guion.
     async executeEvent(tokens, rawLine, currentScene) {
         const keyword = normalizeKeyword(tokens[0]);
 
@@ -89,6 +96,7 @@ export class StoryRunner {
         console.warn(`[StoryRunner] Acción desconocida: ${rawLine}`);
     }
 
+    // Crea o reutiliza el sprite base de un personaje.
     ensureCharacter(name) {
         if (this.characters.has(name)) return this.characters.get(name);
 
@@ -98,10 +106,12 @@ export class StoryRunner {
         const sprite = this.scene.add.image(-300, 780, textureKey).setOrigin(0.5, 1);
         sprite.setScale(0.9);
         sprite.setScrollFactor(0);
+        sprite.setDepth(200);
         this.characters.set(name, sprite);
         return sprite;
     }
 
+    // Cambia la textura según emoción, con fallback a idle/placeholder.
     setCharacterEmotion(name, emotion) {
         const sprite = this.ensureCharacter(name);
         if (!emotion) return;
@@ -121,6 +131,7 @@ export class StoryRunner {
         sprite.setTexture(ensurePlaceholder(this.scene));
     }
 
+    // Acciones de cámara/plano predefinidas.
     async handleShot(tokens) {
         const type = normalizeKeyword(tokens[1] ?? '');
         if (type === 'sol_hacia_abajo' || type === 'amanecer') {
@@ -129,6 +140,7 @@ export class StoryRunner {
         }
     }
 
+    // Paneo del sol hacia abajo usado en la intro.
     async runSunPan() {
         const scene = this.scene;
 
@@ -161,6 +173,7 @@ export class StoryRunner {
         scene.input.enabled = true;
     }
 
+    // Maneja acciones de personajes (entra, emoción, habla).
     async handleCharacter(tokens) {
         const name = tokens[1];
         const normalizedTokens = tokens.map((token) => normalizeKeyword(token));
@@ -190,11 +203,13 @@ export class StoryRunner {
         }
     }
 
+    // Entrada lateral con flip según dirección.
     async characterEnter(name, direction) {
         const sprite = this.ensureCharacter(name);
         const startX = direction === 'derecha' ? 2300 : -300;
         const targetX = direction === 'derecha' ? 1400 : 520;
 
+        sprite.setFlipX(direction === 'derecha');
         sprite.x = startX;
         sprite.y = 980;
 
@@ -209,6 +224,7 @@ export class StoryRunner {
         });
     }
 
+    // Muestra un diálogo y espera click para continuar.
     async showDialog(speaker, text) {
         const scene = this.scene;
         if (!this.dialogContainer) {
@@ -232,6 +248,7 @@ export class StoryRunner {
                 this.dialogSpeaker,
             ]);
             this.dialogContainer.setScrollFactor(0);
+            this.dialogContainer.setDepth(800);
         }
 
         this.dialogSpeaker.setText(speaker);
@@ -244,6 +261,7 @@ export class StoryRunner {
         await this.animateDialogOut();
     }
 
+    // Espera un click válido (ignora si está pausado).
     async waitForClick() {
         const scene = this.scene;
         return new Promise((resolve) => {
@@ -256,6 +274,7 @@ export class StoryRunner {
         });
     }
 
+    // Muestra una imagen (o placeholder) a pantalla completa.
     async handleShow(tokens) {
         const type = normalizeKeyword(tokens[1] ?? '');
         if (type !== 'imagen') return;
@@ -270,6 +289,7 @@ export class StoryRunner {
         image.destroy();
     }
 
+    // Minijuego placeholder con opciones y registro de respuesta.
     async handleMinigame(tokens) {
         const id = tokens[1] ?? 'minijuego';
         const options = tokens.slice(2).filter(Boolean);
@@ -333,6 +353,7 @@ export class StoryRunner {
         container.destroy();
     }
 
+    // Ejecuta un evento solo si la respuesta del minijuego coincide.
     async handleIf(tokens, currentScene) {
         const id = tokens[1];
         const expected = tokens[2];
@@ -346,12 +367,14 @@ export class StoryRunner {
         return this.executeEvent(rest, `[if] ${id} ${expected}`, currentScene);
     }
 
+    // Salta a una etiqueta dentro de la escena actual.
     async handleGoto(tokens, currentScene) {
         const label = tokens[1];
         if (!label || !currentScene?.labelMap?.has(label)) return;
         return { jumpTo: label };
     }
 
+    // Cambia de escena con fade-out.
     async handleSceneChange(tokens) {
         const target = tokens[1];
         if (!target) return;
@@ -365,6 +388,7 @@ export class StoryRunner {
         });
     }
 
+    // Mueve la cámara hacia arriba/abajo.
     async handleCamera(tokens) {
         const direction = normalizeKeyword(tokens[1] ?? '');
         const distance = Number(tokens[2] ?? 300);
@@ -384,11 +408,13 @@ export class StoryRunner {
         });
     }
 
+    // Espera un tiempo en ms.
     async handleWait(tokens) {
         const ms = Number(tokens[1] ?? 500);
         return sleep(this.scene, ms);
     }
 
+    // Soporta diálogos bilingües por tokens: es:..., way:...
     parseDialogTokens(tokens) {
         const rawTexts = tokens.filter((token) => token.includes(':'));
         if (rawTexts.length > 0) {
@@ -409,6 +435,7 @@ export class StoryRunner {
         return { es: tokens[0] ?? '', wayuunaiki: tokens[0] ?? '' };
     }
 
+    // Elige el texto correcto según idioma activo.
     resolveDialogText(dialogMap) {
         if (!dialogMap) return '';
         if (this.language === 'wayuunaiki') {
@@ -417,6 +444,7 @@ export class StoryRunner {
         return dialogMap.es ?? dialogMap.wayuunaiki ?? '';
     }
 
+    // Animación bouncy de entrada del diálogo.
     async animateDialogIn() {
         if (!this.dialogContainer) return;
         this.dialogContainer.setAlpha(0);
@@ -424,11 +452,13 @@ export class StoryRunner {
         await this.animateContainerIn(this.dialogContainer);
     }
 
+    // Animación de salida rápida.
     async animateDialogOut() {
         if (!this.dialogContainer) return;
         await this.animateContainerOut(this.dialogContainer);
     }
 
+    // Reutilizable: entrada con rebote.
     async animateContainerIn(container) {
         container.setAlpha(0);
         container.setScale(0.7);
@@ -452,6 +482,7 @@ export class StoryRunner {
         });
     }
 
+    // Reutilizable: salida con fade corto.
     async animateContainerOut(container) {
         await new Promise((resolve) => {
             this.scene.tweens.add({
@@ -464,6 +495,7 @@ export class StoryRunner {
         });
     }
 
+    // Botón de pausa flotante.
     createPauseButton() {
         if (this.pauseButton) return;
         const scene = this.scene;
@@ -475,6 +507,7 @@ export class StoryRunner {
         this.pauseButton.on('pointerdown', () => this.togglePause());
     }
 
+    // Alterna pausa/reanudar.
     togglePause() {
         if (this.isPaused) {
             this.resume();
@@ -483,6 +516,7 @@ export class StoryRunner {
         }
     }
 
+    // Pausa animaciones, timers y audio.
     pause() {
         if (this.isPaused) return;
         this.isPaused = true;
@@ -492,6 +526,7 @@ export class StoryRunner {
         this.showPauseOverlay();
     }
 
+    // Reanuda animaciones, timers y audio.
     resume() {
         if (!this.isPaused) return;
         this.isPaused = false;
@@ -501,6 +536,7 @@ export class StoryRunner {
         this.hidePauseOverlay();
     }
 
+    // Muestra el overlay de pausa con selector de idioma.
     showPauseOverlay() {
         if (this.pauseOverlay) return;
         const scene = this.scene;
@@ -551,6 +587,7 @@ export class StoryRunner {
         };
     }
 
+    // Cierra el overlay de pausa.
     hidePauseOverlay() {
         if (!this.pauseOverlay) return;
         const { bg, panel, title, hint, buttons } = this.pauseOverlay;
@@ -563,6 +600,7 @@ export class StoryRunner {
         this.pauseOverlay = null;
     }
 
+    // Botón estilo toggle para idioma.
     createLangButton(x, y, label, active) {
         const scene = this.scene;
         const container = scene.add.container(x, y);
@@ -591,6 +629,7 @@ export class StoryRunner {
         };
     }
 
+    // Cambia idioma activo y refresca el texto visible.
     setLanguage(lang) {
         this.language = lang;
         if (this.dialogText && this.dialogText.text) {
