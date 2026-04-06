@@ -21,6 +21,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
     preload() {
         // Load assets
         this.load.audio('pop', 'assets/sounds/pop.mp3')
+        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a')
         this.load.audio('birds', 'assets/sounds/birds.mp3')
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
@@ -118,7 +119,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         if (state != ChapterState.LOCKED) {
             cardBody.setInteractive({ useHandCursor: true })
             cardBody.on('pointerdown', () => {
-                this.popSound.play();
+                this.sound.play('pop', { volume: 0.8 });
 
                 this.cameras.main.fadeOut(500, 0,0,0)
                 this.cameras.main.once('camerafadeoutcomplete', ()=> {
@@ -156,7 +157,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
 
         this.cameras.main.fadeIn(500, 0, 0, 0);
 
-        this.popSound = this.sound.add('pop', { volume: 0.5 });
+        this.popSound = this.sound.add('pop', { volume: 0.8 });
         this.cardList = this.add.container(0, 0)
 
         this.add.image(960, 540, 'gradient');

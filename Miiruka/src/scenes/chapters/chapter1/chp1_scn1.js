@@ -14,7 +14,9 @@ export class Chp1_scn1 extends Phaser.Scene {
         // Guion del capítulo (texto editable).
         this.load.text('ch1_script', 'assets/scripts/chapter1.txt');
         // Audio ambiente.
-        this.load.audio('birds', 'assets/sounds/pajaros.mp3');
+        this.load.audio('birds', 'assets/sounds/birds.mp3');
+        this.load.audio('walk', 'assets/sounds/walk.mp3');
+        this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
 
         // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
@@ -25,13 +27,23 @@ export class Chp1_scn1 extends Phaser.Scene {
         this.load.image('sun1', 'assets/desert/sol1.png');
         this.load.image('sun2', 'assets/desert/sol2.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
-        this.load.image('pause-icon', 'assets/settings.jpg');
+        this.load.image('pause-icon', 'assets/settings.png');
+        // Minijuego: girar grifo.
+        this.load.image('grifo-cano', 'assets/juegos/girar_grifo/caño.png');
+        this.load.image('grifo-manija', 'assets/juegos/girar_grifo/manija.png');
+        this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
+        this.load.audio('metal-squeak', 'assets/juegos/girar_grifo/metal-squeak.mp3');
+        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
+        // Objetos escena 1.
+        this.load.image('mucura', 'assets/mucura.png');
+        this.load.image('fuente', 'assets/fuente.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
             characters.forEach((emotions, name) => {
                 this.load.image(`char-${name}-idle`, `assets/characters/${name}/${name}-idle.png`);
+                this.load.image(`char-${name}-camina`, `assets/characters/${name}/${name}-camina.png`);
                 emotions.forEach((emotion) => {
                     this.load.image(`char-${name}-${emotion}`, `assets/characters/${name}/${name}-${emotion}.png`);
                 });

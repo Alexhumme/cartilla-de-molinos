@@ -7,6 +7,7 @@ export class StartScene extends Phaser.Scene {
     preload() {
         // UI
         this.load.audio('pop', 'assets/sounds/pop.mp3')
+        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a')
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
         this.load.image('illustration', 'assets/background_start_illustration.png');
@@ -58,7 +59,7 @@ export class StartScene extends Phaser.Scene {
         button.setInteractive({ useHandCursor: true });
 
         button.on('pointerdown', () => {
-            this.popSound.play();
+            this.sound.play('pop', { volume: 0.8 });
             callback();
         });
 
@@ -212,7 +213,7 @@ export class StartScene extends Phaser.Scene {
     }
 
     create() {
-        this.popSound = this.sound.add('pop', { volume: 0.5 });
+        this.popSound = this.sound.add('pop', { volume: 0.8 });
         this.add.image(960, 540, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,

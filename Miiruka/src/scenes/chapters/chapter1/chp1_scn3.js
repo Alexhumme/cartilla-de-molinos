@@ -1,9 +1,9 @@
 import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 
-export class Chp1_scn2 extends Phaser.Scene {
+export class Chp1_scn3 extends Phaser.Scene {
     constructor() {
-        super('Chp1_scn2');
+        super('Chp1_scn3');
     }
 
     preload() {
@@ -25,7 +25,6 @@ export class Chp1_scn2 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/settings.png');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
-        this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
         // Ilustraciones de apoyo (pop).
         this.load.image('item-sol-caliente', 'assets/items/sopa-caliente.png');
         this.load.image('item-no-agua', 'assets/items/no-agua.png');
@@ -34,9 +33,6 @@ export class Chp1_scn2 extends Phaser.Scene {
         this.load.image('item-molino-danado', 'assets/items/molinoDanado.png');
         this.load.image('item-tuberia', 'assets/items/tuberia.png');
         this.load.image('item-gota-vida', 'assets/items/gota-vida.png');
-        // Minijuego ubicar molino.
-        this.load.image('mapa-molino', 'assets/juegos/ubicarMolino/mapa.png');
-        this.load.image('mini-molino', 'assets/juegos/ubicarMolino/minimolino.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
@@ -87,8 +83,7 @@ export class Chp1_scn2 extends Phaser.Scene {
         this.storyRunner.initUI();
 
         this.time.delayedCall(0, async () => {
-            await this.storyRunner.run('Desarrollo');
-            this.storyRunner.resetWalkingSound();
+            await this.storyRunner.run('Encuentro');
         });
     }
 

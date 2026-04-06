@@ -13,5 +13,13 @@ export const GameStorage = {
 
     hasName() {
         return !!localStorage.getItem('playerName');
+    },
+
+    getLanguage() {
+        return localStorage.getItem('gameLanguage');
+    },
+
+    setLanguage(lang) {
+        localStorage.setItem('gameLanguage', lang);
     }
 }
