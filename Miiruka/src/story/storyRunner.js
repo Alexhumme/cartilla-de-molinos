@@ -484,7 +484,7 @@ export class StoryRunner {
         root.add([map, hint, errorText]);
         root.setDepth(880);
 
-        const target = { x: 260, y: 360 }; // coordenadas en el mapa (px)
+        const target = { x: 200, y: 460 }; // coordenadas en el mapa (px)
         const tolerance = 70;
         let marker = null;
         let ring = null;
@@ -501,6 +501,7 @@ export class StoryRunner {
             ring.setStrokeStyle(4, success ? 0x00c853 : 0xff3b30, 0.9);
             ring.setScrollFactor(0);
             ring.setDepth(919);
+            root.add([ring, marker]);
         };
 
         const toLocal = (pointer) => {
@@ -532,7 +533,10 @@ export class StoryRunner {
                 }
                 scene.input.off('pointerdown', onPointer);
                 this.minigames.set(id, 'respuesta1');
-                scene.time.delayedCall(600, () => {
+                hint.setText('¡Correcto! Toca para continuar.');
+                errorText.setText('');
+                const finishHandler = () => {
+                    scene.input.off('pointerdown', finishHandler);
                     root.destroy(true);
                     if (this.pauseButton) {
                         this.pauseButton.setVisible(true);
@@ -540,7 +544,8 @@ export class StoryRunner {
                     }
                     scene.input.setTopOnly(prevTopOnly);
                     resolveDone();
-                });
+                };
+                scene.input.once('pointerdown', finishHandler);
                 return;
             }
 
@@ -928,9 +933,6 @@ export class StoryRunner {
         this.scene.tweens.timeScale = 1;
         this.scene.time.timeScale = 1;
         this.scene.sound.resumeAll();
-        if (this.musicSound && !this.musicSound.isPlaying) {
-            this.musicSound.play({ loop: true, volume: this.musicVolume });
-        }
         this.hidePauseOverlay();
     }
 
@@ -1260,7 +1262,11 @@ export class StoryRunner {
 
     ensureMusic() {
         if (!this.scene.cache.audio?.exists('gametheme')) return;
-        if (!this.musicSound) {
+        const existing = this.scene.sound.get('gametheme');
+        if (existing) {
+            this.musicSound = existing;
+            this.musicSound.setVolume(this.musicVolume);
+        } else if (!this.musicSound) {
             this.musicSound = this.scene.sound.add('gametheme', { volume: this.musicVolume, loop: true });
         }
         if (!this.musicSound.isPlaying && !this.scene.sound.get('gametheme')) {
