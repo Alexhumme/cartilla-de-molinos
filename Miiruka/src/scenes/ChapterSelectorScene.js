@@ -1,4 +1,6 @@
 import { toColorString } from '../utils/colors.js';
+import { GameStorage } from '../utils/storage.js';
+import { UIHelpers } from '../utils/ui.js';
 
 const ChapterState = {
     LOCKED: 'locked',
@@ -143,6 +145,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
             cardBody.on('pointerup', () => {
                 cardBody.setPosition(cardBody.x, cardBody.y - 31);
             });
+
+            UIHelpers.attachHoverPop(this, cardBody, 0.35);
         }
 
         const card = this.add.container(500 + (i - 1) * 420, 700, [
@@ -155,6 +159,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
 
     create() {
 
+        UIHelpers.setGameCursor(this);
         this.cameras.main.fadeIn(500, 0, 0, 0);
 
         this.popSound = this.sound.add('pop', { volume: 0.8 });
@@ -179,20 +184,26 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.add.text(485, 210, 'Selecciona un capitulo para comenzar',
             { ...titleStyle, fontStyle: '', fontSize: '48px', }).setOrigin(0, 0);
 
+        this.createBackButton(120, 110, 'Menú');
+
+        const progress = GameStorage.getProgress();
+        const isCompleted = (chapter) => progress.completedChapters.includes(chapter);
+        const isUnlocked = (chapter) => progress.unlockedChapters.includes(chapter);
+
         this.createChapterCard(
             'Capitulo 1', 'cap1',
             'Ayuda a Jouktai y Kai a buscar agua y aprende de su importancia y uso responsable',
-            1, ChapterState.AVAILABLE
+            1, isCompleted(1) ? ChapterState.COMPLETED : ChapterState.AVAILABLE
         )
         this.createChapterCard(
             'Capitulo 2', 'cap2',
             'El molino esta fallando y algo podria estar dañado, arreglalo con Jouktai y Kamanewaa',
-            2, ChapterState.AVAILABLE
+            2, isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED)
         )
         this.createChapterCard(
             'Capitulo 3', 'cap3',
             'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
-            3, ChapterState.AVAILABLE
+            3, isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED)
         )
     }
 
@@ -200,5 +211,44 @@ export class ChapterSelectorScene extends Phaser.Scene {
 
         this.gears.tilePositionY += 0.3;
         this.gears.tilePositionX += 0.1;
+    }
+
+    createBackButton(x, y, label) {
+        const text = this.add.text(0, 0, label, {
+            fontSize: '36px',
+            fill: '#6a3a1b',
+            fontFamily: 'fredoka',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        const paddingX = 36;
+        const paddingY = 10;
+        const width = text.width + paddingX * 2;
+        const height = text.height + paddingY * 2;
+
+        const border = this.add.graphics();
+        border.fillStyle(0x8b4c1d);
+        border.fillRoundedRect(-width / 2, -height / 2, width + 8, height + 8, 12);
+        const body = this.add.graphics();
+        body.fillStyle(0xf0c18a);
+        body.fillRoundedRect(-width / 2, -height / 2, width, height, 12);
+
+        body.setAbove(border);
+        text.setAbove(body);
+
+        const button = this.add.container(x, y, [border, body, text]);
+        button.setSize(width, height);
+        button.setInteractive({ useHandCursor: true });
+        button.on('pointerdown', () => {
+            this.sound.play('pop', { volume: 0.8 });
+            this.scene.start('Inicio');
+        });
+        button.on('pointerover', () => {
+            button.setScale(1.05);
+        });
+        button.on('pointerout', () => {
+            button.setScale(1);
+        });
+        UIHelpers.attachHoverPop(this, button, 0.35);
+        return button;
     }
 }

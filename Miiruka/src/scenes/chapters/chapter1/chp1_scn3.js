@@ -1,5 +1,7 @@
 import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
+import { GameStorage } from '../../../utils/storage.js';
+import { UIHelpers } from '../../../utils/ui.js';
 
 export class Chp1_scn3 extends Phaser.Scene {
     constructor() {
@@ -13,6 +15,7 @@ export class Chp1_scn3 extends Phaser.Scene {
         this.load.audio('birds', 'assets/sounds/birds.mp3');
         this.load.audio('walk', 'assets/sounds/walk.mp3');
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
+        this.load.audio('pop', 'assets/sounds/pop.mp3');
 
         // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
@@ -48,6 +51,8 @@ export class Chp1_scn3 extends Phaser.Scene {
     }
 
     create() {
+        UIHelpers.setGameCursor(this);
+        GameStorage.setLastChapter(1);
         // Transición de entrada.
         this.cameras.main.fadeIn(600, 0, 0, 0);
 
