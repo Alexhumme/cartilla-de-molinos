@@ -1,3 +1,6 @@
+import { GameStorage } from '../../../utils/storage.js';
+import { UIHelpers } from '../../../utils/ui.js';
+
 export class Chp1_end extends Phaser.Scene {
     constructor() {
         super('Chp1_end');
@@ -65,10 +68,13 @@ export class Chp1_end extends Phaser.Scene {
             button.setScale(1.05);
         });
 
+        UIHelpers.attachHoverPop(this, button, 0.35);
         return button;
     }
 
     create() {
+        UIHelpers.setGameCursor(this);
+        GameStorage.completeChapter(1);
         // Transición de entrada.
         this.cameras.main.fadeIn(600, 0, 0, 0);
         this.popSound = this.sound.add('pop', { volume: 0.5 });

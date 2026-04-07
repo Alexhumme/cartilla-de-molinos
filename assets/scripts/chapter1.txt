@@ -59,6 +59,7 @@
 [personaje][Kai][habla][Debe estar en un lugar abierto, lejos de casas, arboles y cableado.]
 [minijuego][encontrar_molino]
 [personaje][Jouktai][emocion][feliz][habla][Perfecto, vamos todos juntos!]
+[cambiar_escena][Chp1_scn4]
 
 [escena][Final]
 [personaje][Kai][habla][Jouktai, como hace el molino para sacar el agua?]

@@ -1,5 +1,7 @@
 import { StartScene } from './scenes/StartScene.js';
 import { ChapterSelectorScene } from './scenes/ChapterSelectorScene.js'
+import { InfoScene } from './scenes/InfoScene.js';
+import { SettingsScene } from './scenes/SettingsScene.js';
 import chapter1Scenes from './scenes/chapters/chapter1/index.js'
 
 const config = {
@@ -14,6 +16,8 @@ const config = {
     scene: [
         StartScene,
         ChapterSelectorScene,
+        InfoScene,
+        SettingsScene,
         ...chapter1Scenes
     ],
     scale: {

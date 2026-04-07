@@ -1,5 +1,7 @@
 import { normalizeKeyword, parseScript } from './parser.js';
 import { GameStorage } from '../utils/storage.js';
+import { AudioManager } from '../utils/audio.js';
+import { UIHelpers } from '../utils/ui.js';
 
 // Textura placeholder para assets faltantes.
 const PLACEHOLDER_KEY = 'story-placeholder';
@@ -418,6 +420,7 @@ export class StoryRunner {
             hitZone.setInteractive({ useHandCursor: true });
             hitZone.setScrollFactor(0);
             hitZone.setDepth(901);
+            UIHelpers.attachHoverPop(scene, hitZone, 0.35);
             return { visuals: [btnBg, txt], label, hitZone };
         });
 
@@ -626,6 +629,7 @@ export class StoryRunner {
         knob.setDepth(1005);
         knob.setScrollFactor(0);
         knob.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, knob, 0.35);
 
         const setKnobAngle = (angle) => {
             knob.x = Math.cos(angle) * radius;
@@ -905,6 +909,7 @@ export class StoryRunner {
             }
             this.togglePause();
         });
+        UIHelpers.attachHoverPop(scene, this.pauseButton, 0.35);
     }
 
     // Alterna pausa/reanudar.
@@ -949,7 +954,7 @@ export class StoryRunner {
             color: '#ffffff',
         }).setOrigin(0.5);
 
-        const langToggle = this.createLanguageToggle(960, 520, [
+        const langToggle = this.createLanguageToggle(960, 480, [
             { id: 'es', label: 'Español' },
             { id: 'wayuunaiki', label: 'Wayuu' },
         ], this.language);
@@ -1097,6 +1102,8 @@ export class StoryRunner {
             if (onChange) onChange(options[1].id);
             if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
         });
+        UIHelpers.attachHoverPop(scene, hitLeft, 0.35);
+        UIHelpers.attachHoverPop(scene, hitRight, 0.35);
 
         return {
             container,
@@ -1131,6 +1138,7 @@ export class StoryRunner {
             if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
             onClick();
         });
+        UIHelpers.attachHoverPop(scene, container, 0.35);
 
         return {
             container,
@@ -1214,6 +1222,7 @@ export class StoryRunner {
         }).setOrigin(0.5);
         const muteHit = scene.add.circle(-totalWidth / 2 - 22, 0, 14, 0xffffff, 0.001);
         muteHit.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, muteHit, 0.35);
 
         const segmentsList = [];
         for (let i = 0; i < segments; i += 1) {
@@ -1221,6 +1230,7 @@ export class StoryRunner {
             const rect = scene.add.rectangle(xPos, 0, segmentWidth, segmentHeight, 0xffffff, 0.2);
             rect.setStrokeStyle(2, 0xffffff, 0.25);
             rect.setInteractive({ useHandCursor: true });
+            UIHelpers.attachHoverPop(scene, rect, 0.35);
             segmentsList.push(rect);
         }
 
@@ -1261,17 +1271,7 @@ export class StoryRunner {
     }
 
     ensureMusic() {
-        if (!this.scene.cache.audio?.exists('gametheme')) return;
-        const existing = this.scene.sound.get('gametheme');
-        if (existing) {
-            this.musicSound = existing;
-            this.musicSound.setVolume(this.musicVolume);
-        } else if (!this.musicSound) {
-            this.musicSound = this.scene.sound.add('gametheme', { volume: this.musicVolume, loop: true });
-        }
-        if (!this.musicSound.isPlaying && !this.scene.sound.get('gametheme')) {
-            this.musicSound.play();
-        }
+        this.musicSound = AudioManager.ensureLoopingMusic(this.scene, 'gametheme', this.musicVolume);
     }
 
     setMusicVolume(volume) {
