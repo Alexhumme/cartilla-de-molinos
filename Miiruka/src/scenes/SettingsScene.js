@@ -26,13 +26,13 @@ export class SettingsScene extends Phaser.Scene {
             fontFamily: 'fredoka',
             fill: '#FCE1B4',
         };
-        this.add.text(960, 120, 'Configuración', {
+        this.add.text(960, 120, UIHelpers.getText('settings'), {
             ...titleStyle,
             fontSize: '96px',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.add.text(960, 340, 'Música', {
+        this.add.text(960, 340, UIHelpers.getText('music'), {
             fontFamily: 'fredoka',
             fontSize: '48px',
             color: '#FCE1B4'
@@ -40,14 +40,14 @@ export class SettingsScene extends Phaser.Scene {
 
         this.createMusicToggle(960, 460);
 
-        this.add.text(960, 600, 'Idioma', {
+        this.add.text(960, 600, UIHelpers.getText('language'), {
             fontFamily: 'fredoka',
             fontSize: '48px',
             color: '#FCE1B4'
         }).setOrigin(0.5);
 
         this.createLanguageToggle(960, 700);
-        this.createBackButton(960, 900, 'Volver al menú');
+        this.createBackButton(960, 900, UIHelpers.getText('back_to_menu'));
     }
 
     createMusicToggle(x, y) {

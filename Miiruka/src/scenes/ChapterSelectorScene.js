@@ -97,7 +97,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         stateBody.fillStyle(colors.btnPaper);
         stateBody.fillRoundedRect(6, 6, 341, 89, 16);
         const stateText = this.add.text(176, 45,
-            state === ChapterState.AVAILABLE ? 'Jugar' :
+            state === ChapterState.AVAILABLE ? UIHelpers.getText('play') :
                 state === ChapterState.LOCKED ? 'Bloqueado' :
                     state === ChapterState.COMPLETED && 'Completado',
             {
@@ -184,24 +184,24 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.add.text(485, 210, 'Selecciona un capitulo para comenzar',
             { ...titleStyle, fontStyle: '', fontSize: '48px', }).setOrigin(0, 0);
 
-        this.createBackButton(120, 110, 'Menú');
+        this.createBackButton(120, 110, UIHelpers.getText('menu'));
 
         const progress = GameStorage.getProgress();
         const isCompleted = (chapter) => progress.completedChapters.includes(chapter);
         const isUnlocked = (chapter) => progress.unlockedChapters.includes(chapter);
 
         this.createChapterCard(
-            'Capitulo 1', 'cap1',
+            `${UIHelpers.getText('chapter')} 1`, 'cap1',
             'Ayuda a Jouktai y Kai a buscar agua y aprende de su importancia y uso responsable',
             1, isCompleted(1) ? ChapterState.COMPLETED : ChapterState.AVAILABLE
         )
         this.createChapterCard(
-            'Capitulo 2', 'cap2',
+            `${UIHelpers.getText('chapter')} 2`, 'cap2',
             'El molino esta fallando y algo podria estar dañado, arreglalo con Jouktai y Kamanewaa',
             2, isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED)
         )
         this.createChapterCard(
-            'Capitulo 3', 'cap3',
+            `${UIHelpers.getText('chapter')} 3`, 'cap3',
             'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
             3, isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED)
         )

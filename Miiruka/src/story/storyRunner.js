@@ -41,6 +41,7 @@ export class StoryRunner {
         this.scene = scene;
         this.script = parseScript(scriptText);
         this.characters = new Map();
+        this.characterShadows = new Map();
         this.minigames = new Map();
         this.dialogBox = null;
         this.dialogText = null;
@@ -55,6 +56,7 @@ export class StoryRunner {
         this.walkSound = null;
         this.musicSound = null;
         this.musicVolume = 0.7;
+        this.dialogMetrics = { width: 1840, height: 170 };
     }
 
     // Inicializa UI persistente (botón de pausa).
@@ -116,10 +118,36 @@ export class StoryRunner {
 
         const sprite = this.scene.add.image(-300, 780, textureKey).setOrigin(0.5, 1);
         sprite.setScale(0.9);
-        sprite.setScrollFactor(0);
+        const useWorld = !!this.scene?.useWorldCharacters;
+        sprite.setScrollFactor(useWorld ? 1 : 0);
         sprite.setDepth(200);
         this.characters.set(name, sprite);
+        this.ensureCharacterShadow(name, sprite);
         return sprite;
+    }
+
+    ensureCharacterShadow(name, sprite) {
+        if (this.characterShadows.has(name)) return;
+        const width = (sprite.displayWidth || 220) * 0.55;
+        const height = Math.max(18, (sprite.displayHeight || 300) * 0.05);
+        const shadow = this.scene.add.ellipse(sprite.x, sprite.y - 4, width, height, 0xF3CE9E, 0.7);
+        shadow.setDepth(190);
+        const useWorld = !!this.scene?.useWorldCharacters;
+        shadow.setScrollFactor(useWorld ? 1 : 0);
+        shadow.setBlendMode(Phaser.BlendModes.MULTIPLY);
+        this.characterShadows.set(name, shadow);
+        if (!this._shadowSyncBound) {
+            this._shadowSyncBound = true;
+            this.scene.events.on('update', () => {
+                this.characterShadows.forEach((oval, key) => {
+                    const charSprite = this.characters.get(key);
+                    if (!charSprite) return;
+                    oval.x = charSprite.x;
+                    oval.y = charSprite.y - 4;
+                    oval.setDepth(charSprite.depth - 1);
+                });
+            });
+        }
     }
 
     // Cambia la textura según emoción, con fallback a idle/placeholder.
@@ -220,7 +248,10 @@ export class StoryRunner {
     async characterEnter(name, direction) {
         const sprite = this.ensureCharacter(name);
         const startX = direction === 'derecha' ? 2300 : -300;
-        const targetX = direction === 'derecha' ? 1400 : 520;
+        let targetX = direction === 'derecha' ? 1400 : 520;
+        if (direction === 'izquierda' && (name || '').toLowerCase() === 'kai') {
+            targetX = 360;
+        }
 
         const walkKey = `char-${name}-camina`;
         const idleKey = `char-${name}-idle`;
@@ -230,7 +261,9 @@ export class StoryRunner {
 
         sprite.setFlipX(direction === 'derecha');
         sprite.x = startX;
-        sprite.y = 980;
+        const cam = this.scene.cameras.main;
+        const useWorld = !!this.scene?.useWorldCharacters;
+        sprite.y = useWorld ? cam.scrollY + 980 : 980;
 
         this.startWalkingSound();
         await new Promise((resolve) => {
@@ -254,8 +287,8 @@ export class StoryRunner {
     async showDialog(speaker, text, options = {}) {
         const scene = this.scene;
         if (!this.dialogContainer) {
-            const boxWidth = 1840;
-            const boxHeight = 170;
+            const boxWidth = this.dialogMetrics.width;
+            const boxHeight = this.dialogMetrics.height;
 
             this.dialogBox = scene.add.graphics();
             this.dialogBox.fillStyle(0x000000, 0.6);
@@ -311,6 +344,7 @@ export class StoryRunner {
         }
 
         this.dialogSpeaker.setText(speaker);
+        this.dialogSpeaker.setColor(this.getSpeakerColor(speaker));
         this.setDialogText(text);
 
         await this.animateDialogIn();
@@ -333,6 +367,13 @@ export class StoryRunner {
         }
 
         await this.animateDialogOut();
+    }
+
+    getSpeakerColor(name) {
+        const key = (name || '').trim().toLowerCase();
+        if (key === 'jouktai') return '#FCB4B5';
+        if (key === 'kai' || key === 'kái') return '#FCE1B4';
+        return '#fce1b4';
     }
 
     // Espera un click válido (ignora si está pausado).
@@ -777,7 +818,12 @@ export class StoryRunner {
     // Mueve la cámara hacia arriba/abajo.
     async handleCamera(tokens) {
         const direction = normalizeKeyword(tokens[1] ?? '');
-        const distance = Number(tokens[2] ?? 300);
+        const rawDistance = tokens[2] ?? 300;
+        let distance = Number(rawDistance);
+        if (Number.isNaN(distance) && typeof this.scene?.getCameraPanDistance === 'function') {
+            distance = this.scene.getCameraPanDistance();
+        }
+        if (Number.isNaN(distance)) distance = 300;
         const duration = Number(tokens[3] ?? 1500);
 
         const cam = this.scene.cameras.main;
@@ -988,13 +1034,35 @@ export class StoryRunner {
             });
         });
 
-        const hint = scene.add.text(960, 770, 'Toca fuera o presiona pausar para continuar', {
+        const prevSceneBtn = this.createPauseActionButton(760, 760, 'Escena anterior', () => {
+            const target = this.getAdjacentChapterScene(-1);
+            if (!target) return;
+            if (scene.cache.audio?.exists('pop')) {
+                scene.sound.play('pop', { volume: 0.8 });
+            }
+            this.resume();
+            this.ignoreNextDialogClick = true;
+            scene.scene.start(target);
+        });
+
+        const nextSceneBtn = this.createPauseActionButton(1160, 760, 'Siguiente escena', () => {
+            const target = this.getAdjacentChapterScene(1);
+            if (!target) return;
+            if (scene.cache.audio?.exists('pop')) {
+                scene.sound.play('pop', { volume: 0.8 });
+            }
+            this.resume();
+            this.ignoreNextDialogClick = true;
+            scene.scene.start(target);
+        });
+
+        const hint = scene.add.text(960, 835, 'Toca fuera o presiona pausar para continuar', {
             fontFamily: 'fredoka',
             fontSize: '20px',
             color: '#cccccc',
         }).setOrigin(0.5);
 
-        [bg, panel, title, langToggle.container, volumeSlider.container, restartBtn.container, menuBtn.container, hint].forEach((item, index) => {
+        [bg, panel, title, langToggle.container, volumeSlider.container, restartBtn.container, menuBtn.container, prevSceneBtn.container, nextSceneBtn.container, hint].forEach((item, index) => {
             item.setScrollFactor(0);
             item.setDepth(1100 + index);
         });
@@ -1022,7 +1090,7 @@ export class StoryRunner {
             panel,
             title,
             hint,
-            buttons: [langToggle, volumeSlider, restartBtn, menuBtn],
+            buttons: [langToggle, volumeSlider, restartBtn, menuBtn, prevSceneBtn, nextSceneBtn],
         };
     }
 
@@ -1146,6 +1214,18 @@ export class StoryRunner {
         };
     }
 
+    getAdjacentChapterScene(offset) {
+        const scene = this.scene;
+        const currentKey = scene.scene.key;
+        const keys = scene.scene.manager.scenes.map((s) => s.sys.settings.key);
+        const chapterKeys = keys.filter((key) => key.startsWith('Chp'));
+        const index = chapterKeys.indexOf(currentKey);
+        if (index < 0) return null;
+        const nextIndex = index + offset;
+        if (nextIndex < 0 || nextIndex >= chapterKeys.length) return null;
+        return chapterKeys[nextIndex];
+    }
+
     handleBgScroll(tokens) {
         const action = normalizeKeyword(tokens[1] ?? 'start');
         const name = tokens[2];
@@ -1166,17 +1246,20 @@ export class StoryRunner {
         // direction indica hacia dónde se mueve el fondo (izquierda/derecha)
         scene.bgScrollDirection = direction === 'izquierda' ? 1 : -1;
         scene.bgScrollSpeed = speed;
-        scene.bgScrollWalker = name || scene.bgScrollWalker || null;
+        const walkers = name
+            ? name.split(',').map((token) => token.trim()).filter(Boolean)
+            : (scene.bgScrollWalkers || []);
+        scene.bgScrollWalkers = walkers;
 
-        if (scene.bgScrollWalker) {
-            const sprite = this.ensureCharacter(scene.bgScrollWalker);
-            const walkKey = `char-${scene.bgScrollWalker}-camina`;
+        walkers.forEach((walkerName) => {
+            const sprite = this.ensureCharacter(walkerName);
+            const walkKey = `char-${walkerName}-camina`;
             if (scene.textures.exists(walkKey)) {
                 sprite.setTexture(walkKey);
             }
             // Si el fondo se mueve a la izquierda, el personaje camina a la derecha.
             sprite.setFlipX(direction === 'derecha');
-        }
+        });
 
         this.startWalkingSound();
     }
@@ -1184,15 +1267,17 @@ export class StoryRunner {
     stopBackgroundScroll(name) {
         const scene = this.scene;
         scene.bgScrollActive = false;
-        const walker = name || scene.bgScrollWalker;
-        if (walker) {
-            const idleKey = `char-${walker}-idle`;
-            const sprite = this.characters.get(walker);
+        const walkers = name
+            ? name.split(',').map((token) => token.trim()).filter(Boolean)
+            : (scene.bgScrollWalkers || []);
+        walkers.forEach((walkerName) => {
+            const idleKey = `char-${walkerName}-idle`;
+            const sprite = this.characters.get(walkerName);
             if (sprite && scene.textures.exists(idleKey)) {
                 sprite.setTexture(idleKey);
             }
-        }
-        scene.bgScrollWalker = null;
+        });
+        scene.bgScrollWalkers = [];
         this.stopWalkingSound();
     }
 
@@ -1303,6 +1388,22 @@ export class StoryRunner {
         }
         this.dialogTextItems = [];
 
+        if (text.includes('||')) {
+            const parts = text.split('||').map((item) => item.trim());
+            const intro = parts.shift() ?? '';
+            const items = parts.filter(Boolean);
+            this.renderDialogList(items, intro);
+            return;
+        }
+
+        if (this.dialogMetrics.height !== 170) {
+            this.dialogMetrics.height = 170;
+            this.dialogBox.clear();
+            this.dialogBox.fillStyle(0x000000, 0.6);
+            this.dialogBox.fillRoundedRect(-this.dialogMetrics.width / 2, -this.dialogMetrics.height / 2, this.dialogMetrics.width, this.dialogMetrics.height, 24);
+            this.dialogSpeaker.setPosition(-this.dialogMetrics.width / 2 + 80, -this.dialogMetrics.height / 2 + 30);
+        }
+
         const match = text.match(/\{\{([^}]+)\}\}/);
         if (!match) {
             const normal = scene.add.text(0, y, text.replace(/\{\{|\}\}/g, ''), defaultDialogStyle).setOrigin(0.5);
@@ -1334,6 +1435,59 @@ export class StoryRunner {
         this.dialogContainer.add(afterText);
         this.dialogTextItems.push(beforeText, highlightText, afterText);
     }
+
+    renderDialogList(items, intro) {
+        const scene = this.scene;
+        const paddingX = 36;
+        const itemHeight = 42;
+        const itemGap = 12;
+        const contentWidth = this.dialogMetrics.width - 220;
+        const listHeight = items.length * itemHeight + (items.length - 1) * itemGap;
+        const introHeight = intro ? 36 : 0;
+        const boxHeight = Math.max(this.dialogMetrics.height, listHeight + introHeight + 110);
+
+        this.dialogMetrics.height = boxHeight;
+        this.dialogBox.clear();
+        this.dialogBox.fillStyle(0x000000, 0.6);
+        this.dialogBox.fillRoundedRect(-this.dialogMetrics.width / 2, -boxHeight / 2, this.dialogMetrics.width, boxHeight, 24);
+        this.dialogSpeaker.setPosition(-this.dialogMetrics.width / 2 + 80, -boxHeight / 2 + 30);
+
+        let startY = -listHeight / 2 + 10;
+        if (intro) {
+            const introText = scene.add.text(0, -boxHeight / 2 + 72, intro, {
+                ...defaultDialogStyle,
+                fontSize: '26px',
+                align: 'center',
+                wordWrap: { width: contentWidth }
+            }).setOrigin(0.5, 0.5);
+            this.dialogContainer.add(introText);
+            this.dialogTextItems.push(introText);
+            startY += introHeight;
+        }
+        const startX = -contentWidth / 2;
+
+        items.forEach((item, index) => {
+            const y = startY + index * (itemHeight + itemGap);
+            const bg = scene.add.graphics();
+            bg.fillStyle(0x1f1f1f, 0.9);
+            bg.fillRoundedRect(startX, y - itemHeight / 2, contentWidth, itemHeight, 14);
+            bg.lineStyle(2, 0xffffff, 0.25);
+            bg.strokeRoundedRect(startX, y - itemHeight / 2, contentWidth, itemHeight, 14);
+
+            const text = scene.add.text(startX + paddingX, y, `• ${item}`, {
+                fontFamily: 'fredoka',
+                fontSize: '24px',
+                color: '#ffffff',
+                align: 'left',
+                wordWrap: { width: contentWidth - paddingX * 2 }
+            }).setOrigin(0, 0.5);
+
+            this.dialogContainer.add(bg);
+            this.dialogContainer.add(text);
+            this.dialogTextItems.push(bg, text);
+        });
+    }
+
 
     // Caminar con scroll horizontal y parallax.
     async handleWalk(tokens) {
