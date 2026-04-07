@@ -22,7 +22,7 @@ export class InfoScene extends Phaser.Scene {
             fontFamily: 'fredoka',
             fill: '#FCE1B4',
         };
-        this.add.text(960, 120, 'Información', {
+        this.add.text(960, 120, UIHelpers.getText('info'), {
             ...titleStyle,
             fontSize: '96px',
             fontStyle: 'bold'
@@ -47,7 +47,7 @@ export class InfoScene extends Phaser.Scene {
 
         this.add.text(960, 420, infoText, bodyStyle).setOrigin(0.5);
 
-        this.createBackButton(960, 900, 'Volver al menú');
+        this.createBackButton(960, 900, UIHelpers.getText('back_to_menu'));
     }
 
     createBackButton(x, y, label) {

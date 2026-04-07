@@ -89,9 +89,13 @@ export class StartScene extends Phaser.Scene {
     askForName(onComplete) {
         if (this.namePromptActive) return;
         this.namePromptActive = true;
+        const canvasRect = this.game.canvas.getBoundingClientRect();
+        const inputX = canvasRect.left + canvasRect.width * 0.5;
+        const inputY = canvasRect.top + canvasRect.height * 0.82;
+
         const promptText = this.add.text(
             960, 800,
-            'Como te llamas?',
+            UIHelpers.getText('whats_name'),
             {
                 fontSize: '46px',
                 fontFamily: 'fredoka',
@@ -102,10 +106,10 @@ export class StartScene extends Phaser.Scene {
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = 'Escribe tu nombre';
+        input.placeholder = UIHelpers.getText('name_placeholder');
         input.style.position = 'absolute';
-        input.style.top = '82%';
-        input.style.left = '50%';
+        input.style.left = `${inputX}px`;
+        input.style.top = `${inputY}px`;
         input.style.transform = 'translate(-50%, -50%)';
         input.style.fontSize = '20px';
         input.style.padding = '12px 16px';
@@ -119,7 +123,7 @@ export class StartScene extends Phaser.Scene {
 
         document.body.appendChild(input);
 
-        const btnLabel = this.add.text(0, 0, 'Continuar', {
+        const btnLabel = this.add.text(0, 0, UIHelpers.getText('continue'), {
             fontFamily: 'fredoka',
             fontSize: '42px',
             fill: '#6a3a1b',
@@ -150,6 +154,10 @@ export class StartScene extends Phaser.Scene {
                 input.remove();
                 promptText.destroy();
                 confirmBtn.destroy();
+                if (this.nameInputResizeHandler) {
+                    this.scale.off('resize', this.nameInputResizeHandler);
+                    this.nameInputResizeHandler = null;
+                }
                 this.namePromptActive = false;
                 if (onComplete) onComplete();
             }
@@ -162,6 +170,13 @@ export class StartScene extends Phaser.Scene {
             confirmBtn.setScale(1);
         });
         UIHelpers.attachHoverPop(this, confirmBtn, 0.35);
+
+        this.nameInputResizeHandler = () => {
+            const rect = this.game.canvas.getBoundingClientRect();
+            input.style.left = `${rect.left + rect.width * 0.5}px`;
+            input.style.top = `${rect.top + rect.height * 0.82}px`;
+        };
+        this.scale.on('resize', this.nameInputResizeHandler);
     }
 
     create() {
@@ -202,7 +217,7 @@ export class StartScene extends Phaser.Scene {
 
         this.menuButtons = [];
 
-        const newGameBtn = this.createMenuButton(menuBaseX, menuBaseY, 'Nueva partida', () => {
+        const newGameBtn = this.createMenuButton(menuBaseX, menuBaseY, UIHelpers.getText('new_game'), () => {
             GameStorage.clear();
             this.hideMenuButtons();
             this.askForName(() => {
@@ -210,18 +225,18 @@ export class StartScene extends Phaser.Scene {
             });
         });
 
-        const continueBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap, 'Continuar', () => {
+        const continueBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap, UIHelpers.getText('continue'), () => {
             this.startChapterSelection();
         }, !hasSave);
 
-        const settingsBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap * 2, 'Configuración', () => {
+        const settingsBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap * 2, UIHelpers.getText('settings'), () => {
             this.scene.start('Configuracion', {
                 gearsOffsetX: this.gears.tilePositionX,
                 gearsOffsetY: this.gears.tilePositionY,
             });
         });
 
-        const infoBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap * 3, 'Información', () => {
+        const infoBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap * 3, UIHelpers.getText('info'), () => {
             this.scene.start('Informacion', {
                 gearsOffsetX: this.gears.tilePositionX,
                 gearsOffsetY: this.gears.tilePositionY,
@@ -233,7 +248,7 @@ export class StartScene extends Phaser.Scene {
 
         const name = GameStorage.getName();
         if (name) {
-            const greeting = this.add.text(1770, 75, `Hola, ${name}`, {
+            const greeting = this.add.text(1770, 75, `${UIHelpers.getText('hello')}, ${name}`, {
                 fontSize: '46px',
                 fontFamily: 'fredoka',
                 fill: '#FCE1B4'
