@@ -809,6 +809,7 @@ export class StoryRunner {
         return new Promise((resolve) => {
             cam.fadeOut(600, 0, 0, 0);
             cam.once('camerafadeoutcomplete', () => {
+                this.resetWalkingSound();
                 this.scene.scene.start(target);
                 resolve();
             });
