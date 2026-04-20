@@ -57,6 +57,7 @@ export class StoryRunner {
         this.musicSound = null;
         this.musicVolume = 0.7;
         this.dialogMetrics = { width: 1840, height: 170 };
+        this.pendingSceneQuestion = null;
     }
 
     // Inicializa UI persistente (botón de pausa).
@@ -93,6 +94,9 @@ export class StoryRunner {
         if (keyword === 'bgscroll') return this.handleBgScroll(tokens);
         if (keyword === 'imagen' || keyword === 'image') return this.handleImage(tokens);
         if (keyword === 'mostrar') return this.handleShow(tokens);
+        if (keyword === 'pregunta' || keyword === 'quiz' || keyword === 'pregunta_escena' || keyword === 'pregunta_final') {
+            return this.handleSceneQuestionCommand(tokens);
+        }
         if (keyword === 'minijuego') return this.handleMinigame(tokens);
         if (keyword === 'if') return this.handleIf(tokens, currentScene);
         if (keyword === 'goto' || keyword === 'ir_a') return this.handleGoto(tokens, currentScene);
@@ -808,8 +812,15 @@ export class StoryRunner {
         const cam = this.scene.cameras.main;
         return new Promise((resolve) => {
             cam.fadeOut(600, 0, 0, 0);
-            cam.once('camerafadeoutcomplete', () => {
+            cam.once('camerafadeoutcomplete', async () => {
                 this.resetWalkingSound();
+                if (this.pendingSceneQuestion) {
+                    const question = this.pendingSceneQuestion;
+                    this.pendingSceneQuestion = null;
+                    // Quitamos el FX de fade para que la UI de la pregunta sea visible.
+                    cam.resetFX();
+                    await this.showSceneQuestion(question);
+                }
                 this.scene.scene.start(target);
                 resolve();
             });
@@ -845,6 +856,187 @@ export class StoryRunner {
     async handleWait(tokens) {
         const ms = Number(tokens[1] ?? 500);
         return sleep(this.scene, ms);
+    }
+
+    handleSceneQuestionCommand(tokens) {
+        const kv = {};
+        tokens.slice(1).forEach((token) => {
+            const idx = token.indexOf(':');
+            if (idx <= 0) return;
+            const key = normalizeKeyword(token.slice(0, idx));
+            const value = token.slice(idx + 1).trim();
+            kv[key] = value;
+        });
+
+        const question = {
+            map: {
+                es: kv.es || kv.pregunta || '',
+                wayuunaiki: kv.wayuunaiki || kv.way || kv.wayuunaiki || kv.es || kv.pregunta || '',
+            },
+            correct: Number(kv.correcta ?? kv.correct ?? kv.respuesta ?? 1),
+            options: [],
+        };
+
+        for (let i = 1; i <= 4; i += 1) {
+            const es = kv[`op${i}es`] || kv[`opcion${i}es`] || kv[`op${i}`] || kv[`opcion${i}`];
+            const way = kv[`op${i}way`] || kv[`op${i}wayuunaiki`] || kv[`opcion${i}way`] || kv[`opcion${i}wayuunaiki`] || es;
+            if (es) {
+                question.options.push({
+                    es,
+                    wayuunaiki: way,
+                    index: i,
+                });
+            }
+        }
+
+        if (!question.map.es || question.options.length < 2) {
+            console.warn('[StoryRunner] pregunta_escena invalida: faltan enunciado u opciones.');
+            return;
+        }
+
+        if (question.correct < 1 || question.correct > question.options.length) {
+            question.correct = 1;
+        }
+
+        this.pendingSceneQuestion = question;
+    }
+
+    async showSceneQuestion(questionData) {
+        const scene = this.scene;
+        const prevTopOnly = scene.input.topOnly;
+        scene.input.setTopOnly(true);
+
+        let pauseWasInteractive = false;
+        if (this.pauseButton) {
+            pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
+            this.pauseButton.disableInteractive();
+            this.pauseButton.setVisible(false);
+        }
+
+        const root = scene.add.container(0, 0);
+        const backdrop = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.8);
+        backdrop.setScrollFactor(0);
+        root.add(backdrop);
+
+        const panel = scene.add.container(960, 540);
+        panel.setScrollFactor(0);
+        root.add(panel);
+        root.setDepth(2500);
+
+        const width = 1500;
+        const height = 620;
+        const box = scene.add.graphics();
+        box.fillStyle(0x000000, 0.6);
+        box.fillRoundedRect(-width / 2, -height / 2, width, height, 24);
+
+        const title = scene.add.text(0, -240, 'Pregunta', {
+            fontFamily: 'fredoka',
+            fontSize: '36px',
+            color: '#fce1b4',
+        }).setOrigin(0.5);
+
+        const questionText = scene.add.text(0, -165, this.resolveDialogText(questionData.map), {
+            ...defaultDialogStyle,
+            fontSize: '34px',
+            wordWrap: { width: 1300 },
+        }).setOrigin(0.5);
+
+        const feedback = scene.add.text(0, 245, '', {
+            fontFamily: 'fredoka',
+            fontSize: '26px',
+            color: '#ffb3b3',
+        }).setOrigin(0.5);
+
+        const optionButtons = questionData.options.map((option, idx) => {
+            const y = -55 + idx * 95;
+            const btn = scene.add.container(0, y);
+            const base = scene.add.graphics();
+            const border = scene.add.graphics();
+            const label = scene.add.text(0, 0, this.language === 'wayuunaiki' ? option.wayuunaiki : option.es, {
+                fontFamily: 'fredoka',
+                fontSize: '30px',
+                color: '#ffffff',
+                wordWrap: { width: 1150 },
+                align: 'center',
+            }).setOrigin(0.5);
+
+            const btnWidth = 1220;
+            const btnHeight = 74;
+            const render = (hovered) => {
+                base.clear();
+                border.clear();
+                base.fillStyle(hovered ? 0x2f7a36 : 0x1f1f1f, hovered ? 0.95 : 0.9);
+                base.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 16);
+                border.lineStyle(3, hovered ? 0xfce1b4 : 0xffffff, hovered ? 0.95 : 0.45);
+                border.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 16);
+            };
+
+            render(false);
+            btn.add([base, border, label]);
+            btn.setSize(btnWidth, btnHeight);
+            return { btn, option, render, y, btnWidth, btnHeight };
+        });
+
+        panel.add([box, title, questionText, feedback, ...optionButtons.map((entry) => entry.btn)]);
+
+        const hitZones = optionButtons.map((entry) => {
+            const hit = scene.add.rectangle(960, 540 + entry.y, entry.btnWidth, entry.btnHeight, 0xffffff, 0.001);
+            hit.setScrollFactor(0);
+            hit.setDepth(2605);
+            hit.setInteractive({ useHandCursor: true });
+            UIHelpers.attachHoverPop(scene, hit, 0.35);
+            hit.on('pointerover', () => {
+                entry.render(true);
+                entry.btn.setScale(1.02);
+            });
+            hit.on('pointerout', () => {
+                entry.render(false);
+                entry.btn.setScale(1);
+            });
+            return hit;
+        });
+        await this.animateContainerIn(panel);
+
+        await new Promise((resolve) => {
+            optionButtons.forEach(({ btn, option }, idx) => {
+                hitZones[idx].on('pointerdown', () => {
+                    if (scene.cache.audio?.exists('pop')) {
+                        scene.sound.play('pop', { volume: 0.8 });
+                    }
+                    if (option.index === questionData.correct) {
+                        feedback.setColor('#9df0a8');
+                        feedback.setText('Respuesta correcta');
+                        if (scene.cache.audio?.exists('success-bell')) {
+                            scene.sound.play('success-bell', { volume: 0.6 });
+                        }
+                        scene.time.delayedCall(260, resolve);
+                        return;
+                    }
+
+                    feedback.setColor('#ffb3b3');
+                    feedback.setText('Esa no es la respuesta correcta. Intenta de nuevo.');
+                    scene.tweens.add({
+                        targets: btn,
+                        x: 12,
+                        duration: 55,
+                        yoyo: true,
+                        repeat: 3,
+                        onComplete: () => {
+                            btn.x = 0;
+                        },
+                    });
+                });
+            });
+        });
+
+        await this.animateContainerOut(panel);
+        hitZones.forEach((hit) => hit.destroy());
+        root.destroy(true);
+        scene.input.setTopOnly(prevTopOnly);
+        if (this.pauseButton) {
+            this.pauseButton.setVisible(true);
+            if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
+        }
     }
 
     // Soporta diálogos bilingües por tokens: es:..., way:...
