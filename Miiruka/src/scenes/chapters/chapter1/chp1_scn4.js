@@ -37,10 +37,17 @@ export class Chp1_scn4 extends Phaser.Scene {
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
             characters.forEach((emotions, name) => {
-                this.load.image(`char-${name}-idle`, `assets/characters/${name}/${name}-idle.png`);
-                this.load.image(`char-${name}-camina`, `assets/characters/${name}/${name}-camina.png`);
-                emotions.forEach((emotion) => {
-                    this.load.image(`char-${name}-${emotion}`, `assets/characters/${name}/${name}-${emotion}.png`);
+                const states = new Set(['idle', 'camina', ...Array.from(emotions)]);
+                const facings = ['mira_jugador', 'mira_lado'];
+                facings.forEach((facing) => {
+                    states.forEach((state) => {
+                        for (let mouth = 1; mouth <= 3; mouth += 1) {
+                            this.load.image(
+                                `char-${name}-${facing}-${state}-${mouth}`,
+                                `assets/characters/${name}/${facing}/${state}/${mouth}_.png`
+                            );
+                        }
+                    });
                 });
             });
         });

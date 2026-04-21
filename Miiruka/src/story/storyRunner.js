@@ -41,7 +41,8 @@ export class StoryRunner {
         this.scene = scene;
         this.script = parseScript(scriptText);
         this.characters = new Map();
-        this.characterShadows = new Map();
+        this.characterState = new Map();
+        this.characterLipEvents = new Map();
         this.minigames = new Map();
         this.dialogBox = null;
         this.dialogText = null;
@@ -116,62 +117,181 @@ export class StoryRunner {
     // Crea o reutiliza el sprite base de un personaje.
     ensureCharacter(name) {
         if (this.characters.has(name)) return this.characters.get(name);
+        const textureKey = this.getCharacterTextureKey(name, {
+            emotion: 'idle',
+            facing: 'mira_jugador',
+            mouth: 1,
+        });
 
-        const idleKey = `char-${name}-idle`;
-        const textureKey = this.scene.textures.exists(idleKey) ? idleKey : ensurePlaceholder(this.scene);
-
-        const sprite = this.scene.add.image(-300, 780, textureKey).setOrigin(0.5, 1);
-        sprite.setScale(0.9);
+        const sprite = this.scene.add.image(-300, 780, textureKey).setOrigin(0, 0);
         const useWorld = !!this.scene?.useWorldCharacters;
         sprite.setScrollFactor(useWorld ? 1 : 0);
         sprite.setDepth(200);
         this.characters.set(name, sprite);
-        this.ensureCharacterShadow(name, sprite);
+        this.characterState.set(name, {
+            emotion: 'idle',
+            facing: 'mira_jugador',
+            mouth: 1,
+            flipX: false,
+            baseY: 180,
+            isWalking: false,
+            walkBobTween: null,
+        });
         return sprite;
     }
 
-    ensureCharacterShadow(name, sprite) {
-        if (this.characterShadows.has(name)) return;
-        const width = (sprite.displayWidth || 220) * 0.55;
-        const height = Math.max(18, (sprite.displayHeight || 300) * 0.05);
-        const shadow = this.scene.add.ellipse(sprite.x, sprite.y - 4, width, height, 0xF3CE9E, 0.7);
-        shadow.setDepth(190);
-        const useWorld = !!this.scene?.useWorldCharacters;
-        shadow.setScrollFactor(useWorld ? 1 : 0);
-        shadow.setBlendMode(Phaser.BlendModes.MULTIPLY);
-        this.characterShadows.set(name, shadow);
-        if (!this._shadowSyncBound) {
-            this._shadowSyncBound = true;
-            this.scene.events.on('update', () => {
-                this.characterShadows.forEach((oval, key) => {
-                    const charSprite = this.characters.get(key);
-                    if (!charSprite) return;
-                    oval.x = charSprite.x;
-                    oval.y = charSprite.y - 4;
-                    oval.setDepth(charSprite.depth - 1);
-                });
-            });
+    getCharacterTextureKey(name, state) {
+        const emotion = state.emotion || 'idle';
+        const facing = state.facing || 'mira_jugador';
+        const mouth = state.mouth || 1;
+        const key = `char-${name}-${facing}-${emotion}-${mouth}`;
+        if (this.scene.textures.exists(key)) return key;
+
+        const mouthClosed = `char-${name}-${facing}-${emotion}-1`;
+        if (this.scene.textures.exists(mouthClosed)) return mouthClosed;
+
+        const fallbackEmotionMouth = `char-${name}-${facing}-idle-${mouth}`;
+        if (this.scene.textures.exists(fallbackEmotionMouth)) return fallbackEmotionMouth;
+
+        const fallbackEmotion = `char-${name}-${facing}-idle-1`;
+        if (this.scene.textures.exists(fallbackEmotion)) return fallbackEmotion;
+
+        const fallbackFacing = `char-${name}-mira_jugador-idle-1`;
+        if (this.scene.textures.exists(fallbackFacing)) return fallbackFacing;
+
+        const legacyIdle = `char-${name}-idle`;
+        if (this.scene.textures.exists(legacyIdle)) return legacyIdle;
+
+        return ensurePlaceholder(this.scene);
+    }
+
+    setCharacterState(name, partial) {
+        this.ensureCharacter(name);
+        const prev = this.characterState.get(name) ?? {
+            emotion: 'idle',
+            facing: 'mira_jugador',
+            mouth: 1,
+            flipX: false,
+            baseY: 180,
+            isWalking: false,
+            walkBobTween: null,
+        };
+        const next = { ...prev, ...partial };
+        this.characterState.set(name, next);
+        const sprite = this.characters.get(name);
+        if (sprite) {
+            sprite.setTexture(this.getCharacterTextureKey(name, next));
+            sprite.setFlipX(!!next.flipX);
         }
     }
 
-    // Cambia la textura según emoción, con fallback a idle/placeholder.
+    // Cambia la expresión base del personaje.
     setCharacterEmotion(name, emotion) {
-        const sprite = this.ensureCharacter(name);
         if (!emotion) return;
+        if (this.scene.bgScrollActive && (this.scene.bgScrollWalkers || []).includes(name)) return;
+        this.setCharacterState(name, { emotion });
+    }
 
-        const emotionKey = `char-${name}-${emotion}`;
-        if (this.scene.textures.exists(emotionKey)) {
-            sprite.setTexture(emotionKey);
-            return;
+    getCharacterTargetPosition(name, direction) {
+        const normalized = (name || '').toLowerCase();
+        const sprite = this.ensureCharacter(name);
+        const cam = this.scene.cameras.main;
+        const useWorld = !!this.scene?.useWorldCharacters;
+        const sceneWidth = this.scene.scale.width || 1920;
+        if (direction === 'derecha') {
+            const rightEdgeX = (useWorld ? cam.scrollX : 0) + sceneWidth - 30;
+            return { x: rightEdgeX - sprite.displayWidth, y: 180 };
         }
-
-        const idleKey = `char-${name}-idle`;
-        if (this.scene.textures.exists(idleKey)) {
-            sprite.setTexture(idleKey);
-            return;
+        if (normalized === 'jouktai') {
+            return { x: 30, y: 180 };
         }
+        if (normalized === 'kai') {
+            return { x: 480, y: 180 };
+        }
+        return { x: 30, y: 180 };
+    }
 
-        sprite.setTexture(ensurePlaceholder(this.scene));
+    getSpeakingFacing(name) {
+        const othersVisible = Array.from(this.characters.keys()).some((charName) => {
+            if (charName === name) return false;
+            const sprite = this.characters.get(charName);
+            return !!sprite && sprite.visible !== false && sprite.alpha > 0;
+        });
+        return othersVisible ? 'mira_lado' : 'mira_jugador';
+    }
+
+    getSpeakerFlip(name, facing) {
+        if (facing !== 'mira_lado') return false;
+        const self = this.characters.get(name);
+        if (!self) return false;
+        let nearest = null;
+        this.characters.forEach((sprite, charName) => {
+            if (charName === name || !sprite || sprite.visible === false) return;
+            if (!nearest || Math.abs(sprite.x - self.x) < Math.abs(nearest.x - self.x)) {
+                nearest = sprite;
+            }
+        });
+        if (!nearest) return false;
+        return nearest.x < self.x;
+    }
+
+    startLipSync(name) {
+        this.stopLipSync(name);
+        let frameIndex = 0;
+        const sequence = [2, 3, 2, 1];
+        this.characterLipEvents.set(name, this.scene.time.addEvent({
+            delay: 120,
+            loop: true,
+            callback: () => {
+                this.setCharacterState(name, { mouth: sequence[frameIndex % sequence.length] });
+                frameIndex += 1;
+            },
+        }));
+    }
+
+    stopLipSync(name) {
+        const event = this.characterLipEvents.get(name);
+        if (event) {
+            event.remove(false);
+            this.characterLipEvents.delete(name);
+        }
+        this.setCharacterState(name, { mouth: 1 });
+    }
+
+    startWalkBob(name) {
+        const sprite = this.characters.get(name);
+        const state = this.characterState.get(name);
+        if (!sprite || !state || state.isWalking) return;
+        state.isWalking = true;
+        state.baseY = sprite.y;
+        const runCycle = () => {
+            if (!state.isWalking) return;
+            this.scene.tweens.add({
+                targets: sprite,
+                y: state.baseY - 14,
+                duration: 170,
+                ease: 'Sine.out',
+                onComplete: () => {
+                    this.scene.tweens.add({
+                        targets: sprite,
+                        y: state.baseY,
+                        duration: 280,
+                        ease: 'Sine.in',
+                        onComplete: runCycle,
+                    });
+                },
+            });
+        };
+        runCycle();
+    }
+
+    stopWalkBob(name) {
+        const sprite = this.characters.get(name);
+        const state = this.characterState.get(name);
+        if (!sprite || !state) return;
+        state.isWalking = false;
+        this.scene.tweens.killTweensOf(sprite);
+        sprite.y = state.baseY ?? sprite.y;
     }
 
     // Acciones de cámara/plano predefinidas.
@@ -252,22 +372,21 @@ export class StoryRunner {
     async characterEnter(name, direction) {
         const sprite = this.ensureCharacter(name);
         const startX = direction === 'derecha' ? 2300 : -300;
-        let targetX = direction === 'derecha' ? 1400 : 520;
-        if (direction === 'izquierda' && (name || '').toLowerCase() === 'kai') {
-            targetX = 360;
-        }
-
-        const walkKey = `char-${name}-camina`;
-        const idleKey = `char-${name}-idle`;
-        if (this.scene.textures.exists(walkKey)) {
-            sprite.setTexture(walkKey);
-        }
-
-        sprite.setFlipX(direction === 'derecha');
-        sprite.x = startX;
+        const targetPos = this.getCharacterTargetPosition(name, direction);
+        const targetX = targetPos.x;
         const cam = this.scene.cameras.main;
         const useWorld = !!this.scene?.useWorldCharacters;
-        sprite.y = useWorld ? cam.scrollY + 980 : 980;
+        const targetY = useWorld ? cam.scrollY + targetPos.y : targetPos.y;
+        this.setCharacterState(name, {
+            emotion: 'camina',
+            mouth: 1,
+            facing: 'mira_lado',
+            flipX: direction === 'derecha',
+        });
+        sprite.x = startX;
+        sprite.y = targetY;
+        this.setCharacterState(name, { baseY: targetY });
+        this.startWalkBob(name);
 
         this.startWalkingSound();
         await new Promise((resolve) => {
@@ -277,9 +396,8 @@ export class StoryRunner {
                 duration: 1200,
                 ease: 'Sine.out',
                 onComplete: () => {
-                    if (this.scene.textures.exists(idleKey)) {
-                        sprite.setTexture(idleKey);
-                    }
+                    this.stopWalkBob(name);
+                    this.setCharacterState(name, { emotion: 'idle', mouth: 1 });
                     this.stopWalkingSound();
                     resolve();
                 },
@@ -347,13 +465,22 @@ export class StoryRunner {
             }
         }
 
+        const speakingFacing = this.getSpeakingFacing(speaker);
+        const isWalkingWithGroup = this.scene.bgScrollActive && (this.scene.bgScrollWalkers || []).includes(speaker);
+        this.setCharacterState(speaker, {
+            facing: speakingFacing,
+            mouth: 1,
+            flipX: isWalkingWithGroup ? false : this.getSpeakerFlip(speaker, speakingFacing),
+        });
         this.dialogSpeaker.setText(speaker);
         this.dialogSpeaker.setColor(this.getSpeakerColor(speaker));
         this.setDialogText(text);
+        this.startLipSync(speaker);
 
         await this.animateDialogIn();
 
         await this.waitForClick();
+        this.stopLipSync(speaker);
 
         if (dialogImages.length) {
             dialogImages.forEach((dialogImage) => {
@@ -814,6 +941,8 @@ export class StoryRunner {
             cam.fadeOut(600, 0, 0, 0);
             cam.once('camerafadeoutcomplete', async () => {
                 this.resetWalkingSound();
+                this.characterLipEvents.forEach((event) => event.remove(false));
+                this.characterLipEvents.clear();
                 if (this.pendingSceneQuestion) {
                     const question = this.pendingSceneQuestion;
                     this.pendingSceneQuestion = null;
@@ -1444,14 +1573,38 @@ export class StoryRunner {
             : (scene.bgScrollWalkers || []);
         scene.bgScrollWalkers = walkers;
 
-        walkers.forEach((walkerName) => {
-            const sprite = this.ensureCharacter(walkerName);
-            const walkKey = `char-${walkerName}-camina`;
-            if (scene.textures.exists(walkKey)) {
-                sprite.setTexture(walkKey);
+        const activeWalkers = walkers.filter((walkerName) => this.characters.has(walkerName));
+        const hasKai = activeWalkers.includes('Kai');
+        const hasJouktai = activeWalkers.includes('Jouktai');
+        if (hasKai && hasJouktai) {
+            const kaiSprite = this.characters.get('Kai');
+            const jouSprite = this.characters.get('Jouktai');
+            const kaiState = this.characterState.get('Kai');
+            const jouState = this.characterState.get('Jouktai');
+            const cam = this.scene.cameras.main;
+            const useWorld = !!this.scene?.useWorldCharacters;
+            const baseX = (useWorld ? cam.scrollX : 0) + 30;
+            // Mantener continuidad visual: Jouktai en su x habitual y Kai adelantado.
+            jouSprite.x = baseX;
+            kaiSprite.x = baseX + 450;
+            if (kaiState) {
+                kaiState.baseY = kaiSprite.y;
             }
-            // Si el fondo se mueve a la izquierda, el personaje camina a la derecha.
-            sprite.setFlipX(direction === 'derecha');
+            if (jouState) {
+                jouState.baseY = jouSprite.y;
+            }
+        }
+
+        scene.bgScrollWalkers = activeWalkers;
+        activeWalkers.forEach((walkerName) => {
+            const walkerKey = (walkerName || '').toLowerCase();
+            this.setCharacterState(walkerName, {
+                emotion: 'camina',
+                facing: 'mira_lado',
+                // En caminata conjunta, Kai debe mirar a la derecha.
+                flipX: walkerKey === 'kai',
+            });
+            this.startWalkBob(walkerName);
         });
 
         this.startWalkingSound();
@@ -1464,14 +1617,11 @@ export class StoryRunner {
             ? name.split(',').map((token) => token.trim()).filter(Boolean)
             : (scene.bgScrollWalkers || []);
         walkers.forEach((walkerName) => {
-            const idleKey = `char-${walkerName}-idle`;
-            const sprite = this.characters.get(walkerName);
-            if (sprite && scene.textures.exists(idleKey)) {
-                sprite.setTexture(idleKey);
-            }
+            this.stopWalkBob(walkerName);
+            this.setCharacterState(walkerName, { emotion: 'idle', mouth: 1 });
         });
         scene.bgScrollWalkers = [];
-        this.stopWalkingSound();
+        this.resetWalkingSound();
     }
 
     createVolumeSelector(x, y, segments, activeLevel, onChange) {
@@ -1691,15 +1841,11 @@ export class StoryRunner {
         const scrollDistance = Number(tokens[5] ?? Math.round(distance * 0.6));
         if (!name) return;
 
-        const sprite = this.ensureCharacter(name);
-        const walkKey = `char-${name}-camina`;
-        if (this.scene.textures.exists(walkKey)) {
-            sprite.setTexture(walkKey);
-        }
-        sprite.setFlipX(direction === 'izquierda');
+        this.ensureCharacter(name);
+        this.setCharacterState(name, { emotion: 'camina' });
+        this.startWalkBob(name);
 
         const cam = this.scene.cameras.main;
-        const targetX = sprite.x + (direction === 'izquierda' ? -distance : distance);
         const targetScroll = cam.scrollX + (direction === 'izquierda' ? -scrollDistance : scrollDistance);
         const bounds = cam.getBounds();
         const neededWidth = Math.max(bounds.width, targetScroll + cam.width);
@@ -1709,33 +1855,17 @@ export class StoryRunner {
 
         this.startWalkingSound();
         await new Promise((resolve) => {
-            let done = 0;
-            const finish = () => {
-                done += 1;
-                if (done === 2) resolve();
-            };
-            this.scene.tweens.add({
-                targets: sprite,
-                x: targetX,
-                duration,
-                ease: 'Sine.inOut',
-                onComplete: () => {
-                    const idleKey = `char-${name}-idle`;
-                    if (this.scene.textures.exists(idleKey)) {
-                        sprite.setTexture(idleKey);
-                    }
-                    this.stopWalkingSound();
-                    finish();
-                },
-            });
             this.scene.tweens.add({
                 targets: cam,
                 scrollX: targetScroll,
                 duration,
                 ease: 'Sine.inOut',
-                onComplete: finish,
+                onComplete: resolve,
             });
         });
+        this.stopWalkBob(name);
+        this.setCharacterState(name, { emotion: 'idle', mouth: 1 });
+        this.stopWalkingSound();
     }
 
     // Comando genérico para colocar imágenes en la escena.
