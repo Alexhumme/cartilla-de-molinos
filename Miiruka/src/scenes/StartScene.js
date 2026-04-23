@@ -217,17 +217,17 @@ export class StartScene extends Phaser.Scene {
 
         this.menuButtons = [];
 
-        const newGameBtn = this.createMenuButton(menuBaseX, menuBaseY, UIHelpers.getText('new_game'), () => {
+        const continueBtn = this.createMenuButton(menuBaseX, menuBaseY, UIHelpers.getText('continue'), () => {
+            this.startChapterSelection();
+        }, !hasSave);
+
+        const newGameBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap, UIHelpers.getText('new_game'), () => {
             GameStorage.clear();
             this.hideMenuButtons();
             this.askForName(() => {
                 this.startChapterSelection();
             });
         });
-
-        const continueBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap, UIHelpers.getText('continue'), () => {
-            this.startChapterSelection();
-        }, !hasSave);
 
         const settingsBtn = this.createMenuButton(menuBaseX, menuBaseY + buttonGap * 2, UIHelpers.getText('settings'), () => {
             this.scene.start('Configuracion', {
@@ -257,6 +257,7 @@ export class StartScene extends Phaser.Scene {
         }
 
         this.createMusicToggle(1760, 980);
+        this.createDownloadButton(1658, 980);
     }
 
     update() {
@@ -375,6 +376,39 @@ export class StartScene extends Phaser.Scene {
         });
         UIHelpers.attachHoverPop(this, container, 0.35);
 
+        return container;
+    }
+
+    createDownloadButton(x, y) {
+        const size = 86;
+        const container = this.add.container(x, y);
+        const bg = this.add.graphics();
+        bg.fillStyle(0x8b4c1d, 1);
+        bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
+        const inner = this.add.graphics();
+        inner.fillStyle(0xf0c18a, 1);
+        inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
+        const icon = this.add.graphics();
+        icon.lineStyle(6, 0x6a3a1b, 1);
+        icon.lineBetween(0, -18, 0, 8);
+        icon.lineBetween(-10, 0, 0, 12);
+        icon.lineBetween(10, 0, 0, 12);
+        icon.lineBetween(-18, 20, 18, 20);
+
+        container.add([bg, inner, icon]);
+        container.setSize(size, size);
+        container.setInteractive({ useHandCursor: true });
+        container.on('pointerdown', () => {
+            this.sound.play('pop', { volume: 0.8 });
+            GameStorage.downloadProgressCertificate();
+        });
+        container.on('pointerover', () => {
+            container.setScale(1.06);
+        });
+        container.on('pointerout', () => {
+            container.setScale(1);
+        });
+        UIHelpers.attachHoverPop(this, container, 0.35);
         return container;
     }
 }

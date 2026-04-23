@@ -37,7 +37,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.load.image('nocap', 'assets/chapters/nocap.png');
     }
 
-    createChapterCard(title, image, description, i, state) {
+    createChapterCard(title, image, description, i, state, summary) {
 
         const colors =
             state ===
@@ -89,32 +89,23 @@ export class ChapterSelectorScene extends Phaser.Scene {
                 wordWrap: { width: 352 }
             });
 
-        const stateLbl = this.add.container(30 - 211, 570 - 380)
-        const stateBorder = this.add.graphics();
-        stateBorder.fillStyle(colors.light);
-        stateBorder.fillRoundedRect(0, 0, 352, 100, 16);
-        const stateBody = this.add.graphics();
-        stateBody.fillStyle(colors.btnPaper);
-        stateBody.fillRoundedRect(6, 6, 341, 89, 16);
-        const stateText = this.add.text(176, 45,
-            state === ChapterState.AVAILABLE ? UIHelpers.getText('play') :
-                state === ChapterState.LOCKED ? 'Bloqueado' :
-                    state === ChapterState.COMPLETED && 'Completado',
+        const progressText = this.add.text(
+            32 - 211, 560 - 380,
+            `Progreso: ${summary.completedScenes}/${summary.totalScenes} escenas`,
             {
                 fontFamily: 'fredoka',
-                fontSize: '52px',
-                color: toColorString(colors.light)
-            }).setOrigin(0.5);
-
-        stateLbl.add([stateBorder, stateBody, stateText])
-        stateLbl.setSize(700, 200)
+                fontSize: '28px',
+                color: toColorString(colors.shadow),
+                fontStyle: '600',
+            }
+        );
 
         const cardBody = this.add.container(0, 0, [
             body,
             titleText,
             img,
             desc,
-            stateLbl
+            progressText
         ])
         cardBody.setSize(422, 760)
 
@@ -123,9 +114,10 @@ export class ChapterSelectorScene extends Phaser.Scene {
             cardBody.on('pointerdown', () => {
                 this.sound.play('pop', { volume: 0.8 });
 
+                const resumeScene = GameStorage.getResumeScene(i);
                 this.cameras.main.fadeOut(500, 0,0,0)
                 this.cameras.main.once('camerafadeoutcomplete', ()=> {
-                    this.scene.start(`Chp${i}_scn1`)
+                    this.scene.start(`Chp${i}_scn${resumeScene}`)
                 })
                 
             });
@@ -185,25 +177,32 @@ export class ChapterSelectorScene extends Phaser.Scene {
             { ...titleStyle, fontStyle: '', fontSize: '48px', }).setOrigin(0, 0);
 
         this.createBackButton(120, 110, UIHelpers.getText('menu'));
+        this.createDownloadButton(1770, 110);
 
-        const progress = GameStorage.getProgress();
-        const isCompleted = (chapter) => progress.completedChapters.includes(chapter);
-        const isUnlocked = (chapter) => progress.unlockedChapters.includes(chapter);
+        const isCompleted = (chapter) => GameStorage.isChapterCompleted(chapter);
+        const isUnlocked = (chapter) => GameStorage.isChapterUnlocked(chapter);
+        const getSummary = (chapter) => GameStorage.getChapterProgressSummary(chapter);
 
         this.createChapterCard(
             `${UIHelpers.getText('chapter')} 1`, 'cap1',
             'Ayuda a Jouktai y Kai a buscar agua y aprende de su importancia y uso responsable',
-            1, isCompleted(1) ? ChapterState.COMPLETED : ChapterState.AVAILABLE
+            1,
+            isCompleted(1) ? ChapterState.COMPLETED : ChapterState.AVAILABLE,
+            getSummary(1)
         )
         this.createChapterCard(
             `${UIHelpers.getText('chapter')} 2`, 'cap2',
             'El molino esta fallando y algo podria estar dañado, arreglalo con Jouktai y Kamanewaa',
-            2, isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED)
+            2,
+            isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
+            getSummary(2)
         )
         this.createChapterCard(
             `${UIHelpers.getText('chapter')} 3`, 'cap3',
             'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
-            3, isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED)
+            3,
+            isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
+            getSummary(3)
         )
     }
 
@@ -250,5 +249,41 @@ export class ChapterSelectorScene extends Phaser.Scene {
         });
         UIHelpers.attachHoverPop(this, button, 0.35);
         return button;
+    }
+
+    createDownloadButton(x, y) {
+        const size = 76;
+        const button = this.add.container(x, y);
+        const border = this.add.graphics();
+        border.fillStyle(0x8b4c1d);
+        border.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
+        const body = this.add.graphics();
+        body.fillStyle(0xf0c18a);
+        body.fillRoundedRect(-size / 2 + 5, -size / 2 + 5, size - 10, size - 10, 12);
+        const icon = this.add.graphics();
+        icon.lineStyle(5, 0x6a3a1b, 1);
+        icon.lineBetween(0, -16, 0, 10);
+        icon.lineBetween(-10, 2, 0, 14);
+        icon.lineBetween(10, 2, 0, 14);
+        icon.lineBetween(-16, 18, 16, 18);
+
+        button.add([border, body, icon]);
+        button.setSize(size, size);
+        button.setInteractive({ useHandCursor: true });
+        button.on('pointerdown', () => {
+            this.sound.play('pop', { volume: 0.8 });
+            GameStorage.downloadProgressCertificate();
+        });
+        button.on('pointerover', () => button.setScale(1.05));
+        button.on('pointerout', () => button.setScale(1));
+        UIHelpers.attachHoverPop(this, button, 0.35);
+
+        const label = this.add.text(x - 120, y - 2, 'Descargar progreso', {
+            fontFamily: 'fredoka',
+            fontSize: '24px',
+            color: '#FCE1B4',
+        }).setOrigin(1, 0.5);
+
+        return { button, label };
     }
 }

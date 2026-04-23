@@ -61,8 +61,32 @@ export class StoryRunner {
         this.pendingSceneQuestion = null;
     }
 
+    getCharacterNameKey(name) {
+        return normalizeKeyword((name || '')).replace(/\s+/g, '');
+    }
+
+    resolveCharacterName(name) {
+        const raw = (name || '').trim();
+        if (!raw) return raw;
+        const key = this.getCharacterNameKey(raw);
+        const aliases = {
+            kai: 'Kai',
+            jouktai: 'Jouktai',
+            joktai: 'Jouktai',
+        };
+
+        for (const existingName of this.characters.keys()) {
+            if (this.getCharacterNameKey(existingName) === key) return existingName;
+        }
+        for (const existingName of this.characterState.keys()) {
+            if (this.getCharacterNameKey(existingName) === key) return existingName;
+        }
+        return aliases[key] || raw;
+    }
+
     // Inicializa UI persistente (botón de pausa).
     initUI() {
+        GameStorage.touchChapterSceneBySceneKey(this.scene?.scene?.key);
         this.createPauseButton();
         this.ensureMusic();
     }
@@ -116,6 +140,7 @@ export class StoryRunner {
 
     // Crea o reutiliza el sprite base de un personaje.
     ensureCharacter(name) {
+        name = this.resolveCharacterName(name);
         if (this.characters.has(name)) return this.characters.get(name);
         const textureKey = this.getCharacterTextureKey(name, {
             emotion: 'idle',
@@ -166,6 +191,7 @@ export class StoryRunner {
     }
 
     setCharacterState(name, partial) {
+        name = this.resolveCharacterName(name);
         this.ensureCharacter(name);
         const prev = this.characterState.get(name) ?? {
             emotion: 'idle',
@@ -187,6 +213,7 @@ export class StoryRunner {
 
     // Cambia la expresión base del personaje.
     setCharacterEmotion(name, emotion) {
+        name = this.resolveCharacterName(name);
         if (!emotion) return;
         if (this.scene.bgScrollActive && (this.scene.bgScrollWalkers || []).includes(name)) return;
         this.setCharacterState(name, { emotion });
@@ -339,17 +366,35 @@ export class StoryRunner {
 
     // Maneja acciones de personajes (entra, emoción, habla).
     async handleCharacter(tokens) {
-        const name = tokens[1];
+        const name = this.resolveCharacterName(tokens[1]);
         const normalizedTokens = tokens.map((token) => normalizeKeyword(token));
         const actionIndex = normalizedTokens.findIndex((token) => token === 'entra');
         const action = actionIndex >= 0 ? 'entra' : normalizeKeyword(tokens[2] ?? '');
 
         if (!name) return;
         const emotionIndex = normalizedTokens.findIndex((token) => token === 'emocion' || token === 'expresion');
+        const lookIndex = normalizedTokens.findIndex((token) => token === 'mira');
         const sayIndex = normalizedTokens.findIndex((token) => token === 'habla' || token === 'dice');
 
         if (emotionIndex >= 0) {
             this.setCharacterEmotion(name, tokens[emotionIndex + 1]);
+        }
+
+        if (lookIndex >= 0) {
+            const lookRaw = normalizeKeyword(tokens[lookIndex + 1] ?? '');
+            const isAutoLook = lookRaw === 'auto';
+            const facing = (lookRaw === 'lado' || lookRaw === 'mira_lado')
+                ? 'mira_lado'
+                : 'mira_jugador';
+            const state = this.characterState.get(name) ?? {};
+            this.setCharacterState(name, {
+                facing,
+                mouth: 1,
+                // Mantener el flip actual al cambiar mira manualmente.
+                // El mirror depende de por dónde entró o ajustes previos.
+                flipX: state.flipX ?? false,
+                manualFacing: !isAutoLook,
+            });
         }
 
         if (action === 'entra') {
@@ -370,6 +415,7 @@ export class StoryRunner {
 
     // Entrada lateral con flip según dirección.
     async characterEnter(name, direction) {
+        name = this.resolveCharacterName(name);
         const sprite = this.ensureCharacter(name);
         const startX = direction === 'derecha' ? 2300 : -300;
         const targetPos = this.getCharacterTargetPosition(name, direction);
@@ -407,6 +453,7 @@ export class StoryRunner {
 
     // Muestra un diálogo y espera click para continuar.
     async showDialog(speaker, text, options = {}) {
+        speaker = this.resolveCharacterName(speaker);
         const scene = this.scene;
         if (!this.dialogContainer) {
             const boxWidth = this.dialogMetrics.width;
@@ -465,12 +512,19 @@ export class StoryRunner {
             }
         }
 
-        const speakingFacing = this.getSpeakingFacing(speaker);
+        const speakerState = this.characterState.get(speaker) ?? {};
+        const useManualFacing = !!speakerState.manualFacing;
+        const speakingFacing = useManualFacing
+            ? (speakerState.facing || 'mira_jugador')
+            : this.getSpeakingFacing(speaker);
         const isWalkingWithGroup = this.scene.bgScrollActive && (this.scene.bgScrollWalkers || []).includes(speaker);
+        const speakerFlip = useManualFacing
+            ? !!speakerState.flipX
+            : (isWalkingWithGroup ? false : this.getSpeakerFlip(speaker, speakingFacing));
         this.setCharacterState(speaker, {
             facing: speakingFacing,
             mouth: 1,
-            flipX: isWalkingWithGroup ? false : this.getSpeakerFlip(speaker, speakingFacing),
+            flipX: speakerFlip,
         });
         this.dialogSpeaker.setText(speaker);
         this.dialogSpeaker.setColor(this.getSpeakerColor(speaker));
@@ -554,6 +608,9 @@ export class StoryRunner {
         if (id === 'encontrar_molino') {
             return this.handleLocateMillMinigame(id);
         }
+        if (id === 'soplar_molino') {
+            return this.handleBlowMillMinigame(id, resolvedOptions);
+        }
 
         const scene = this.scene;
         scene.input.enabled = true;
@@ -613,6 +670,262 @@ export class StoryRunner {
         await this.animateContainerOut(container);
         buttons.forEach(({ hitZone }) => hitZone.destroy());
         container.destroy();
+    }
+
+    // Minijuego: soplar al microfono para hacer girar las aspas.
+    async handleBlowMillMinigame(id, options) {
+        const scene = this.scene;
+        scene.input.enabled = true;
+        const prevTopOnly = scene.input.topOnly;
+        scene.input.setTopOnly(true);
+        const prevAutoSpinSpeed = typeof scene.molinoAutoSpinSpeed === 'number' ? scene.molinoAutoSpinSpeed : 0;
+        scene.molinoAutoSpinSpeed = 0;
+
+        let pauseWasInteractive = false;
+        if (this.pauseButton) {
+            pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
+            this.pauseButton.disableInteractive();
+            this.pauseButton.setVisible(false);
+        }
+
+        const root = scene.add.container(0, 0);
+        const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.58);
+        bg.setScrollFactor(0);
+        root.add(bg);
+
+        const ui = scene.add.container(960, 540);
+        ui.setScrollFactor(0);
+        root.add(ui);
+        root.setDepth(2050);
+
+        const panel = scene.add.graphics();
+        panel.fillStyle(0x000000, 0.7);
+        panel.fillRoundedRect(-530, -220, 1060, 460, 24);
+
+        const title = scene.add.text(0, -165, 'Sopla para girar el molino', {
+            fontFamily: 'fredoka',
+            fontSize: '42px',
+            color: '#fce1b4',
+        }).setOrigin(0.5);
+
+        const hint = scene.add.text(0, -98, 'Sopla hacia la pantalla. Entre mas fuerte, mas rapido gira.', {
+            fontFamily: 'fredoka',
+            fontSize: '28px',
+            color: '#ffffff',
+            align: 'center',
+            wordWrap: { width: 900 },
+        }).setOrigin(0.5);
+
+        const status = scene.add.text(0, 68, 'Esperando sonido...', {
+            fontFamily: 'fredoka',
+            fontSize: '24px',
+            color: '#d9e8ff',
+        }).setOrigin(0.5);
+
+        const progressBg = scene.add.rectangle(0, 130, 840, 30, 0xffffff, 0.18).setOrigin(0.5);
+        const progressFill = scene.add.rectangle(-420, 130, 832, 22, 0x4ea1ff, 1).setOrigin(0, 0.5);
+        progressFill.scaleX = 0;
+
+        const intensityBg = scene.add.rectangle(0, 178, 840, 22, 0xffffff, 0.15).setOrigin(0.5);
+        const intensityFill = scene.add.rectangle(-420, 178, 832, 16, 0x7be074, 1).setOrigin(0, 0.5);
+        intensityFill.scaleX = 0;
+
+        ui.add([panel, title, hint, status, progressBg, progressFill, intensityBg, intensityFill]);
+        await this.animateContainerIn(ui);
+
+        let resolveDone;
+        const donePromise = new Promise((resolve) => {
+            resolveDone = resolve;
+        });
+
+        let finished = false;
+        const cleanup = async () => {
+            if (finished) return;
+            finished = true;
+            if (this.pauseButton) {
+                this.pauseButton.setVisible(true);
+                if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
+            }
+            if (pointerUpHandler) {
+                scene.input.off('pointerup', pointerUpHandler);
+                pointerUpHandler = null;
+            }
+            if (pointerUpOutsideHandler) {
+                scene.input.off('pointerupoutside', pointerUpOutsideHandler);
+                pointerUpOutsideHandler = null;
+            }
+            scene.input.setTopOnly(prevTopOnly);
+            await this.animateContainerOut(ui);
+            root.destroy(true);
+            resolveDone();
+        };
+
+        let rafId = null;
+        let audioCtx = null;
+        let analyser = null;
+        let mediaStream = null;
+        let sourceNode = null;
+        let holdMode = false;
+        let holding = false;
+        let pointerUpHandler = null;
+        let pointerUpOutsideHandler = null;
+        const target = 100;
+        let progress = 0;
+        let smoothed = 0;
+        let noiseFloor = 0.01;
+        let lastTs = performance.now();
+        let currentAngularSpeed = 0.5;
+        const speedSamples = [];
+        const maxSpeedSamples = 14;
+
+        const complete = async () => {
+            const sampledSpeed = speedSamples.length
+                ? speedSamples.reduce((acc, value) => acc + value, 0) / speedSamples.length
+                : currentAngularSpeed;
+            const mediumSpeed = 2.4;
+            const targetAutoSpeed = Phaser.Math.Clamp((sampledSpeed + mediumSpeed) * 0.5, 1.2, 3.6);
+            if (scene.tweens && scene.molinoAspas) {
+                if (scene.molinoAutoSpinTween) {
+                    scene.molinoAutoSpinTween.stop();
+                    scene.molinoAutoSpinTween = null;
+                }
+                scene.molinoAutoSpinSpeed = sampledSpeed;
+                scene.molinoAutoSpinTween = scene.tweens.add({
+                    targets: scene,
+                    molinoAutoSpinSpeed: targetAutoSpeed,
+                    duration: 850,
+                    ease: 'Sine.inOut',
+                    onComplete: () => {
+                        scene.molinoAutoSpinTween = null;
+                    },
+                });
+            } else {
+                scene.molinoAutoSpinSpeed = targetAutoSpeed || prevAutoSpinSpeed;
+            }
+            this.minigames.set(id, options[0] ?? 'respuesta1');
+            if (scene.cache.audio?.exists('success-bell')) {
+                scene.sound.play('success-bell', { volume: 0.65 });
+            }
+            await cleanup();
+        };
+
+        const rotateMill = (strength, dtSec) => {
+            // strength 0..1 => velocidad angular base.
+            if (scene.molinoAspas) {
+                scene.molinoAspas.rotation += (0.5 + strength * 5.5) * dtSec;
+            }
+        };
+
+        const tick = () => {
+            const now = performance.now();
+            const dtSec = Math.min((now - lastTs) / 1000, 0.05);
+            lastTs = now;
+
+            let strength = 0;
+            if (holdMode) {
+                strength = holding ? 0.72 : 0;
+            } else if (analyser) {
+                const data = new Uint8Array(analyser.fftSize);
+                analyser.getByteTimeDomainData(data);
+                let sum = 0;
+                for (let i = 0; i < data.length; i += 1) {
+                    const v = (data[i] - 128) / 128;
+                    sum += v * v;
+                }
+                const rms = Math.sqrt(sum / data.length);
+                noiseFloor = noiseFloor * 0.98 + Math.min(rms, 0.04) * 0.02;
+                // Muy sensible para soplar hacia pantalla, con compresion para no saturar.
+                const normalized = Phaser.Math.Clamp((rms - noiseFloor) * 28, 0, 1);
+                smoothed = smoothed * 0.78 + normalized * 0.22;
+                strength = smoothed;
+            }
+
+            intensityFill.scaleX = Phaser.Math.Clamp(strength, 0, 1);
+            currentAngularSpeed = 0.5 + strength * 5.5;
+            if (strength > 0.06) {
+                speedSamples.push(currentAngularSpeed);
+                if (speedSamples.length > maxSpeedSamples) speedSamples.shift();
+            }
+            rotateMill(strength, dtSec);
+
+            if (strength > 0.06) {
+                progress += dtSec * (8 + strength * 42);
+                status.setText('Soplando... sigue asi');
+            } else if (holdMode) {
+                status.setText(holding ? 'Impulsando aspas...' : 'Manten presionado para soplar');
+            } else {
+                status.setText('Sopla hacia la pantalla');
+            }
+
+            progress = Phaser.Math.Clamp(progress, 0, target);
+            progressFill.scaleX = progress / target;
+
+            if (progress >= target) {
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = null;
+                complete();
+                return;
+            }
+            rafId = requestAnimationFrame(tick);
+        };
+
+        const enableHoldFallback = () => {
+            holdMode = true;
+            status.setText('Sin microfono: manten presionado para soplar');
+            const holdHint = scene.add.text(0, 24, 'Modo alterno activado', {
+                fontFamily: 'fredoka',
+                fontSize: '22px',
+                color: '#ffd58a',
+            }).setOrigin(0.5);
+            ui.add(holdHint);
+            bg.setInteractive();
+            bg.on('pointerdown', () => { holding = true; });
+            pointerUpHandler = () => { holding = false; };
+            pointerUpOutsideHandler = () => { holding = false; };
+            scene.input.on('pointerup', pointerUpHandler);
+            scene.input.on('pointerupoutside', pointerUpOutsideHandler);
+        };
+
+        try {
+            const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+            if (!navigator.mediaDevices?.getUserMedia || !AudioContextCtor) {
+                enableHoldFallback();
+            } else {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                    },
+                });
+                audioCtx = new AudioContextCtor();
+                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.18;
+                sourceNode.connect(analyser);
+                status.setText('Sopla para girar las aspas');
+            }
+        } catch (error) {
+            enableHoldFallback();
+        }
+
+        rafId = requestAnimationFrame(tick);
+        await donePromise;
+
+        if (rafId) cancelAnimationFrame(rafId);
+        if (sourceNode) {
+            try { sourceNode.disconnect(); } catch {}
+        }
+        if (analyser) {
+            try { analyser.disconnect(); } catch {}
+        }
+        if (audioCtx) {
+            try { await audioCtx.close(); } catch {}
+        }
+        if (mediaStream) {
+            mediaStream.getTracks().forEach((track) => track.stop());
+        }
     }
 
     // Minijuego: ubicar el molino en el mapa.
@@ -950,6 +1263,7 @@ export class StoryRunner {
                     cam.resetFX();
                     await this.showSceneQuestion(question);
                 }
+                GameStorage.transitionScene(this.scene?.scene?.key, target);
                 this.scene.scene.start(target);
                 resolve();
             });
@@ -1315,19 +1629,19 @@ export class StoryRunner {
         const scene = this.scene;
         scene.input.setTopOnly(true);
         const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.6);
-        const panel = scene.add.rectangle(960, 540, 860, 520, 0x1f1f1f, 0.95);
-        const title = scene.add.text(960, 390, 'Pausa', {
+        const panel = scene.add.rectangle(960, 540, 860, 640, 0x1f1f1f, 0.95);
+        const title = scene.add.text(960, 350, 'Pausa', {
             fontFamily: 'fredoka',
             fontSize: '48px',
             color: '#ffffff',
         }).setOrigin(0.5);
 
-        const langToggle = this.createLanguageToggle(960, 480, [
+        const langToggle = this.createLanguageToggle(960, 450, [
             { id: 'es', label: 'Español' },
             { id: 'wayuunaiki', label: 'Wayuu' },
         ], this.language);
 
-        const volumeSlider = this.createVolumeSelector(960, 600, 10, Math.round(this.musicVolume * 10), (level) => {
+        const volumeSlider = this.createVolumeSelector(960, 560, 10, Math.round(this.musicVolume * 10), (level) => {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
             }
@@ -1335,18 +1649,28 @@ export class StoryRunner {
             this.ignoreNextDialogClick = true;
         });
 
-        const restartBtn = this.createPauseActionButton(760, 690, 'Reiniciar capítulo', () => {
+        const restartBtn = this.createPauseActionButton(760, 650, 'Reiniciar capítulo', () => {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
+            }
+            this.resetWalkingSound();
+            const chapterInfo = this.getCurrentChapterInfo();
+            if (chapterInfo) {
+                GameStorage.commitChapterSession(chapterInfo.chapter);
             }
             this.resume();
             this.ignoreNextDialogClick = true;
             scene.scene.restart();
         });
 
-        const menuBtn = this.createPauseActionButton(1160, 690, 'Volver a capítulos', () => {
+        const menuBtn = this.createPauseActionButton(1160, 650, 'Volver a capítulos', () => {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
+            }
+            this.resetWalkingSound();
+            const chapterInfo = this.getCurrentChapterInfo();
+            if (chapterInfo) {
+                GameStorage.commitChapterSession(chapterInfo.chapter);
             }
             this.resume();
             this.ignoreNextDialogClick = true;
@@ -1356,35 +1680,25 @@ export class StoryRunner {
             });
         });
 
-        const prevSceneBtn = this.createPauseActionButton(760, 760, 'Escena anterior', () => {
-            const target = this.getAdjacentChapterScene(-1);
+        const pagination = this.createScenePagination(960, 760, (target) => {
             if (!target) return;
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
             }
+            this.resetWalkingSound();
+            GameStorage.jumpToScene(this.scene?.scene?.key, target);
             this.resume();
             this.ignoreNextDialogClick = true;
             scene.scene.start(target);
         });
 
-        const nextSceneBtn = this.createPauseActionButton(1160, 760, 'Siguiente escena', () => {
-            const target = this.getAdjacentChapterScene(1);
-            if (!target) return;
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            this.resume();
-            this.ignoreNextDialogClick = true;
-            scene.scene.start(target);
-        });
-
-        const hint = scene.add.text(960, 835, 'Toca fuera o presiona pausar para continuar', {
+        const hint = scene.add.text(960, 865, 'Toca fuera o presiona pausar para continuar', {
             fontFamily: 'fredoka',
             fontSize: '20px',
             color: '#cccccc',
         }).setOrigin(0.5);
 
-        [bg, panel, title, langToggle.container, volumeSlider.container, restartBtn.container, menuBtn.container, prevSceneBtn.container, nextSceneBtn.container, hint].forEach((item, index) => {
+        [bg, panel, title, langToggle.container, volumeSlider.container, restartBtn.container, menuBtn.container, pagination.container, hint].forEach((item, index) => {
             item.setScrollFactor(0);
             item.setDepth(1100 + index);
         });
@@ -1412,7 +1726,7 @@ export class StoryRunner {
             panel,
             title,
             hint,
-            buttons: [langToggle, volumeSlider, restartBtn, menuBtn, prevSceneBtn, nextSceneBtn],
+            buttons: [langToggle, volumeSlider, restartBtn, menuBtn, pagination],
         };
     }
 
@@ -1548,6 +1862,98 @@ export class StoryRunner {
         return chapterKeys[nextIndex];
     }
 
+    getCurrentChapterInfo() {
+        return GameStorage.parseChapterSceneKey(this.scene?.scene?.key);
+    }
+
+    createScenePagination(x, y, onSelect) {
+        const scene = this.scene;
+        const container = scene.add.container(x, y);
+        const hitZones = [];
+        const info = this.getCurrentChapterInfo();
+
+        if (!info) {
+            const fallback = scene.add.text(0, 0, 'Escenas no disponibles', {
+                fontFamily: 'fredoka',
+                fontSize: '24px',
+                color: '#b5b5b5',
+            }).setOrigin(0.5);
+            container.add(fallback);
+            return {
+                container,
+                destroy: () => {
+                    hitZones.forEach((zone) => zone.destroy());
+                    container.destroy();
+                },
+            };
+        }
+
+        const chapter = info.chapter;
+        const currentScene = info.scene;
+        const summary = GameStorage.getChapterProgressSummary(chapter);
+        const chapterProgress = GameStorage.getChapterProgress(chapter);
+        const reached = new Set([
+            ...chapterProgress.reachedScenes,
+            ...chapterProgress.completedScenes,
+        ]);
+        const maxReached = Math.max(...Array.from(reached.values()), currentScene);
+        const totalScenes = Math.max(1, summary.totalScenes || currentScene);
+        const spacing = 84;
+        const startX = -((totalScenes - 1) * spacing) / 2;
+
+        for (let index = 1; index <= totalScenes; index += 1) {
+            const isCurrent = index === currentScene;
+            const isReached = summary.isCompleted || reached.has(index) || index <= maxReached;
+            const box = scene.add.graphics();
+            const size = 56;
+            const radius = 10;
+            const bgColor = isCurrent ? 0xf0c18a : (isReached ? 0x6a3a1b : 0x3a3a3a);
+            const textColor = isCurrent ? '#6a3a1b' : (isReached ? '#fce1b4' : '#8b8b8b');
+            box.fillStyle(bgColor, isReached ? 1 : 0.75);
+            box.fillRoundedRect(-size / 2, -size / 2, size, size, radius);
+            box.lineStyle(2, isCurrent ? 0x8b4c1d : 0xfce1b4, isReached ? 0.7 : 0.2);
+            box.strokeRoundedRect(-size / 2, -size / 2, size, size, radius);
+
+            const label = scene.add.text(0, 1, String(index), {
+                fontFamily: 'fredoka',
+                fontSize: '28px',
+                color: textColor,
+                fontStyle: 'bold',
+            }).setOrigin(0.5);
+
+            const item = scene.add.container(startX + (index - 1) * spacing, 0, [box, label]);
+            item.setSize(size, size);
+            container.add(item);
+
+            if (isReached && !isCurrent) {
+                const worldX = x + item.x;
+                const worldY = y + item.y;
+                const hit = scene.add.zone(worldX, worldY, size, size).setOrigin(0.5);
+                hit.setInteractive({ useHandCursor: true });
+                hit.setScrollFactor(0);
+                hit.setDepth(1305);
+                hit.on('pointerdown', (pointer) => {
+                    if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
+                    onSelect?.(`Chp${chapter}_scn${index}`);
+                });
+                hit.on('pointerover', () => item.setScale(1.08));
+                hit.on('pointerout', () => item.setScale(1));
+                UIHelpers.attachHoverPop(scene, hit, 0.35);
+                hitZones.push(hit);
+            } else if (!isReached) {
+                item.setAlpha(0.65);
+            }
+        }
+
+        return {
+            container,
+            destroy: () => {
+                hitZones.forEach((zone) => zone.destroy());
+                container.destroy();
+            },
+        };
+    }
+
     handleBgScroll(tokens) {
         const action = normalizeKeyword(tokens[1] ?? 'start');
         const name = tokens[2];
@@ -1569,7 +1975,7 @@ export class StoryRunner {
         scene.bgScrollDirection = direction === 'izquierda' ? 1 : -1;
         scene.bgScrollSpeed = speed;
         const walkers = name
-            ? name.split(',').map((token) => token.trim()).filter(Boolean)
+            ? name.split(',').map((token) => this.resolveCharacterName(token)).filter(Boolean)
             : (scene.bgScrollWalkers || []);
         scene.bgScrollWalkers = walkers;
 
@@ -1614,7 +2020,7 @@ export class StoryRunner {
         const scene = this.scene;
         scene.bgScrollActive = false;
         const walkers = name
-            ? name.split(',').map((token) => token.trim()).filter(Boolean)
+            ? name.split(',').map((token) => this.resolveCharacterName(token)).filter(Boolean)
             : (scene.bgScrollWalkers || []);
         walkers.forEach((walkerName) => {
             this.stopWalkBob(walkerName);
@@ -1834,7 +2240,7 @@ export class StoryRunner {
 
     // Caminar con scroll horizontal y parallax.
     async handleWalk(tokens) {
-        const name = tokens[1];
+        const name = this.resolveCharacterName(tokens[1]);
         const direction = normalizeKeyword(tokens[2] ?? 'derecha');
         const distance = Number(tokens[3] ?? 900);
         const duration = Number(tokens[4] ?? 5000);
@@ -1893,7 +2299,7 @@ export class StoryRunner {
 
         let x = Number(opts.x);
         let y = Number(opts.y);
-        const followName = opts.follow || opts.personaje || opts.char;
+        const followName = this.resolveCharacterName(opts.follow || opts.personaje || opts.char);
 
         let forceUi = isUi;
         if (Number.isNaN(x) || Number.isNaN(y)) {

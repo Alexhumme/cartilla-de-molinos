@@ -28,6 +28,7 @@ export class Chp1_scn3 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
+        this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
         // Ilustraciones de apoyo (pop).
         this.load.image('item-sol-caliente', 'assets/items/sopa-caliente.png');
         this.load.image('item-no-agua', 'assets/items/no-agua.png');
@@ -36,6 +37,9 @@ export class Chp1_scn3 extends Phaser.Scene {
         this.load.image('item-molino-danado', 'assets/items/molinoDanado.png');
         this.load.image('item-tuberia', 'assets/items/tuberia.png');
         this.load.image('item-gota-vida', 'assets/items/gota-vida.png');
+        // Minijuego ubicar molino (la escena debe ser autosuficiente al recargar).
+        this.load.image('mapa-molino', 'assets/juegos/ubicarMolino/mapa.png');
+        this.load.image('mini-molino', 'assets/juegos/ubicarMolino/minimolino.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
