@@ -1045,7 +1045,7 @@ export class StoryRunner {
         return donePromise;
     }
 
-    // Minijuego: girar la manija del grifo 3 vueltas siguiendo la flecha.
+    // Minijuego: girar la palanca del grifo 90 grados.
     async handleFaucetMinigame(id, options) {
         const scene = this.scene;
         scene.input.enabled = true;
@@ -1068,15 +1068,21 @@ export class StoryRunner {
         ui.setScrollFactor(0);
         root.add(ui);
 
-        const base = scene.add.image(0, 0, 'grifo-cano').setOrigin(0.5);
-        const handle = scene.add.image(0, 0, 'grifo-manija').setOrigin(0.5);
+        const base = scene.add.image(0, 50, 'grifo-cano').setOrigin(0.5);
+        const handleTexture = scene.textures.get('grifo-manija')?.getSourceImage();
+        const handleWidth = handleTexture?.width ?? 202;
+        const handleHeight = handleTexture?.height ?? 202;
+        // Nuevo eje de giro de la palanca.
+        const pivotX = 101;
+        const pivotY = 101;
+        const handle = scene.add.image(0, 0, 'grifo-manija')
+            .setOrigin(pivotX / handleWidth, pivotY / handleHeight);
         handle.setDepth(2);
 
-        const handleTexture = scene.textures.get('grifo-manija')?.getSourceImage();
-        const handleSize = handleTexture ? Math.min(handleTexture.width, handleTexture.height) : 400;
-        const radius = handleSize * 0.36;
-        const startAngle = -Math.PI / 4;
-        const endAngle = Math.PI * 0.85;
+        const handleSize = Math.min(handleWidth, handleHeight);
+        const radius = handleWidth * 0.5;
+        const startAngle = 0;
+        const endAngle = startAngle + Math.PI / 2 ;
 
         const indicator = scene.add.graphics();
         indicator.setDepth(3);
@@ -1087,6 +1093,7 @@ export class StoryRunner {
             indicator.fillStyle(0x4ea1ff, 1);
             indicator.fillCircle(x, y, 6);
         }
+
         const arrowX = Math.cos(endAngle) * radius;
         const arrowY = Math.sin(endAngle) * radius;
         const tangent = endAngle + Math.PI / 2;
@@ -1109,20 +1116,7 @@ export class StoryRunner {
             right.y
         );
 
-        const knob = scene.add.circle(0, 0, 36, 0xffffff, 1);
-        knob.setStrokeStyle(6, 0x4ea1ff, 1);
-        knob.setDepth(1005);
-        knob.setScrollFactor(0);
-        knob.setInteractive({ useHandCursor: true });
-        UIHelpers.attachHoverPop(scene, knob, 0.35);
-
-        const setKnobAngle = (angle) => {
-            knob.x = Math.cos(angle) * radius;
-            knob.y = Math.sin(angle) * radius;
-        };
-        setKnobAngle(startAngle);
-
-        const progressLabel = scene.add.text(0, 320, 'Gira la manija 3 veces', {
+        const progressLabel = scene.add.text(0, 320, 'Arrastra la palanca 90° para abrir', {
             fontFamily: 'fredoka',
             fontSize: '28px',
             color: '#ffffff',
@@ -1132,7 +1126,7 @@ export class StoryRunner {
         const progressFill = scene.add.rectangle(-310, 370, 600, 16, 0x4ea1ff, 1).setOrigin(0, 0.5);
         progressFill.scaleX = 0;
 
-        ui.add([base, handle, indicator, knob, progressLabel, progressBg, progressFill]);
+        ui.add([base, handle, indicator, progressLabel, progressBg, progressFill]);
         ui.setDepth(950);
         ui.setScrollFactor(0);
         root.setDepth(940);
@@ -1140,9 +1134,10 @@ export class StoryRunner {
         await this.animateContainerIn(ui);
 
         let lastAngle = startAngle;
-        let accumulated = 0;
+        let openedRotation = 0;
+        let openSign = 0;
         let finished = false;
-        const target = Math.PI * 2 * 3;
+        const target = Math.PI / 2;
         const squeak = scene.sound.add('metal-squeak', { volume: 0.5, loop: true });
         const success = scene.sound.add('success-bell', { volume: 0.7 });
 
@@ -1171,20 +1166,22 @@ export class StoryRunner {
         };
 
         const onDragStart = (pointer) => {
-            lastAngle = Phaser.Math.Angle.Between(0, 0, pointer.x - ui.x, pointer.y - ui.y);
+            lastAngle = Phaser.Math.Angle.Between(ui.x, ui.y, pointer.x, pointer.y);
         };
 
         const onDrag = (pointer) => {
-            const angle = Phaser.Math.Angle.Between(0, 0, pointer.x - ui.x, pointer.y - ui.y);
+            const angle = Phaser.Math.Angle.Between(ui.x, ui.y, pointer.x, pointer.y);
             const delta = Phaser.Math.Angle.Wrap(angle - lastAngle);
-
-            if (delta > 0) {
-                accumulated += delta;
-                handle.rotation += delta;
-                setKnobAngle(startAngle + handle.rotation);
-                const progress = Phaser.Math.Clamp(accumulated / target, 0, 1);
+            if (Math.abs(delta) > 0.002) {
+                if (openSign === 0) {
+                    openSign = delta >= 0 ? 1 : -1;
+                }
+                const signedDelta = delta * openSign;
+                openedRotation = Phaser.Math.Clamp(openedRotation + signedDelta, 0, target);
+                handle.rotation = openedRotation * openSign;
+                const progress = Phaser.Math.Clamp(openedRotation / target, 0, 1);
                 progressFill.scaleX = progress;
-                if (accumulated >= target) {
+                if (openedRotation >= target) {
                     complete();
                 }
             }
@@ -1193,11 +1190,11 @@ export class StoryRunner {
         };
 
         let dragging = false;
-        const hitRadius = 70;
+        const hitRadius = Math.max(72, handleWidth * 0.5);
 
         const pointerDownHandler = (pointer) => {
-            const worldX = ui.x + knob.x;
-            const worldY = ui.y + knob.y;
+            const worldX = ui.x;
+            const worldY = ui.y;
             const dx = pointer.x - worldX;
             const dy = pointer.y - worldY;
             if (Math.hypot(dx, dy) > hitRadius) return;
