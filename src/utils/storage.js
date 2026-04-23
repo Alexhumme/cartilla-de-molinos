@@ -443,38 +443,98 @@ export const GameStorage = {
         const save = this.ensureGameSave();
         const playerName = save.name || this.getName() || 'Jugador';
         const date = new Date();
-        const lines = [];
-        lines.push('CERTIFICADO DE PROGRESO - MIIRUKU');
-        lines.push('');
-        lines.push(`Jugador: ${playerName}`);
-        lines.push(`Fecha: ${date.toLocaleDateString()}`);
-        lines.push('');
+        const canvas = document.createElement('canvas');
+        canvas.width = 1600;
+        canvas.height = 1000;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
+        const drawRoundedRect = (x, y, w, h, r, color) => {
+            const radius = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.arcTo(x + w, y, x + w, y + h, radius);
+            ctx.arcTo(x + w, y + h, x, y + h, radius);
+            ctx.arcTo(x, y + h, x, y, radius);
+            ctx.arcTo(x, y, x + w, y, radius);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        };
+
+        const drawCircle = (x, y, radius, color) => {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        };
+
+        // Fondo naranja con formas.
+        ctx.fillStyle = '#f68943';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawCircle(1480, 50, 260, '#ff9f61');
+        drawCircle(80, 940, 260, '#ff7f32');
+        drawCircle(1450, 900, 220, '#ff7f32');
+
+        // Tarjeta principal estilo certificado.
+        drawRoundedRect(120, 110, 1360, 780, 26, '#f4f4f4');
+        drawCircle(280, 110, 60, '#f68943');
+        drawCircle(1460, 110, 120, '#82d9e8');
+        drawCircle(1160, 110, 90, '#6b31ca');
+        drawCircle(260, 840, 160, '#f2dc55');
+        drawCircle(1360, 860, 150, '#ff4fa1');
+
+        // Título.
+        ctx.fillStyle = '#2a2a7c';
+        ctx.font = '700 52px fredoka, Arial, sans-serif';
+        ctx.fillText('CERTIFICADO DE PROGRESO', 220, 250);
+        ctx.fillStyle = '#6b31ca';
+        ctx.font = '700 92px fredoka, Arial, sans-serif';
+        ctx.fillText(playerName, 650, 340);
+        ctx.strokeStyle = '#efb27c';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(650, 360);
+        ctx.lineTo(1280, 360);
+        ctx.stroke();
+
+        // Subtítulos.
+        ctx.fillStyle = '#4e4e4e';
+        ctx.font = '500 34px fredoka, Arial, sans-serif';
+        ctx.fillText(`Fecha: ${date.toLocaleDateString()}`, 220, 320);
+        ctx.fillText('Miiruku - Cuidado del agua y del molino', 220, 370);
+
+        // Bloque de progreso.
+        let y = 450;
         Object.keys(CHAPTER_SCENE_COUNT).forEach((chapterKey) => {
             const chapter = Number(chapterKey);
             const summary = this.getChapterProgressSummary(chapter);
-            lines.push(`Capitulo ${chapter}`);
-            lines.push(`- Escenas completadas: ${summary.completedScenes}/${summary.totalScenes}`);
-            if (summary.isCompleted && Number.isFinite(summary.bestCompletionMs)) {
-                lines.push(`- Mejor tiempo de finalizacion: ${this.formatDuration(summary.bestCompletionMs)}`);
-            } else {
-                lines.push(`- Tiempo jugado actual: ${this.formatDuration(summary.playTimeMs)}`);
-            }
-            lines.push('');
+            const timing = summary.isCompleted && Number.isFinite(summary.bestCompletionMs)
+                ? `Mejor tiempo: ${this.formatDuration(summary.bestCompletionMs)}`
+                : `Tiempo jugado: ${this.formatDuration(summary.playTimeMs)}`;
+            ctx.fillStyle = '#2a2a7c';
+            ctx.font = '700 38px fredoka, Arial, sans-serif';
+            ctx.fillText(`Capitulo ${chapter}`, 220, y);
+            ctx.fillStyle = '#4e4e4e';
+            ctx.font = '500 31px fredoka, Arial, sans-serif';
+            ctx.fillText(`Escenas: ${summary.completedScenes}/${summary.totalScenes}`, 460, y);
+            ctx.fillText(timing, 840, y);
+            y += 78;
         });
 
-        lines.push('Sigue aprendiendo sobre el cuidado del agua.');
-        const content = lines.join('\n');
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        ctx.fillStyle = '#6b31ca';
+        ctx.font = '600 34px fredoka, Arial, sans-serif';
+        ctx.fillText('Gracias por aprender y cuidar el agua en comunidad.', 220, 790);
+
+        const url = canvas.toDataURL('image/png');
         const anchor = document.createElement('a');
         const safeName = String(playerName).replace(/[^a-zA-Z0-9_-]/g, '_');
         anchor.href = url;
-        anchor.download = `certificado_progreso_${safeName}.txt`;
+        anchor.download = `certificado_progreso_${safeName}.png`;
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
-        URL.revokeObjectURL(url);
     },
 
     getMusicEnabled() {
