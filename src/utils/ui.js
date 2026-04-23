@@ -36,8 +36,8 @@ const UI_STRINGS = {
 export const UIHelpers = {
     setGameCursor(scene) {
         if (!scene?.input) return;
-        scene.__defaultCursor = 'url(assets/cursor-arrow.png), pointer';
-        scene.__hoverCursor = 'url(assets/cursor-pointer.png), pointer';
+        scene.__defaultCursor = 'url(assets/ui/cursor-arrow.png), pointer';
+        scene.__hoverCursor = 'url(assets/ui/cursor-pointer.png), pointer';
         scene.input.setDefaultCursor(scene.__defaultCursor);
     },
 

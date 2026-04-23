@@ -30,7 +30,7 @@ export class Chp1_scn1 extends Phaser.Scene {
         this.load.image('sun1', 'assets/desert/sol1.png');
         this.load.image('sun2', 'assets/desert/sol2.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
-        this.load.image('pause-icon', 'assets/settings.png');
+        this.load.image('pause-icon', 'assets/ui/settings.png');
         // Minijuego: girar grifo.
         this.load.image('grifo-cano', 'assets/juegos/girar_grifo/caño.png');
         this.load.image('grifo-manija', 'assets/juegos/girar_grifo/manija.png');
@@ -38,8 +38,8 @@ export class Chp1_scn1 extends Phaser.Scene {
         this.load.audio('metal-squeak', 'assets/juegos/girar_grifo/metal-squeak.mp3');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
         // Objetos escena 1.
-        this.load.image('mucura', 'assets/mucura.png');
-        this.load.image('fuente', 'assets/fuente.png');
+        this.load.image('mucura', 'assets/items/mucura.png');
+        this.load.image('fuente', 'assets/items/fuente.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
