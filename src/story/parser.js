@@ -7,6 +7,14 @@ const normalize = (value) =>
         .replace(/\p{Diacritic}/gu, '')
         .replace(/\s+/g, ' ');
 
+const canonicalCharacterName = (name) => {
+    const raw = (name || '').trim();
+    const key = normalize(raw).replace(/\s+/g, '');
+    if (key === 'kai') return 'Kai';
+    if (key === 'jouktai' || key === 'joktai') return 'Jouktai';
+    return raw;
+};
+
 // Extrae tokens en formato [ ... ] de una línea.
 const extractTokens = (line) => {
     const matches = [...line.matchAll(/\[([^\]]*)\]/g)];
@@ -79,7 +87,7 @@ export const collectCharacterAssets = (text) => {
         const keyword = normalize(tokens[0]);
         if (keyword !== 'personaje' && keyword !== 'char') continue;
 
-        const name = tokens[1];
+        const name = canonicalCharacterName(tokens[1]);
         if (!name) continue;
 
         const emotions = characters.get(name) ?? new Set();

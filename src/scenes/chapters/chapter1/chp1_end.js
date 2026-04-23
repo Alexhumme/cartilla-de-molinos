@@ -9,6 +9,7 @@ export class Chp1_end extends Phaser.Scene {
     preload() {
         // UI y fondos estilo pantalla de inicio.
         this.load.audio('pop', 'assets/sounds/pop.mp3');
+        this.load.audio('chapter-completed', 'assets/sounds/chapter-completed.mp3');
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
@@ -74,10 +75,12 @@ export class Chp1_end extends Phaser.Scene {
 
     create() {
         UIHelpers.setGameCursor(this);
-        GameStorage.completeChapter(1);
+        GameStorage.commitChapterSession(1);
         // Transición de entrada.
         this.cameras.main.fadeIn(600, 0, 0, 0);
         this.popSound = this.sound.add('pop', { volume: 0.5 });
+        this.chapterCompletedSound = this.sound.add('chapter-completed', { volume: 0.75 });
+        this.chapterCompletedSound.play();
 
         // Fondo con engranes en movimiento.
         this.add.image(960, 540, 'gradient');

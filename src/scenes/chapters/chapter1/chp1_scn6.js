@@ -3,9 +3,9 @@ import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
 
-export class Chp1_scn5 extends Phaser.Scene {
+export class Chp1_scn6 extends Phaser.Scene {
     constructor() {
-        super('Chp1_scn5');
+        super('Chp1_scn6');
     }
 
     preload() {
@@ -95,7 +95,7 @@ export class Chp1_scn5 extends Phaser.Scene {
 
         this.time.delayedCall(0, async () => {
             this.placeMill();
-            await this.storyRunner.run('Llegada');
+            await this.storyRunner.run('Despedida');
         });
     }
 
@@ -142,9 +142,6 @@ export class Chp1_scn5 extends Phaser.Scene {
         const speed = 0.0001 * delta;
         if (this.sun1) this.sun1.rotation += speed;
         if (this.sun2) this.sun2.rotation -= speed * 0.6;
-        if (this.molinoAspas && (this.molinoAutoSpinSpeed ?? 0) > 0) {
-            this.molinoAspas.rotation += this.molinoAutoSpinSpeed * (delta / 1000);
-        }
 
         if (this.bgScrollActive && this.bgLayers) {
             const step = (this.bgScrollSpeed * delta) / 1000;
