@@ -2214,12 +2214,6 @@ export class StoryRunner {
 
         items.forEach((item, index) => {
             const y = startY + index * (itemHeight + itemGap);
-            const bg = scene.add.graphics();
-            bg.fillStyle(0x1f1f1f, 0.9);
-            bg.fillRoundedRect(startX, y - itemHeight / 2, contentWidth, itemHeight, 14);
-            bg.lineStyle(2, 0xffffff, 0.25);
-            bg.strokeRoundedRect(startX, y - itemHeight / 2, contentWidth, itemHeight, 14);
-
             const text = scene.add.text(startX + paddingX, y, `• ${item}`, {
                 fontFamily: 'fredoka',
                 fontSize: '24px',
@@ -2228,9 +2222,8 @@ export class StoryRunner {
                 wordWrap: { width: contentWidth - paddingX * 2 }
             }).setOrigin(0, 0.5);
 
-            this.dialogContainer.add(bg);
             this.dialogContainer.add(text);
-            this.dialogTextItems.push(bg, text);
+            this.dialogTextItems.push(text);
         });
     }
 
