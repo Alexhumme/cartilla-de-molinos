@@ -17,7 +17,7 @@ export class Chp1_scn6 extends Phaser.Scene {
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
-
+ 
         // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
         this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');

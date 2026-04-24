@@ -31,7 +31,7 @@ export class Chp1_scn5 extends Phaser.Scene {
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
 
         // Molino y aspas.
-        this.load.image('molino-base', 'assets/juegos/molino/molino_sin_aspas.png');
+        this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
@@ -105,7 +105,7 @@ export class Chp1_scn5 extends Phaser.Scene {
         const baseHeight = baseTexture?.height ?? 900;
         const baseScale = 1;
         const cam = this.cameras.main;
-        const baseX = 1200;
+        const baseX = 800;
         const baseBottom = cam.scrollY + this.scale.height - 60;
         const baseY = baseBottom - baseHeight * baseScale;
 
@@ -114,15 +114,15 @@ export class Chp1_scn5 extends Phaser.Scene {
 
         const shadowWidth = baseWidth * baseScale * 0.6;
         const shadowHeight = 46;
-        const shadowOffsetX = -157;
+        const shadowOffsetX = -127;
         const shadowX = baseX + baseWidth * baseScale * 0.5 + shadowOffsetX;
         const shadowY = baseY + baseHeight * baseScale - 20;
         const shadow = this.add.ellipse(shadowX, shadowY, shadowWidth, shadowHeight, 0xF3CE9E, 0.8);
         shadow.setDepth(110);
         shadow.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-        const aspasX = baseX + 370;
-        const aspasY = baseY + 370;
+        const aspasX = baseX + 705;
+        const aspasY = baseY + 175;
         const aspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5);
         aspas.setDepth(130);
 
@@ -135,7 +135,7 @@ export class Chp1_scn5 extends Phaser.Scene {
         const target = (cam.scrollY + this.scale.height / 2) - this.molinoAspas.y;
         return Math.max(0, Math.round(target));
     }
-
+ 
     update(time, delta) {
         // Detiene animaciones si está en pausa.
         if (this.storyRunner?.isPaused) return;
