@@ -1,0 +1,8 @@
+# Capitulo 2
+
+[escena][Inicio]
+[plano][sol_hacia_abajo]
+[personaje][Jouktai][entra][izquierda]
+[personaje][Jouktai][habla][es:Hola! Hoy fui a buscar agua una vez mas, pero como puedes ver, no sale agua]
+[personaje][Jouktai][emocion][duda][habla][es:Vine a ver si hay algo mal con el molino]
+[personaje][Jouktai][habla][es:Me ayudas a revisarlo?]
