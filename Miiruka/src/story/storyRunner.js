@@ -59,10 +59,20 @@ export class StoryRunner {
         this.musicVolume = GameStorage.getMusicVolume();
         this.dialogMetrics = { width: 1840, height: 170 };
         this.pendingSceneQuestion = null;
+        this.recuadroPanel = null;
+        this.recuadroContent = null;
+        this.recuadroItems = [];
+        this.recuadroShiftState = null;
 
         // Blindaje: si la escena se cierra abruptamente, no dejamos pasos sonando.
-        this.scene.events.once('shutdown', () => this.forceStopAllWalkSounds());
-        this.scene.events.once('destroy', () => this.forceStopAllWalkSounds());
+        this.scene.events.once('shutdown', () => {
+            this.forceStopAllWalkSounds();
+            this.destroyRecuadroInstant();
+        });
+        this.scene.events.once('destroy', () => {
+            this.forceStopAllWalkSounds();
+            this.destroyRecuadroInstant();
+        });
     }
 
     getCharacterNameKey(name) {
@@ -77,6 +87,7 @@ export class StoryRunner {
             kai: 'Kai',
             jouktai: 'Jouktai',
             joktai: 'Jouktai',
+            kamanewaa: 'Kamanewaa',
         };
 
         for (const existingName of this.characters.keys()) {
@@ -121,6 +132,7 @@ export class StoryRunner {
         if (keyword === 'personaje' || keyword === 'char') return this.handleCharacter(tokens);
         if (keyword === 'caminar' || keyword === 'walk') return this.handleWalk(tokens);
         if (keyword === 'bgscroll') return this.handleBgScroll(tokens);
+        if (keyword === 'recuadro') return this.handleRecuadro(tokens);
         if (keyword === 'imagen' || keyword === 'image') return this.handleImage(tokens);
         if (keyword === 'mostrar') return this.handleShow(tokens);
         if (keyword === 'pregunta' || keyword === 'quiz' || keyword === 'pregunta_escena' || keyword === 'pregunta_final') {
@@ -2404,6 +2416,343 @@ export class StoryRunner {
         this.stopWalkBob(name);
         this.setCharacterState(name, { emotion: 'idle', mouth: 1 });
         this.stopWalkingSound();
+    }
+
+    getCharacterScreenX(sprite) {
+        const cam = this.scene.cameras.main;
+        if (!sprite) return this.scene.scale.width / 2;
+        if (sprite.scrollFactorX === 0) return sprite.x;
+        return sprite.x - cam.scrollX;
+    }
+
+    getRecuadroSide() {
+        const visible = [];
+        this.characters.forEach((sprite) => {
+            if (!sprite || sprite.visible === false || sprite.alpha <= 0.05) return;
+            visible.push(sprite);
+        });
+        if (visible.length >= 2) return 'center';
+        if (visible.length === 1) {
+            const screenX = this.getCharacterScreenX(visible[0]);
+            const centerX = this.scene.scale.width / 2;
+            return screenX < centerX ? 'right' : 'left';
+        }
+        return 'center';
+    }
+
+    getRecuadroGeometry() {
+        const sw = this.scene.scale.width || 1920;
+        const sh = this.scene.scale.height || 1080;
+        const width = Math.round(sw * 0.5);
+        const height = Math.max(260, sh - 100);
+        const side = this.getRecuadroSide();
+        const x = side === 'left'
+            ? width / 2
+            : side === 'right'
+                ? sw - width / 2
+                : sw / 2;
+        const y = sh / 2;
+        return { x, y, width, height };
+    }
+
+    async openRecuadro() {
+        const scene = this.scene;
+        const g = this.getRecuadroGeometry();
+        if (this.recuadroPanel) {
+            await this.applyRecuadroCharacterSpread();
+            await this.moveRecuadroToCurrentSide();
+            return;
+        }
+
+        const root = scene.add.container(g.x, g.y);
+        root.setScrollFactor(0);
+        root.setDepth(760);
+        root.setAlpha(0);
+        root.setScale(0.84);
+
+        const frame = scene.add.graphics();
+        frame.fillStyle(0xf2e2c2, 0.97);
+        frame.fillRoundedRect(-g.width / 2, -g.height / 2, g.width, g.height, 24);
+        frame.lineStyle(6, 0x6f3515, 1);
+        frame.strokeRoundedRect(-g.width / 2, -g.height / 2, g.width, g.height, 24);
+
+        const content = scene.add.container(0, 0);
+        root.add([frame, content]);
+
+        this.recuadroPanel = root;
+        this.recuadroContent = content;
+        this.recuadroItems = [];
+        await this.applyRecuadroCharacterSpread();
+
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: root,
+                alpha: 1,
+                scale: 1.03,
+                duration: 240,
+                ease: 'Back.out',
+                onComplete: () => {
+                    scene.tweens.add({
+                        targets: root,
+                        scale: 1,
+                        duration: 130,
+                        ease: 'Sine.out',
+                        onComplete: resolve,
+                    });
+                },
+            });
+        });
+    }
+
+    async moveRecuadroToCurrentSide() {
+        if (!this.recuadroPanel) return;
+        const scene = this.scene;
+        const g = this.getRecuadroGeometry();
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: this.recuadroPanel,
+                x: g.x,
+                y: g.y,
+                duration: 260,
+                ease: 'Sine.inOut',
+                onComplete: resolve,
+            });
+        });
+    }
+
+    getRecuadroSlots(count) {
+        const slotsByCount = {
+            1: [{ x: 0.5, y: 0.5 }],
+            2: [{ x: 0.3, y: 0.34 }, { x: 0.7, y: 0.66 }],
+            3: [{ x: 0.5, y: 0.26 }, { x: 0.28, y: 0.7 }, { x: 0.72, y: 0.7 }],
+            4: [{ x: 0.3, y: 0.32 }, { x: 0.7, y: 0.32 }, { x: 0.3, y: 0.7 }, { x: 0.7, y: 0.7 }],
+        };
+        if (slotsByCount[count]) return slotsByCount[count];
+
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        const slots = [];
+        for (let i = 0; i < count; i += 1) {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            slots.push({
+                x: (col + 0.5) / cols,
+                y: (row + 0.5) / rows,
+            });
+        }
+        return slots;
+    }
+
+    getRecuadroScaleFactor(count) {
+        if (count <= 1) return 0.9;
+        if (count === 2) return 0.52;
+        if (count === 3) return 0.42;
+        if (count === 4) return 0.36;
+        if (count <= 6) return 0.3;
+        return 0.24;
+    }
+
+    async clearRecuadroContent() {
+        if (!this.recuadroItems.length) return;
+        const scene = this.scene;
+        const items = [...this.recuadroItems];
+        this.recuadroItems = [];
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: items,
+                alpha: 0,
+                scaleX: 0.72,
+                scaleY: 0.72,
+                duration: 180,
+                ease: 'Sine.in',
+                onComplete: () => {
+                    items.forEach((item) => item.destroy());
+                    resolve();
+                },
+            });
+        });
+    }
+
+    async showRecuadroImages(imageKeys) {
+        if (!this.recuadroPanel) await this.openRecuadro();
+        await this.moveRecuadroToCurrentSide();
+        await this.clearRecuadroContent();
+
+        const scene = this.scene;
+        const g = this.getRecuadroGeometry();
+        const margin = 34;
+        const contentW = g.width - margin * 2;
+        const contentH = g.height - margin * 2;
+        const keys = imageKeys.filter(Boolean);
+        const slots = this.getRecuadroSlots(keys.length);
+        const slotFactor = this.getRecuadroScaleFactor(keys.length);
+
+        keys.forEach((rawKey, idx) => {
+            const key = scene.textures.exists(rawKey) ? rawKey : ensurePlaceholder(scene);
+            const texture = scene.textures.get(key)?.getSourceImage();
+            const texW = texture?.width ?? 256;
+            const texH = texture?.height ?? 256;
+            const slotW = contentW * slotFactor;
+            const slotH = contentH * slotFactor;
+            const fit = Math.min(slotW / texW, slotH / texH);
+            const slot = slots[idx];
+            const x = (slot.x - 0.5) * contentW;
+            const y = (slot.y - 0.5) * contentH;
+
+            const image = scene.add.image(x, y, key).setOrigin(0.5);
+            image.setScale(Math.max(0.05, fit));
+            image.setAlpha(0);
+            image.setScale(image.scale * 0.72);
+            this.recuadroContent.add(image);
+            this.recuadroItems.push(image);
+
+            scene.tweens.add({
+                targets: image,
+                alpha: 1,
+                scaleX: fit * 1.05,
+                scaleY: fit * 1.05,
+                duration: 240,
+                delay: idx * 45,
+                ease: 'Back.out',
+                onComplete: () => {
+                    scene.tweens.add({
+                        targets: image,
+                        scaleX: fit,
+                        scaleY: fit,
+                        duration: 120,
+                        ease: 'Sine.out',
+                    });
+                },
+            });
+        });
+    }
+
+    async closeRecuadro() {
+        if (!this.recuadroPanel) return;
+        await this.clearRecuadroContent();
+        const scene = this.scene;
+        const panel = this.recuadroPanel;
+        this.recuadroPanel = null;
+        this.recuadroContent = null;
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: panel,
+                alpha: 0,
+                scale: 0.84,
+                duration: 200,
+                ease: 'Sine.in',
+                onComplete: () => {
+                    panel.destroy(true);
+                    resolve();
+                },
+            });
+        });
+        await this.resetRecuadroCharacterSpread();
+    }
+
+    destroyRecuadroInstant() {
+        if (this.recuadroPanel) {
+            this.recuadroPanel.destroy(true);
+        }
+        this.resetRecuadroCharacterSpread(true);
+        this.recuadroPanel = null;
+        this.recuadroContent = null;
+        this.recuadroItems = [];
+    }
+
+    getVisibleCharacters() {
+        const visible = [];
+        this.characters.forEach((sprite, name) => {
+            if (!sprite || sprite.visible === false || sprite.alpha <= 0.05) return;
+            visible.push({ name, sprite });
+        });
+        return visible;
+    }
+
+    async applyRecuadroCharacterSpread() {
+        const visible = this.getVisibleCharacters();
+        if (visible.length !== 2) return this.resetRecuadroCharacterSpread();
+
+        const centerX = this.scene.scale.width / 2;
+        const left = [];
+        const right = [];
+        visible.forEach(({ sprite }) => {
+            const sx = this.getCharacterScreenX(sprite);
+            if (sx < centerX) left.push(sprite);
+            else right.push(sprite);
+        });
+        if (!left.length || !right.length) return this.resetRecuadroCharacterSpread();
+
+        if (this.recuadroShiftState) return;
+        const shiftPx = 100;
+        const targets = [
+            ...left.map((sprite) => ({ sprite, toX: sprite.x - shiftPx })),
+            ...right.map((sprite) => ({ sprite, toX: sprite.x + shiftPx })),
+        ];
+        this.recuadroShiftState = {
+            targets: targets.map(({ sprite }) => ({ sprite, originalX: sprite.x })),
+        };
+        await new Promise((resolve) => {
+            this.scene.tweens.add({
+                targets: targets.map((item) => item.sprite),
+                x: (target, key, value, targetIndex) => targets[targetIndex].toX,
+                duration: 220,
+                ease: 'Sine.inOut',
+                onComplete: resolve,
+            });
+        });
+    }
+
+    async resetRecuadroCharacterSpread(immediate = false) {
+        if (!this.recuadroShiftState?.targets?.length) return;
+        const restores = this.recuadroShiftState.targets.filter((item) => item.sprite && item.sprite.active);
+        this.recuadroShiftState = null;
+        if (!restores.length) return;
+        if (immediate) {
+            restores.forEach(({ sprite, originalX }) => {
+                sprite.x = originalX;
+            });
+            return;
+        }
+        await new Promise((resolve) => {
+            this.scene.tweens.add({
+                targets: restores.map((item) => item.sprite),
+                x: (target, key, value, targetIndex) => restores[targetIndex].originalX,
+                duration: 220,
+                ease: 'Sine.inOut',
+                onComplete: resolve,
+            });
+        });
+    }
+
+    // API reutilizable: zona interna util para incrustar minijuegos en el recuadro.
+    getRecuadroContentBounds() {
+        const g = this.getRecuadroGeometry();
+        const margin = 34;
+        return {
+            x: g.x - (g.width / 2) + margin,
+            y: g.y - (g.height / 2) + margin,
+            width: g.width - margin * 2,
+            height: g.height - margin * 2,
+        };
+    }
+
+    async handleRecuadro(tokens) {
+        const action = normalizeKeyword(tokens[1] ?? 'abrir');
+        if (action === 'abrir' || action === 'open') {
+            return this.openRecuadro();
+        }
+        if (action === 'imagenes' || action === 'images') {
+            const raw = tokens[2] ?? '';
+            const imageKeys = raw.split(/[,|]/).map((value) => value.trim()).filter(Boolean);
+            return this.showRecuadroImages(imageKeys);
+        }
+        if (action === 'limpiar' || action === 'clear') {
+            return this.clearRecuadroContent();
+        }
+        if (action === 'cerrar' || action === 'close') {
+            return this.closeRecuadro();
+        }
     }
 
     // Comando genérico para colocar imágenes en la escena.

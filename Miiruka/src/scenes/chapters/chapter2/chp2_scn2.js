@@ -12,7 +12,6 @@ export class Chp2_scn2 extends Phaser.Scene {
         // Guion del capítulo (texto editable).
         this.load.text('ch2_script', 'assets/scripts/chapter2.txt');
         // Audio ambiente.
-        this.load.audio('birds', 'assets/sounds/birds.mp3');
         this.load.audio('walk', 'assets/sounds/walk.mp3');
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
@@ -20,30 +19,21 @@ export class Chp2_scn2 extends Phaser.Scene {
 
         // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
-        this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');
-        this.load.image('bg_layer2', 'assets/desert/bg_layer2.png');
-        this.load.image('bg_layer3', 'assets/desert/bg_layer3.png');
-        this.load.image('bg_layer4', 'assets/desert/bg_layer4.png');
+        this.load.image('bg_layer_taller', 'assets/background_taller.png');
         this.load.image('sun1', 'assets/desert/sol1.png');
         this.load.image('sun2', 'assets/desert/sol2.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
-        // Ilustraciones de apoyo (pop).
-        this.load.image('item-sol-caliente', 'assets/items/sopa-caliente.png');
-        this.load.image('item-no-agua', 'assets/items/no-agua.png');
-        this.load.image('item-lavanderia', 'assets/items/lavanderia.png');
-        this.load.image('item-ducha', 'assets/items/ducha.png');
-        this.load.image('item-molino-danado', 'assets/items/molinoDanado.png');
-        this.load.image('item-tuberia', 'assets/items/tuberia.png');
-        this.load.image('item-gota-vida', 'assets/items/gota-vida.png');
-        // Minijuego ubicar molino.
-        this.load.image('mapa-molino', 'assets/juegos/ubicarMolino/mapa.png');
-        this.load.image('mini-molino', 'assets/juegos/ubicarMolino/minimolino.png');
+        // Ilustraciones para recuadro explicativo.
+        this.load.image('cc-aspas', 'assets/juegos/conectar_conceptos/astas.png');
+        this.load.image('cc-bomba', 'assets/juegos/conectar_conceptos/bomba.png');
+        this.load.image('cc-convertidor', 'assets/juegos/conectar_conceptos/convertidor.png');
+        this.load.image('cc-pinion', 'assets/juegos/conectar_conceptos/piñon.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
-        this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
+        this.load.on('filecomplete-text-ch2_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
             characters.forEach((emotions, name) => {
                 const states = new Set(['idle', 'camina', ...Array.from(emotions)]);
@@ -69,8 +59,7 @@ export class Chp2_scn2 extends Phaser.Scene {
         this.cameras.main.fadeIn(600, 0, 0, 0);
 
         // Audio de ambiente.
-        this.birdsSounds = this.sound.add('birds', { volume: 1 });
-        this.birdsSounds.play();
+
 
         // Fondo estático (sin paneo inicial).
         const worldHeight = 2000;
@@ -79,16 +68,10 @@ export class Chp2_scn2 extends Phaser.Scene {
         this.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         this.sun2 = this.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        const layer1 = this.add.tileSprite(960, 1230, 1920, 1080, 'bg_layer1').setScrollFactor(0.7);
-        const layer2 = this.add.tileSprite(960, 1260, 1920, 1080, 'bg_layer2').setScrollFactor(0.8);
-        const layer3 = this.add.tileSprite(960, 1300, 1920, 1080, 'bg_layer3').setScrollFactor(0.9);
-        const layer4 = this.add.tileSprite(960, 1340, 1920, 1080, 'bg_layer4').setScrollFactor(1);
+        const layer = this.add.tileSprite(960, 1130, 1920, 1080, 'bg_layer_taller').setScrollFactor(0.7);
 
         this.bgLayers = [
-            { sprite: layer1, speed: 0.15 },
-            { sprite: layer2, speed: 0.22 },
-            { sprite: layer3, speed: 0.3 },
-            { sprite: layer4, speed: 0.4 },
+            { sprite: layer, speed: 0.15 },
         ];
         this.bgScrollActive = false;
         this.bgScrollDirection = -1;
