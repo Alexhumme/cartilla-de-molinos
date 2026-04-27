@@ -14,7 +14,6 @@ export class StartScene extends Phaser.Scene {
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
         this.load.image('illustration', 'assets/background_start_illustration.png');
-        this.load.svg('music-icon', 'assets/ui/music-note.svg');
 
         // Desierto
         this.load.image('sky', 'assets/desert/sky.png');
@@ -257,7 +256,6 @@ export class StartScene extends Phaser.Scene {
         }
 
         this.createMusicToggle(1760, 980);
-        this.createDownloadButton(1658, 980);
     }
 
     update() {
@@ -345,13 +343,21 @@ export class StartScene extends Phaser.Scene {
         inner.fillStyle(0xf0c18a, 1);
         inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
 
-        const icon = this.add.image(0, 0, 'music-icon').setOrigin(0.5);
-        icon.setScale(0.35);
-        icon.setTint(0x6a3a1b);
+        const icon = this.add.graphics();
+        icon.lineStyle(5, 0x6a3a1b, 1);
+        icon.beginPath();
+        icon.moveTo(-8, 20);
+        icon.lineTo(-8, -16);
+        icon.lineTo(14, -22);
+        icon.lineTo(14, 12);
+        icon.strokePath();
+        icon.fillStyle(0x6a3a1b, 1);
+        icon.fillCircle(-8, 22, 7);
+        icon.fillCircle(14, 14, 7);
 
         const muteLine = this.add.graphics();
-        muteLine.lineStyle(6, 0xc0392b, 1);
-        muteLine.lineBetween(-28, 28, 28, -28);
+        muteLine.lineStyle(5, 0xb25a48, 1);
+        muteLine.lineBetween(-22, 22, 22, -22);
 
         container.add([bg, inner, icon, muteLine]);
         container.setSize(size, size);
@@ -365,6 +371,9 @@ export class StartScene extends Phaser.Scene {
 
         container.on('pointerdown', () => {
             const next = !GameStorage.getMusicEnabled();
+            if (next && GameStorage.getMusicVolume() <= 0) {
+                GameStorage.setMusicVolume(0.7);
+            }
             AudioManager.setMusicEnabled(this, 'gametheme', next, 0.7);
             render();
         });
@@ -376,39 +385,6 @@ export class StartScene extends Phaser.Scene {
         });
         UIHelpers.attachHoverPop(this, container, 0.35);
 
-        return container;
-    }
-
-    createDownloadButton(x, y) {
-        const size = 86;
-        const container = this.add.container(x, y);
-        const bg = this.add.graphics();
-        bg.fillStyle(0x8b4c1d, 1);
-        bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
-        const inner = this.add.graphics();
-        inner.fillStyle(0xf0c18a, 1);
-        inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
-        const icon = this.add.graphics();
-        icon.lineStyle(6, 0x6a3a1b, 1);
-        icon.lineBetween(0, -18, 0, 8);
-        icon.lineBetween(-10, 0, 0, 12);
-        icon.lineBetween(10, 0, 0, 12);
-        icon.lineBetween(-18, 20, 18, 20);
-
-        container.add([bg, inner, icon]);
-        container.setSize(size, size);
-        container.setInteractive({ useHandCursor: true });
-        container.on('pointerdown', () => {
-            this.sound.play('pop', { volume: 0.8 });
-            GameStorage.downloadProgressCertificate();
-        });
-        container.on('pointerover', () => {
-            container.setScale(1.06);
-        });
-        container.on('pointerout', () => {
-            container.setScale(1);
-        });
-        UIHelpers.attachHoverPop(this, container, 0.35);
         return container;
     }
 }

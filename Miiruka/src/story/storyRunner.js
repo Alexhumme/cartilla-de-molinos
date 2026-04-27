@@ -56,9 +56,13 @@ export class StoryRunner {
         this.walkingCount = 0;
         this.walkSound = null;
         this.musicSound = null;
-        this.musicVolume = 0.7;
+        this.musicVolume = GameStorage.getMusicVolume();
         this.dialogMetrics = { width: 1840, height: 170 };
         this.pendingSceneQuestion = null;
+
+        // Blindaje: si la escena se cierra abruptamente, no dejamos pasos sonando.
+        this.scene.events.once('shutdown', () => this.forceStopAllWalkSounds());
+        this.scene.events.once('destroy', () => this.forceStopAllWalkSounds());
     }
 
     getCharacterNameKey(name) {
@@ -700,15 +704,15 @@ export class StoryRunner {
 
         const panel = scene.add.graphics();
         panel.fillStyle(0x000000, 0.7);
-        panel.fillRoundedRect(-530, -220, 1060, 460, 24);
+        panel.fillRoundedRect(-560, -300, 1120, 620, 24);
 
-        const title = scene.add.text(0, -165, 'Sopla para girar el molino', {
+        const title = scene.add.text(0, -238, 'Sopla para girar el molino', {
             fontFamily: 'fredoka',
             fontSize: '42px',
             color: '#fce1b4',
         }).setOrigin(0.5);
 
-        const hint = scene.add.text(0, -98, 'Sopla hacia la pantalla. Entre mas fuerte, mas rapido gira.', {
+        const hint = scene.add.text(0, -182, 'Sopla hacia la pantalla. Entre mas fuerte, mas rapido gira.', {
             fontFamily: 'fredoka',
             fontSize: '28px',
             color: '#ffffff',
@@ -716,21 +720,59 @@ export class StoryRunner {
             wordWrap: { width: 900 },
         }).setOrigin(0.5);
 
-        const status = scene.add.text(0, 68, 'Esperando sonido...', {
+        const status = scene.add.text(0, 195, 'Esperando sonido...', {
             fontFamily: 'fredoka',
             fontSize: '24px',
             color: '#d9e8ff',
         }).setOrigin(0.5);
 
-        const progressBg = scene.add.rectangle(0, 130, 840, 30, 0xffffff, 0.18).setOrigin(0.5);
-        const progressFill = scene.add.rectangle(-420, 130, 832, 22, 0x4ea1ff, 1).setOrigin(0, 0.5);
+        const progressBg = scene.add.rectangle(0, 252, 820, 30, 0xffffff, 0.18).setOrigin(0.5);
+        const progressFill = scene.add.rectangle(-410, 252, 812, 22, 0x4ea1ff, 1).setOrigin(0, 0.5);
         progressFill.scaleX = 0;
 
-        const intensityBg = scene.add.rectangle(0, 178, 840, 22, 0xffffff, 0.15).setOrigin(0.5);
-        const intensityFill = scene.add.rectangle(-420, 178, 832, 16, 0x7be074, 1).setOrigin(0, 0.5);
-        intensityFill.scaleX = 0;
+        const gaugeCenterY = 28;
+        const gaugeLabel = scene.add.text(0, -58, 'Intensidad', {
+            fontFamily: 'fredoka',
+            fontSize: '24px',
+            color: '#ffffff',
+        }).setOrigin(0.5);
+        const gaugeTrack = scene.add.graphics();
+        const gaugeNeedle = scene.add.graphics();
+        const gaugeHub = scene.add.circle(0, gaugeCenterY, 8, 0xfce1b4, 1);
+        const gaugeRadius = 150;
+        // Semicirculo superior: izquierda (bajo) a derecha (alto), en sentido horario.
+        const gaugeStart = -Math.PI;
+        const gaugeEnd = 0;
+        const gaugeColors = [0x3b82f6, 0x22c55e, 0xfacc15, 0xfb923c, 0xef4444];
+        const drawGaugeTrack = () => {
+            gaugeTrack.clear();
+            gaugeColors.forEach((color, idx) => {
+                const t0 = idx / gaugeColors.length;
+                const t1 = (idx + 1) / gaugeColors.length;
+                const a0 = Phaser.Math.Linear(gaugeStart, gaugeEnd, t0);
+                const a1 = Phaser.Math.Linear(gaugeStart, gaugeEnd, t1);
+                gaugeTrack.lineStyle(18, color, 1);
+                gaugeTrack.beginPath();
+                gaugeTrack.arc(0, gaugeCenterY, gaugeRadius, a0, a1, false);
+                gaugeTrack.strokePath();
+            });
+        };
+        drawGaugeTrack();
+        const updateGaugeNeedle = (strength) => {
+            const clamped = Phaser.Math.Clamp(strength, 0, 1);
+            const angle = Phaser.Math.Linear(gaugeStart, gaugeEnd, clamped);
+            const endX = Math.cos(angle) * (gaugeRadius - 16);
+            const endY = gaugeCenterY + Math.sin(angle) * (gaugeRadius - 16);
+            gaugeNeedle.clear();
+            gaugeNeedle.lineStyle(6, 0xf8fafc, 1);
+            gaugeNeedle.beginPath();
+            gaugeNeedle.moveTo(0, gaugeCenterY);
+            gaugeNeedle.lineTo(endX, endY);
+            gaugeNeedle.strokePath();
+        };
+        updateGaugeNeedle(0);
 
-        ui.add([panel, title, hint, status, progressBg, progressFill, intensityBg, intensityFill]);
+        ui.add([panel, title, hint, status, progressBg, progressFill, gaugeLabel, gaugeTrack, gaugeNeedle, gaugeHub]);
         await this.animateContainerIn(ui);
 
         let resolveDone;
@@ -754,6 +796,18 @@ export class StoryRunner {
                 scene.input.off('pointerupoutside', pointerUpOutsideHandler);
                 pointerUpOutsideHandler = null;
             }
+            if (holdPulseTween) {
+                holdPulseTween.stop();
+                holdPulseTween = null;
+            }
+            if (holdButton) {
+                holdButton.destroy();
+                holdButton = null;
+            }
+            if (holdHitZone) {
+                holdHitZone.destroy();
+                holdHitZone = null;
+            }
             scene.input.setTopOnly(prevTopOnly);
             await this.animateContainerOut(ui);
             root.destroy(true);
@@ -767,6 +821,9 @@ export class StoryRunner {
         let sourceNode = null;
         let holdMode = false;
         let holding = false;
+        let holdButton = null;
+        let holdHitZone = null;
+        let holdPulseTween = null;
         let pointerUpHandler = null;
         let pointerUpOutsideHandler = null;
         const target = 100;
@@ -775,6 +832,7 @@ export class StoryRunner {
         let noiseFloor = 0.01;
         let lastTs = performance.now();
         let currentAngularSpeed = 0.5;
+        let holdStrength = 0;
         const speedSamples = [];
         const maxSpeedSamples = 14;
 
@@ -823,7 +881,17 @@ export class StoryRunner {
 
             let strength = 0;
             if (holdMode) {
-                strength = holding ? 0.72 : 0;
+                // Fallback sin microfono: la intensidad sube gradualmente
+                // mientras se mantiene presionado, y decae al soltar.
+                const holdTarget = holding ? 0.78 : 0;
+                const risePerSecond = 0.85;
+                const fallPerSecond = 1.6;
+                if (holdTarget > holdStrength) {
+                    holdStrength = Math.min(holdTarget, holdStrength + risePerSecond * dtSec);
+                } else {
+                    holdStrength = Math.max(holdTarget, holdStrength - fallPerSecond * dtSec);
+                }
+                strength = holdStrength;
             } else if (analyser) {
                 const data = new Uint8Array(analyser.fftSize);
                 analyser.getByteTimeDomainData(data);
@@ -840,7 +908,7 @@ export class StoryRunner {
                 strength = smoothed;
             }
 
-            intensityFill.scaleX = Phaser.Math.Clamp(strength, 0, 1);
+            updateGaugeNeedle(strength);
             currentAngularSpeed = 0.5 + strength * 5.5;
             if (strength > 0.06) {
                 speedSamples.push(currentAngularSpeed);
@@ -872,16 +940,69 @@ export class StoryRunner {
         const enableHoldFallback = () => {
             holdMode = true;
             status.setText('Sin microfono: manten presionado para soplar');
-            const holdHint = scene.add.text(0, 24, 'Modo alterno activado', {
+            const holdHint = scene.add.text(0, 150, 'Presiona y manten para soplar', {
                 fontFamily: 'fredoka',
                 fontSize: '22px',
                 color: '#ffd58a',
             }).setOrigin(0.5);
             ui.add(holdHint);
-            bg.setInteractive();
-            bg.on('pointerdown', () => { holding = true; });
-            pointerUpHandler = () => { holding = false; };
-            pointerUpOutsideHandler = () => { holding = false; };
+
+            holdButton = scene.add.container(0, 20);
+            const holdBtnShadow = scene.add.circle(2, 5, 44, 0x000000, 0.28);
+            const holdBtnOuter = scene.add.circle(0, 0, 44, 0x1d8f4a, 1);
+            holdBtnOuter.setStrokeStyle(5, 0xfce1b4, 0.9);
+            const holdBtnInner = scene.add.circle(0, 0, 24, 0xfce1b4, 1);
+            holdButton.add([holdBtnShadow, holdBtnOuter, holdBtnInner]);
+            holdButton.setSize(92, 92);
+            ui.add(holdButton);
+
+            holdHitZone = scene.add.zone(ui.x + holdButton.x, ui.y + holdButton.y, 96, 96);
+            holdHitZone.setScrollFactor(0);
+            holdHitZone.setDepth(root.depth + 1);
+            holdHitZone.setInteractive({ useHandCursor: true });
+
+            holdHitZone.on('pointerdown', () => {
+                holding = true;
+                if (holdPulseTween) {
+                    holdPulseTween.pause();
+                }
+                holdButton.setScale(0.94);
+            });
+            holdHitZone.on('pointerup', () => {
+                holding = false;
+                holdButton.setScale(1);
+                if (holdPulseTween) {
+                    holdPulseTween.resume();
+                }
+            });
+            holdHitZone.on('pointerout', () => {
+                holding = false;
+                holdButton.setScale(1);
+                if (holdPulseTween) {
+                    holdPulseTween.resume();
+                }
+            });
+            UIHelpers.attachHoverPop(scene, holdHitZone, 0.35);
+            holdPulseTween = scene.tweens.add({
+                targets: holdButton,
+                scaleX: 1.06,
+                scaleY: 1.06,
+                duration: 460,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.inOut',
+            });
+
+            pointerUpHandler = () => {
+                holding = false;
+                if (holdButton) holdButton.setScale(1);
+                if (holdPulseTween) holdPulseTween.resume();
+            };
+            pointerUpOutsideHandler = () => {
+                holding = false;
+                if (holdButton) holdButton.setScale(1);
+                if (holdPulseTween) holdPulseTween.resume();
+            };
             scene.input.on('pointerup', pointerUpHandler);
             scene.input.on('pointerupoutside', pointerUpOutsideHandler);
         };
@@ -1039,6 +1160,9 @@ export class StoryRunner {
 
             placeMarker(world.x, world.y, false);
             errorText.setText('Ese no es el lugar correcto. Intenta de nuevo.');
+            if (scene.cache.audio?.exists('wrong-option')) {
+                scene.sound.play('wrong-option', { volume: 0.7 });
+            }
         };
 
         scene.input.on('pointerdown', onPointer);
@@ -1455,6 +1579,9 @@ export class StoryRunner {
 
                     feedback.setColor('#ffb3b3');
                     feedback.setText('Esa no es la respuesta correcta. Intenta de nuevo.');
+                    if (scene.cache.audio?.exists('wrong-option')) {
+                        scene.sound.play('wrong-option', { volume: 0.7 });
+                    }
                     scene.tweens.add({
                         targets: btn,
                         x: 12,
@@ -1638,11 +1765,13 @@ export class StoryRunner {
             { id: 'wayuunaiki', label: 'Wayuu' },
         ], this.language);
 
-        const volumeSlider = this.createVolumeSelector(960, 560, 10, Math.round(this.musicVolume * 10), (level) => {
+        const currentMusicEnabled = GameStorage.getMusicEnabled();
+        const initialLevel = currentMusicEnabled ? Math.round(this.musicVolume * 10) : 0;
+        const volumeSlider = this.createVolumeSelector(960, 560, 10, initialLevel, (level) => {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
             }
-            this.setMusicVolume(level / 10);
+            this.setMusicVolume(level / 10, { fromUser: true });
             this.ignoreNextDialogClick = true;
         });
 
@@ -1650,12 +1779,12 @@ export class StoryRunner {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
             }
-            this.resetWalkingSound();
             const chapterInfo = this.getCurrentChapterInfo();
             if (chapterInfo) {
                 GameStorage.commitChapterSession(chapterInfo.chapter);
             }
             this.resume();
+            this.resetWalkingSound();
             this.ignoreNextDialogClick = true;
             scene.scene.restart();
         });
@@ -1664,12 +1793,12 @@ export class StoryRunner {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
             }
-            this.resetWalkingSound();
             const chapterInfo = this.getCurrentChapterInfo();
             if (chapterInfo) {
                 GameStorage.commitChapterSession(chapterInfo.chapter);
             }
             this.resume();
+            this.resetWalkingSound();
             this.ignoreNextDialogClick = true;
             scene.scene.start('Capitulos', {
                 gearsOffsetX: 0,
@@ -1682,9 +1811,9 @@ export class StoryRunner {
             if (scene.cache.audio?.exists('pop')) {
                 scene.sound.play('pop', { volume: 0.8 });
             }
-            this.resetWalkingSound();
             GameStorage.jumpToScene(this.scene?.scene?.key, target);
             this.resume();
+            this.resetWalkingSound();
             this.ignoreNextDialogClick = true;
             scene.scene.start(target);
         });
@@ -2105,10 +2234,23 @@ export class StoryRunner {
         this.musicSound = AudioManager.ensureLoopingMusic(this.scene, 'gametheme', this.musicVolume);
     }
 
-    setMusicVolume(volume) {
+    setMusicVolume(volume, options = {}) {
+        const { fromUser = false } = options;
         this.musicVolume = Phaser.Math.Clamp(volume, 0, 1);
+        GameStorage.setMusicVolume(this.musicVolume);
+        if (fromUser) {
+            const enabled = this.musicVolume > 0;
+            GameStorage.setMusicEnabled(enabled);
+        }
+        const enabled = GameStorage.getMusicEnabled();
         if (this.musicSound) {
             this.musicSound.setVolume(this.musicVolume);
+            if (enabled && !this.musicSound.isPlaying) {
+                this.musicSound.play();
+            }
+            if (!enabled && this.musicSound.isPlaying) {
+                this.musicSound.stop();
+            }
         }
     }
 
@@ -2337,5 +2479,18 @@ export class StoryRunner {
         if (this.walkSound?.isPlaying) {
             this.walkSound.stop();
         }
+        this.forceStopAllWalkSounds();
+    }
+
+    forceStopAllWalkSounds() {
+        const manager = this.scene?.sound;
+        if (!manager) return;
+        const sounds = Array.isArray(manager.sounds) ? manager.sounds : [];
+        sounds.forEach((sound) => {
+            if (sound?.key === 'walk' && sound.isPlaying) {
+                sound.stop();
+            }
+        });
+        this.walkSound = null;
     }
 }

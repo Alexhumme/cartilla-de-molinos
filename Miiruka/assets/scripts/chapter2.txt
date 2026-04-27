@@ -6,3 +6,19 @@
 [personaje][Jouktai][habla][es:Hola! Hoy fui a buscar agua una vez mas, pero como puedes ver, no sale agua]
 [personaje][Jouktai][emocion][duda][habla][es:Vine a ver si hay algo mal con el molino]
 [personaje][Jouktai][habla][es:Me ayudas a revisarlo?]
+# juego aqui
+[personaje][Jouktai][habla][es:Debe haber algo roto adentro...]
+[personaje][Jouktai][habla][es:Cuando algo asi pasa, hay que buscar a alguien con conocimientos que nos pueda ayudar]
+[personaje][Jouktai][emocion][idle][habla][es:Mejor voy donde Kamanewaa. Él siempre sabe que revisar.]
+# pregunta aqui
+[cambiar_escena][Chp2_scn2]
+
+[escena][Desarrollo]
+[personaje][Kamanewaa][entra][Derecha]
+[personaje][Jouktai][entra][izquierda]
+[personaje][Jouktai][habla][emocion][idle][es:Buenos dias kamanewa, como le va? esta ocupado?]
+[personaje][Jouktai][emocion][idle]
+[personaje][Kamanewaa][habla][emocion][idle][es:Buenos días, Jouktai. Estoy organizando mi taller, que te trae por aqui?]
+[personaje][Jouktai][habla][es:El molino no gira bien, y el agua casi no sube. Suena como si algo chocara adentro]
+[personaje][Kamanewaa][habla][es:Buenos días, Jouktai. Estoy organizando mi taller, que te trae por aqui?]
+
