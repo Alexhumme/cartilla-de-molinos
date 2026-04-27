@@ -16,6 +16,7 @@ export class Chp1_scn6 extends Phaser.Scene {
         this.load.audio('walk', 'assets/sounds/walk.mp3');
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
+        this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
  
         // Assets del fondo desierto.
@@ -31,8 +32,12 @@ export class Chp1_scn6 extends Phaser.Scene {
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
 
         // Molino y aspas.
-        this.load.image('molino-base', 'assets/juegos/molino/molino_sin_aspas.png');
+        this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
+        this.load.image('water-flow-1', 'assets/juegos/molino/water_flow01.png');
+        this.load.image('water-flow-2', 'assets/juegos/molino/water_flow02.png');
+        this.load.image('water-flow-3', 'assets/juegos/molino/water_flow03.png');
+        this.load.image('water-flow-4', 'assets/juegos/molino/water_flow04.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
@@ -97,6 +102,14 @@ export class Chp1_scn6 extends Phaser.Scene {
             this.placeMill();
             await this.storyRunner.run('Despedida');
         });
+
+        this.events.once('shutdown', () => {
+            if (this.waterFlowTimer) {
+                this.waterFlowTimer.remove(false);
+                this.waterFlowTimer = null;
+            }
+            this.waterFlow = null;
+        });
     }
 
     placeMill() {
@@ -127,6 +140,23 @@ export class Chp1_scn6 extends Phaser.Scene {
         aspas.setDepth(130);
 
         this.molinoAspas = aspas;
+
+        this.createWaterFlow(baseX, baseY);
+    }
+
+    createWaterFlow(baseX, baseY) {
+        const flowFrames = ['water-flow-1', 'water-flow-2', 'water-flow-3', 'water-flow-4'];
+        this.waterFlow = this.add.image(baseX + 102, baseY + 1829, flowFrames[0]).setOrigin(0, 0);
+        this.waterFlow.setDepth(131);
+        this.waterFlowFrame = 0;
+        this.waterFlowTimer = this.time.addEvent({
+            delay: 95,
+            loop: true,
+            callback: () => {
+                this.waterFlowFrame = (this.waterFlowFrame + 1) % flowFrames.length;
+                this.waterFlow.setTexture(flowFrames[this.waterFlowFrame]);
+            },
+        });
     }
 
     getCameraPanDistance() {

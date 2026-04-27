@@ -546,4 +546,15 @@ export const GameStorage = {
     setMusicEnabled(enabled) {
         localStorage.setItem('musicEnabled', enabled ? 'true' : 'false');
     },
+
+    getMusicVolume() {
+        const raw = Number(localStorage.getItem('musicVolume'));
+        if (!Number.isFinite(raw)) return 0.7;
+        return Math.min(1, Math.max(0, raw));
+    },
+
+    setMusicVolume(volume) {
+        const safe = Math.min(1, Math.max(0, Number(volume) || 0));
+        localStorage.setItem('musicVolume', String(safe));
+    },
 };
