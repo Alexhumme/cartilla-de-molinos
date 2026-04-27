@@ -97,6 +97,7 @@ export class StoryRunner {
         this.musicVolume = GameStorage.getMusicVolume();
         this.dialogMetrics = { width: 1840, height: 170 };
         this.pendingSceneQuestion = null;
+        this.sceneQuestionCounter = 0;
         this.recuadroPanel = null;
         this.recuadroContent = null;
         this.recuadroItems = [];
@@ -148,6 +149,7 @@ export class StoryRunner {
     async run(sceneName) {
         const scene = this.script.sceneMap.get(sceneName) ?? this.script.scenes[0];
         if (!scene) return;
+        this.sceneQuestionCounter = 0;
 
         for (let i = 0; i < scene.events.length; i += 1) {
             const event = scene.events[i];
@@ -622,6 +624,8 @@ export class StoryRunner {
             },
             correct: Number(kv.correcta ?? kv.correct ?? kv.respuesta ?? 1),
             options: [],
+            sceneKey: this.scene?.scene?.key || '',
+            questionIndex: this.sceneQuestionCounter + 1,
         };
 
         for (let i = 1; i <= 4; i += 1) {
@@ -645,6 +649,7 @@ export class StoryRunner {
             question.correct = 1;
         }
 
+        this.sceneQuestionCounter += 1;
         this.pendingSceneQuestion = question;
     }
 
@@ -652,6 +657,7 @@ export class StoryRunner {
         const scene = this.scene;
         const playerName = GameStorage.getName() || 'Jugador';
         const injectPlayerName = (value) => String(value ?? '').replace(/\$jugador/gi, playerName);
+        let hadWrongAttempt = false;
         const prevTopOnly = scene.input.topOnly;
         scene.input.setTopOnly(true);
 
@@ -754,6 +760,9 @@ export class StoryRunner {
                         scene.sound.play('pop', { volume: 0.8 });
                     }
                     if (option.index === questionData.correct) {
+                        const questionSceneKey = questionData.sceneKey || this.scene?.scene?.key || '';
+                        const questionIndex = Number(questionData.questionIndex) || 1;
+                        GameStorage.registerSceneQuestionResult(questionSceneKey, questionIndex, !hadWrongAttempt);
                         feedback.setColor('#9df0a8');
                         feedback.setText('Respuesta correcta');
                         if (scene.cache.audio?.exists('success-bell')) {
@@ -765,6 +774,7 @@ export class StoryRunner {
 
                     feedback.setColor('#ffb3b3');
                     feedback.setText('Esa no es la respuesta correcta. Intenta de nuevo.');
+                    hadWrongAttempt = true;
                     if (scene.cache.audio?.exists('wrong-option')) {
                         scene.sound.play('wrong-option', { volume: 0.7 });
                     }

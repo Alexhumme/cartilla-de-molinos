@@ -6,8 +6,6 @@ const CHAPTER_SCENE_COUNT = {
 
 const SCENE_KEY_REGEX = /^Chp(\d+)_scn(\d+)$/i;
 
-const nowMs = () => Date.now();
-
 const toSortedUniqueNumbers = (values, min = 1) => {
     const unique = new Set(
         (values || [])
@@ -32,16 +30,14 @@ const ensureChapterProgress = (save, chapter) => {
     const totalScenes = Number(CHAPTER_SCENE_COUNT[chapterNum] ?? 0);
     const reachedScenes = toSortedUniqueNumbers(existing.reachedScenes, 1).filter((scene) => totalScenes === 0 || scene <= totalScenes);
     const completedScenes = toSortedUniqueNumbers(existing.completedScenes, 1).filter((scene) => totalScenes === 0 || scene <= totalScenes);
+    const questionResults = existing.questionResults && typeof existing.questionResults === 'object'
+        ? existing.questionResults
+        : {};
     const normalized = {
         reachedScenes: reachedScenes.length ? reachedScenes : [1],
         completedScenes,
         lastScene: Number.isFinite(existing.lastScene) ? Math.max(1, existing.lastScene) : 1,
-        totalPlayMs: Math.max(0, Number(existing.totalPlayMs) || 0),
-        sessionStartedAt: Number(existing.sessionStartedAt) || null,
-        attemptAccumulatedMs: Math.max(0, Number(existing.attemptAccumulatedMs) || 0),
-        attemptStartedAt: Number(existing.attemptStartedAt) || null,
-        bestCompletionMs: Number.isFinite(existing.bestCompletionMs) ? Math.max(0, existing.bestCompletionMs) : null,
-        completedAt: Number(existing.completedAt) || null,
+        questionResults,
     };
 
     if (totalScenes > 0) {
@@ -59,7 +55,7 @@ const ensureSaveShape = (save) => {
     const base = save ?? {};
     const normalized = {
         name: base.name || localStorage.getItem('playerName') || 'Jugador',
-        createdAt: Number(base.createdAt) || nowMs(),
+        createdAt: Number(base.createdAt) || Date.now(),
         completedChapters: toSortedUniqueNumbers(base.completedChapters, 1),
         unlockedChapters: toSortedUniqueNumbers(base.unlockedChapters, 1),
         lastChapter: Number(base.lastChapter) || 1,
@@ -73,11 +69,6 @@ const ensureSaveShape = (save) => {
     });
 
     return normalized;
-};
-
-const elapsedFromSession = (chapterProgress) => {
-    if (!chapterProgress?.sessionStartedAt) return 0;
-    return Math.max(0, nowMs() - chapterProgress.sessionStartedAt);
 };
 
 export const GameStorage = {
@@ -143,7 +134,7 @@ export const GameStorage = {
         }
         const save = ensureSaveShape({
             name: trimmed || this.getName() || 'Jugador',
-            createdAt: nowMs(),
+            createdAt: Date.now(),
             completedChapters: [],
             unlockedChapters: [1],
             lastChapter: 1,
@@ -181,21 +172,8 @@ export const GameStorage = {
         return this.getSave() ?? this.startNewGame(this.getName() || 'Jugador');
     },
 
-    commitChapterSession(chapter) {
-        const save = this.ensureGameSave();
-        const chapterProgress = ensureChapterProgress(save, chapter);
-        if (!chapterProgress) return save;
-
-        const elapsed = elapsedFromSession(chapterProgress);
-        if (elapsed > 0) {
-            chapterProgress.totalPlayMs += elapsed;
-            if (!save.completedChapters.includes(Number(chapter))) {
-                chapterProgress.attemptAccumulatedMs += elapsed;
-            }
-        }
-        chapterProgress.sessionStartedAt = null;
-        this.setSave(save);
-        return save;
+    commitChapterSession() {
+        return this.ensureGameSave();
     },
 
     touchChapterScene(chapter, scene) {
@@ -205,12 +183,6 @@ export const GameStorage = {
         const chapterProgress = ensureChapterProgress(save, chapterNum);
         if (!chapterProgress) return save;
 
-        if (!chapterProgress.attemptStartedAt && !save.completedChapters.includes(chapterNum)) {
-            chapterProgress.attemptStartedAt = nowMs();
-        }
-        if (!chapterProgress.sessionStartedAt) {
-            chapterProgress.sessionStartedAt = nowMs();
-        }
         if (!chapterProgress.reachedScenes.includes(sceneNum)) {
             chapterProgress.reachedScenes.push(sceneNum);
             chapterProgress.reachedScenes = toSortedUniqueNumbers(chapterProgress.reachedScenes, 1);
@@ -227,7 +199,41 @@ export const GameStorage = {
     touchChapterSceneBySceneKey(sceneKey) {
         const parsed = parseChapterSceneKey(sceneKey);
         if (!parsed) return this.getSave();
-        return this.touchChapterScene(parsed.chapter, parsed.scene);
+        const save = this.touchChapterScene(parsed.chapter, parsed.scene);
+        this.resetSceneQuestionAttempts(sceneKey);
+        return save;
+    },
+
+    resetSceneQuestionAttempts(sceneKey) {
+        const save = this.ensureGameSave();
+        const parsed = parseChapterSceneKey(sceneKey);
+        if (!parsed) return save;
+        const chapterProgress = ensureChapterProgress(save, parsed.chapter);
+        const questionResults = chapterProgress.questionResults ?? {};
+        const scenePrefix = `${sceneKey}#q`;
+        Object.keys(questionResults).forEach((key) => {
+            if (key.startsWith(scenePrefix)) delete questionResults[key];
+        });
+        chapterProgress.questionResults = questionResults;
+        this.setSave(save);
+        return save;
+    },
+
+    registerSceneQuestionResult(sceneKey, questionIndex, awardedPoint) {
+        const parsed = parseChapterSceneKey(sceneKey);
+        if (!parsed) return this.ensureGameSave();
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, parsed.chapter);
+        const questionResults = chapterProgress.questionResults ?? {};
+        const key = `${sceneKey}#q${Number(questionIndex) || 1}`;
+        questionResults[key] = {
+            sceneKey,
+            questionIndex: Number(questionIndex) || 1,
+            awarded: !!awardedPoint,
+        };
+        chapterProgress.questionResults = questionResults;
+        this.setSave(save);
+        return save;
     },
 
     markSceneCompleted(chapter, scene) {
@@ -277,7 +283,6 @@ export const GameStorage = {
 
         if (from) {
             this.markSceneCompleted(from.chapter, from.scene);
-            this.commitChapterSession(from.chapter);
         }
         if (to) {
             this.touchChapterScene(to.chapter, to.scene);
@@ -288,9 +293,6 @@ export const GameStorage = {
     jumpToScene(fromSceneKey, toSceneKey) {
         const from = parseChapterSceneKey(fromSceneKey);
         const to = parseChapterSceneKey(toSceneKey);
-        if (from) {
-            this.commitChapterSession(from.chapter);
-        }
         if (to) {
             this.touchChapterScene(to.chapter, to.scene);
         }
@@ -300,13 +302,11 @@ export const GameStorage = {
     getChapterProgress(chapter) {
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, chapter);
-        const liveElapsed = elapsedFromSession(chapterProgress);
         return {
             ...chapterProgress,
             reachedScenes: [...chapterProgress.reachedScenes],
             completedScenes: [...chapterProgress.completedScenes],
-            totalPlayMs: chapterProgress.totalPlayMs + liveElapsed,
-            attemptAccumulatedMs: chapterProgress.attemptAccumulatedMs + (save.completedChapters.includes(Number(chapter)) ? 0 : liveElapsed),
+            questionResults: { ...(chapterProgress.questionResults ?? {}) },
         };
     },
 
@@ -317,16 +317,24 @@ export const GameStorage = {
         const completedScenes = progress.completedScenes.filter((scene) => totalScenes === 0 || scene <= totalScenes).length;
         const reachedScenes = progress.reachedScenes.filter((scene) => totalScenes === 0 || scene <= totalScenes).length;
         const isCompleted = completedScenes >= totalScenes && totalScenes > 0;
+        const questionResults = Object.values(progress.questionResults ?? {});
+        const totalQuestions = questionResults.length;
+        const earnedPoints = questionResults.filter((result) => !!result.awarded).length;
+        const ratio = totalQuestions > 0 ? earnedPoints / totalQuestions : 0;
+        const stars = totalQuestions <= 0
+            ? 1
+            : (earnedPoints === totalQuestions
+                ? 3
+                : (ratio > 0.3 ? 2 : 1));
         return {
             chapter: chapterNum,
             totalScenes,
             completedScenes,
             reachedScenes,
             isCompleted,
-            bestCompletionMs: progress.bestCompletionMs,
-            playTimeMs: isCompleted
-                ? (progress.bestCompletionMs ?? progress.totalPlayMs)
-                : progress.totalPlayMs,
+            totalQuestions,
+            earnedPoints,
+            stars,
             lastScene: progress.lastScene,
         };
     },
@@ -355,24 +363,6 @@ export const GameStorage = {
             return save;
         }
 
-        const elapsed = elapsedFromSession(chapterProgress);
-        if (elapsed > 0) {
-            chapterProgress.totalPlayMs += elapsed;
-            chapterProgress.attemptAccumulatedMs += elapsed;
-            chapterProgress.sessionStartedAt = null;
-        }
-
-        const runMs = chapterProgress.attemptAccumulatedMs;
-        if (runMs > 0) {
-            if (!Number.isFinite(chapterProgress.bestCompletionMs) || chapterProgress.bestCompletionMs === null) {
-                chapterProgress.bestCompletionMs = runMs;
-            } else {
-                chapterProgress.bestCompletionMs = Math.min(chapterProgress.bestCompletionMs, runMs);
-            }
-        }
-        chapterProgress.attemptAccumulatedMs = 0;
-        chapterProgress.attemptStartedAt = null;
-        chapterProgress.completedAt = nowMs();
         chapterProgress.lastScene = 1;
 
         const completed = new Set(save.completedChapters ?? []);
@@ -427,19 +417,7 @@ export const GameStorage = {
         return this.getProgress().lastChapter;
     },
 
-    formatDuration(ms) {
-        const totalSeconds = Math.max(0, Math.floor((ms || 0) / 1000));
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        const parts = [];
-        if (hours > 0) parts.push(`${hours}h`);
-        if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-        parts.push(`${seconds}s`);
-        return parts.join(' ');
-    },
-
-    downloadProgressCertificate() {
+    async downloadProgressCertificate() {
         const save = this.ensureGameSave();
         const playerName = save.name || this.getName() || 'Jugador';
         const date = new Date();
@@ -505,21 +483,44 @@ export const GameStorage = {
         ctx.fillText(`Fecha: ${date.toLocaleDateString()}`, 220, 320);
         ctx.fillText('Miiruku - Cuidado del agua y del molino', 220, 370);
 
-        // Bloque de progreso.
+        const loadImage = (src) => new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+        const starHolderImg = await loadImage('assets/ui/star-holder.png');
+        const starImg = await loadImage('assets/ui/star.png');
+
+        // Bloque de progreso + estrellas.
         let y = 450;
         Object.keys(CHAPTER_SCENE_COUNT).forEach((chapterKey) => {
             const chapter = Number(chapterKey);
             const summary = this.getChapterProgressSummary(chapter);
-            const timing = summary.isCompleted && Number.isFinite(summary.bestCompletionMs)
-                ? `Mejor tiempo: ${this.formatDuration(summary.bestCompletionMs)}`
-                : `Tiempo jugado: ${this.formatDuration(summary.playTimeMs)}`;
             ctx.fillStyle = '#2a2a7c';
             ctx.font = '700 38px fredoka, Arial, sans-serif';
             ctx.fillText(`Capitulo ${chapter}`, 220, y);
             ctx.fillStyle = '#4e4e4e';
             ctx.font = '500 31px fredoka, Arial, sans-serif';
             ctx.fillText(`Escenas: ${summary.completedScenes}/${summary.totalScenes}`, 460, y);
-            ctx.fillText(timing, 840, y);
+            ctx.fillText(`Puntos: ${summary.earnedPoints}/${summary.totalQuestions || 0}`, 840, y);
+            const starsXStart = 1180;
+            const starY = y - 26;
+            for (let i = 0; i < 3; i += 1) {
+                const x = starsXStart + i * 66;
+                if (starHolderImg) {
+                    ctx.drawImage(starHolderImg, x, starY, 56, 56);
+                } else {
+                    drawCircle(x + 28, starY + 28, 24, '#d8d8d8');
+                }
+                if (i < summary.stars) {
+                    if (starImg) {
+                        ctx.drawImage(starImg, x + 10, starY + 10, 36, 36);
+                    } else {
+                        drawCircle(x + 28, starY + 28, 12, '#ffcf3a');
+                    }
+                }
+            }
             y += 78;
         });
 
