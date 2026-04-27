@@ -1,6 +1,6 @@
 const CHAPTER_SCENE_COUNT = {
     1: 6,
-    2: 6,
+    2: 5,
     3: 6,
 };
 

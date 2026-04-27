@@ -2,6 +2,43 @@ import { normalizeKeyword, parseScript } from './parser.js';
 import { GameStorage } from '../utils/storage.js';
 import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
+import {
+    runBlowMillMinigame,
+    runLocateMillMinigame,
+    runFaucetMinigame,
+} from './runner/minigameHandlers.js';
+import {
+    ensureCharacterSprite,
+    getCharacterTextureForState,
+    setCharacterStatePartial,
+    setCharacterEmotionState,
+    getCharacterTarget,
+    getSpeakingFacingAuto,
+    getSpeakerFlipAuto,
+    startCharacterLipSync,
+    stopCharacterLipSync,
+    startCharacterWalkBob,
+    stopCharacterWalkBob,
+    handleCharacterCommand,
+    runCharacterEnter,
+} from './runner/characterHandlers.js';
+import {
+    createPauseToggleButton,
+    togglePauseState,
+    pauseStory,
+    resumeStory,
+    showPauseMenuOverlay,
+    hidePauseMenuOverlay,
+    createLanguageToggleControl,
+    createPauseActionControl,
+    getAdjacentChapterSceneKey,
+    getCurrentChapterSceneInfo,
+    createScenePaginationControl,
+    createVolumeSelectorControl,
+    ensureRunnerMusic,
+    setRunnerMusicVolume,
+    setRunnerLanguage,
+} from './runner/pauseHandlers.js';
 
 // Textura placeholder para assets faltantes.
 const PLACEHOLDER_KEY = 'story-placeholder';
@@ -40,6 +77,7 @@ export class StoryRunner {
     constructor(scene, scriptText) {
         this.scene = scene;
         this.script = parseScript(scriptText);
+        this.placeholderTextureKey = ensurePlaceholder(scene);
         this.characters = new Map();
         this.characterState = new Map();
         this.characterLipEvents = new Map();
@@ -155,186 +193,50 @@ export class StoryRunner {
     }
 
     // Crea o reutiliza el sprite base de un personaje.
+    // Delegado: manejo base de sprites/estado de personaje.
     ensureCharacter(name) {
-        name = this.resolveCharacterName(name);
-        if (this.characters.has(name)) return this.characters.get(name);
-        const textureKey = this.getCharacterTextureKey(name, {
-            emotion: 'idle',
-            facing: 'mira_jugador',
-            mouth: 1,
-        });
-
-        const sprite = this.scene.add.image(-300, 780, textureKey).setOrigin(0, 0);
-        const useWorld = !!this.scene?.useWorldCharacters;
-        sprite.setScrollFactor(useWorld ? 1 : 0);
-        sprite.setDepth(200);
-        this.characters.set(name, sprite);
-        this.characterState.set(name, {
-            emotion: 'idle',
-            facing: 'mira_jugador',
-            mouth: 1,
-            flipX: false,
-            baseY: 180,
-            isWalking: false,
-            walkBobTween: null,
-        });
-        return sprite;
+        return ensureCharacterSprite.call(this, name);
     }
 
     getCharacterTextureKey(name, state) {
-        const emotion = state.emotion || 'idle';
-        const facing = state.facing || 'mira_jugador';
-        const mouth = state.mouth || 1;
-        const key = `char-${name}-${facing}-${emotion}-${mouth}`;
-        if (this.scene.textures.exists(key)) return key;
-
-        const mouthClosed = `char-${name}-${facing}-${emotion}-1`;
-        if (this.scene.textures.exists(mouthClosed)) return mouthClosed;
-
-        const fallbackEmotionMouth = `char-${name}-${facing}-idle-${mouth}`;
-        if (this.scene.textures.exists(fallbackEmotionMouth)) return fallbackEmotionMouth;
-
-        const fallbackEmotion = `char-${name}-${facing}-idle-1`;
-        if (this.scene.textures.exists(fallbackEmotion)) return fallbackEmotion;
-
-        const fallbackFacing = `char-${name}-mira_jugador-idle-1`;
-        if (this.scene.textures.exists(fallbackFacing)) return fallbackFacing;
-
-        const legacyIdle = `char-${name}-idle`;
-        if (this.scene.textures.exists(legacyIdle)) return legacyIdle;
-
-        return ensurePlaceholder(this.scene);
+        return getCharacterTextureForState.call(this, name, state);
     }
 
     setCharacterState(name, partial) {
-        name = this.resolveCharacterName(name);
-        this.ensureCharacter(name);
-        const prev = this.characterState.get(name) ?? {
-            emotion: 'idle',
-            facing: 'mira_jugador',
-            mouth: 1,
-            flipX: false,
-            baseY: 180,
-            isWalking: false,
-            walkBobTween: null,
-        };
-        const next = { ...prev, ...partial };
-        this.characterState.set(name, next);
-        const sprite = this.characters.get(name);
-        if (sprite) {
-            sprite.setTexture(this.getCharacterTextureKey(name, next));
-            sprite.setFlipX(!!next.flipX);
-        }
+        return setCharacterStatePartial.call(this, name, partial);
     }
 
     // Cambia la expresión base del personaje.
     setCharacterEmotion(name, emotion) {
-        name = this.resolveCharacterName(name);
-        if (!emotion) return;
-        if (this.scene.bgScrollActive && (this.scene.bgScrollWalkers || []).includes(name)) return;
-        this.setCharacterState(name, { emotion });
+        return setCharacterEmotionState.call(this, name, emotion);
     }
 
     getCharacterTargetPosition(name, direction) {
-        const normalized = (name || '').toLowerCase();
-        const sprite = this.ensureCharacter(name);
-        const cam = this.scene.cameras.main;
-        const useWorld = !!this.scene?.useWorldCharacters;
-        const sceneWidth = this.scene.scale.width || 1920;
-        if (direction === 'derecha') {
-            const rightEdgeX = (useWorld ? cam.scrollX : 0) + sceneWidth - 30;
-            return { x: rightEdgeX - sprite.displayWidth, y: 180 };
-        }
-        if (normalized === 'jouktai') {
-            return { x: 30, y: 180 };
-        }
-        if (normalized === 'kai') {
-            return { x: 480, y: 180 };
-        }
-        return { x: 30, y: 180 };
+        return getCharacterTarget.call(this, name, direction);
     }
 
     getSpeakingFacing(name) {
-        const othersVisible = Array.from(this.characters.keys()).some((charName) => {
-            if (charName === name) return false;
-            const sprite = this.characters.get(charName);
-            return !!sprite && sprite.visible !== false && sprite.alpha > 0;
-        });
-        return othersVisible ? 'mira_lado' : 'mira_jugador';
+        return getSpeakingFacingAuto.call(this, name);
     }
 
     getSpeakerFlip(name, facing) {
-        if (facing !== 'mira_lado') return false;
-        const self = this.characters.get(name);
-        if (!self) return false;
-        let nearest = null;
-        this.characters.forEach((sprite, charName) => {
-            if (charName === name || !sprite || sprite.visible === false) return;
-            if (!nearest || Math.abs(sprite.x - self.x) < Math.abs(nearest.x - self.x)) {
-                nearest = sprite;
-            }
-        });
-        if (!nearest) return false;
-        return nearest.x < self.x;
+        return getSpeakerFlipAuto.call(this, name, facing);
     }
 
     startLipSync(name) {
-        this.stopLipSync(name);
-        let frameIndex = 0;
-        const sequence = [2, 3, 2, 1];
-        this.characterLipEvents.set(name, this.scene.time.addEvent({
-            delay: 120,
-            loop: true,
-            callback: () => {
-                this.setCharacterState(name, { mouth: sequence[frameIndex % sequence.length] });
-                frameIndex += 1;
-            },
-        }));
+        return startCharacterLipSync.call(this, name);
     }
 
     stopLipSync(name) {
-        const event = this.characterLipEvents.get(name);
-        if (event) {
-            event.remove(false);
-            this.characterLipEvents.delete(name);
-        }
-        this.setCharacterState(name, { mouth: 1 });
+        return stopCharacterLipSync.call(this, name);
     }
 
     startWalkBob(name) {
-        const sprite = this.characters.get(name);
-        const state = this.characterState.get(name);
-        if (!sprite || !state || state.isWalking) return;
-        state.isWalking = true;
-        state.baseY = sprite.y;
-        const runCycle = () => {
-            if (!state.isWalking) return;
-            this.scene.tweens.add({
-                targets: sprite,
-                y: state.baseY - 14,
-                duration: 170,
-                ease: 'Sine.out',
-                onComplete: () => {
-                    this.scene.tweens.add({
-                        targets: sprite,
-                        y: state.baseY,
-                        duration: 280,
-                        ease: 'Sine.in',
-                        onComplete: runCycle,
-                    });
-                },
-            });
-        };
-        runCycle();
+        return startCharacterWalkBob.call(this, name);
     }
 
     stopWalkBob(name) {
-        const sprite = this.characters.get(name);
-        const state = this.characterState.get(name);
-        if (!sprite || !state) return;
-        state.isWalking = false;
-        this.scene.tweens.killTweensOf(sprite);
-        sprite.y = state.baseY ?? sprite.y;
+        return stopCharacterWalkBob.call(this, name);
     }
 
     // Acciones de cámara/plano predefinidas.
@@ -382,89 +284,12 @@ export class StoryRunner {
 
     // Maneja acciones de personajes (entra, emoción, habla).
     async handleCharacter(tokens) {
-        const name = this.resolveCharacterName(tokens[1]);
-        const normalizedTokens = tokens.map((token) => normalizeKeyword(token));
-        const actionIndex = normalizedTokens.findIndex((token) => token === 'entra');
-        const action = actionIndex >= 0 ? 'entra' : normalizeKeyword(tokens[2] ?? '');
-
-        if (!name) return;
-        const emotionIndex = normalizedTokens.findIndex((token) => token === 'emocion' || token === 'expresion');
-        const lookIndex = normalizedTokens.findIndex((token) => token === 'mira');
-        const sayIndex = normalizedTokens.findIndex((token) => token === 'habla' || token === 'dice');
-
-        if (emotionIndex >= 0) {
-            this.setCharacterEmotion(name, tokens[emotionIndex + 1]);
-        }
-
-        if (lookIndex >= 0) {
-            const lookRaw = normalizeKeyword(tokens[lookIndex + 1] ?? '');
-            const isAutoLook = lookRaw === 'auto';
-            const facing = (lookRaw === 'lado' || lookRaw === 'mira_lado')
-                ? 'mira_lado'
-                : 'mira_jugador';
-            const state = this.characterState.get(name) ?? {};
-            this.setCharacterState(name, {
-                facing,
-                mouth: 1,
-                // Mantener el flip actual al cambiar mira manualmente.
-                // El mirror depende de por dónde entró o ajustes previos.
-                flipX: state.flipX ?? false,
-                manualFacing: !isAutoLook,
-            });
-        }
-
-        if (action === 'entra') {
-            const directionToken = actionIndex >= 0 ? tokens[actionIndex + 1] : tokens[3];
-            const direction = normalizeKeyword(directionToken ?? 'izquierda');
-            await this.characterEnter(name, direction);
-        }
-
-        if (sayIndex >= 0) {
-            const dialogTokens = tokens.slice(sayIndex + 1);
-            const dialogData = this.parseDialogTokens(dialogTokens);
-            this.lastDialogMap = dialogData.map;
-            this.lastDialogImageKey = dialogData.imageKeys;
-            const text = this.resolveDialogText(dialogData.map);
-            await this.showDialog(name, text, { imageKeys: dialogData.imageKeys });
-        }
+        return handleCharacterCommand.call(this, tokens);
     }
 
     // Entrada lateral con flip según dirección.
     async characterEnter(name, direction) {
-        name = this.resolveCharacterName(name);
-        const sprite = this.ensureCharacter(name);
-        const startX = direction === 'derecha' ? 2300 : -300;
-        const targetPos = this.getCharacterTargetPosition(name, direction);
-        const targetX = targetPos.x;
-        const cam = this.scene.cameras.main;
-        const useWorld = !!this.scene?.useWorldCharacters;
-        const targetY = useWorld ? cam.scrollY + targetPos.y : targetPos.y;
-        this.setCharacterState(name, {
-            emotion: 'camina',
-            mouth: 1,
-            facing: 'mira_lado',
-            flipX: direction === 'derecha',
-        });
-        sprite.x = startX;
-        sprite.y = targetY;
-        this.setCharacterState(name, { baseY: targetY });
-        this.startWalkBob(name);
-
-        this.startWalkingSound();
-        await new Promise((resolve) => {
-            this.scene.tweens.add({
-                targets: sprite,
-                x: targetX,
-                duration: 1200,
-                ease: 'Sine.out',
-                onComplete: () => {
-                    this.stopWalkBob(name);
-                    this.setCharacterState(name, { emotion: 'idle', mouth: 1 });
-                    this.stopWalkingSound();
-                    resolve();
-                },
-            });
-        });
+        return runCharacterEnter.call(this, name, direction);
     }
 
     // Muestra un diálogo y espera click para continuar.
@@ -593,9 +418,9 @@ export class StoryRunner {
                 scene.input.off('pointerdown', handler);
                 resolve();
             };
-        scene.input.on('pointerdown', handler);
-    });
-}
+            scene.input.on('pointerdown', handler);
+        });
+    }
 
     // Muestra una imagen (o placeholder) a pantalla completa.
     async handleShow(tokens) {
@@ -690,671 +515,17 @@ export class StoryRunner {
 
     // Minijuego: soplar al microfono para hacer girar las aspas.
     async handleBlowMillMinigame(id, options) {
-        const scene = this.scene;
-        scene.input.enabled = true;
-        const prevTopOnly = scene.input.topOnly;
-        scene.input.setTopOnly(true);
-        const prevAutoSpinSpeed = typeof scene.molinoAutoSpinSpeed === 'number' ? scene.molinoAutoSpinSpeed : 0;
-        scene.molinoAutoSpinSpeed = 0;
-
-        let pauseWasInteractive = false;
-        if (this.pauseButton) {
-            pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
-            this.pauseButton.disableInteractive();
-            this.pauseButton.setVisible(false);
-        }
-
-        const root = scene.add.container(0, 0);
-        const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.58);
-        bg.setScrollFactor(0);
-        root.add(bg);
-
-        const ui = scene.add.container(960, 540);
-        ui.setScrollFactor(0);
-        root.add(ui);
-        root.setDepth(2050);
-
-        const panel = scene.add.graphics();
-        panel.fillStyle(0x000000, 0.7);
-        panel.fillRoundedRect(-560, -300, 1120, 620, 24);
-
-        const title = scene.add.text(0, -238, 'Sopla para girar el molino', {
-            fontFamily: 'fredoka',
-            fontSize: '42px',
-            color: '#fce1b4',
-        }).setOrigin(0.5);
-
-        const hint = scene.add.text(0, -182, 'Sopla hacia la pantalla. Entre mas fuerte, mas rapido gira.', {
-            fontFamily: 'fredoka',
-            fontSize: '28px',
-            color: '#ffffff',
-            align: 'center',
-            wordWrap: { width: 900 },
-        }).setOrigin(0.5);
-
-        const status = scene.add.text(0, 195, 'Esperando sonido...', {
-            fontFamily: 'fredoka',
-            fontSize: '24px',
-            color: '#d9e8ff',
-        }).setOrigin(0.5);
-
-        const progressBg = scene.add.rectangle(0, 252, 820, 30, 0xffffff, 0.18).setOrigin(0.5);
-        const progressFill = scene.add.rectangle(-410, 252, 812, 22, 0x4ea1ff, 1).setOrigin(0, 0.5);
-        progressFill.scaleX = 0;
-
-        const gaugeCenterY = 28;
-        const gaugeLabel = scene.add.text(0, -58, 'Intensidad', {
-            fontFamily: 'fredoka',
-            fontSize: '24px',
-            color: '#ffffff',
-        }).setOrigin(0.5);
-        const gaugeTrack = scene.add.graphics();
-        const gaugeNeedle = scene.add.graphics();
-        const gaugeHub = scene.add.circle(0, gaugeCenterY, 8, 0xfce1b4, 1);
-        const gaugeRadius = 150;
-        // Semicirculo superior: izquierda (bajo) a derecha (alto), en sentido horario.
-        const gaugeStart = -Math.PI;
-        const gaugeEnd = 0;
-        const gaugeColors = [0x3b82f6, 0x22c55e, 0xfacc15, 0xfb923c, 0xef4444];
-        const drawGaugeTrack = () => {
-            gaugeTrack.clear();
-            gaugeColors.forEach((color, idx) => {
-                const t0 = idx / gaugeColors.length;
-                const t1 = (idx + 1) / gaugeColors.length;
-                const a0 = Phaser.Math.Linear(gaugeStart, gaugeEnd, t0);
-                const a1 = Phaser.Math.Linear(gaugeStart, gaugeEnd, t1);
-                gaugeTrack.lineStyle(18, color, 1);
-                gaugeTrack.beginPath();
-                gaugeTrack.arc(0, gaugeCenterY, gaugeRadius, a0, a1, false);
-                gaugeTrack.strokePath();
-            });
-        };
-        drawGaugeTrack();
-        const updateGaugeNeedle = (strength) => {
-            const clamped = Phaser.Math.Clamp(strength, 0, 1);
-            const angle = Phaser.Math.Linear(gaugeStart, gaugeEnd, clamped);
-            const endX = Math.cos(angle) * (gaugeRadius - 16);
-            const endY = gaugeCenterY + Math.sin(angle) * (gaugeRadius - 16);
-            gaugeNeedle.clear();
-            gaugeNeedle.lineStyle(6, 0xf8fafc, 1);
-            gaugeNeedle.beginPath();
-            gaugeNeedle.moveTo(0, gaugeCenterY);
-            gaugeNeedle.lineTo(endX, endY);
-            gaugeNeedle.strokePath();
-        };
-        updateGaugeNeedle(0);
-
-        ui.add([panel, title, hint, status, progressBg, progressFill, gaugeLabel, gaugeTrack, gaugeNeedle, gaugeHub]);
-        await this.animateContainerIn(ui);
-
-        let resolveDone;
-        const donePromise = new Promise((resolve) => {
-            resolveDone = resolve;
-        });
-
-        let finished = false;
-        const cleanup = async () => {
-            if (finished) return;
-            finished = true;
-            if (this.pauseButton) {
-                this.pauseButton.setVisible(true);
-                if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
-            }
-            if (pointerUpHandler) {
-                scene.input.off('pointerup', pointerUpHandler);
-                pointerUpHandler = null;
-            }
-            if (pointerUpOutsideHandler) {
-                scene.input.off('pointerupoutside', pointerUpOutsideHandler);
-                pointerUpOutsideHandler = null;
-            }
-            if (holdPulseTween) {
-                holdPulseTween.stop();
-                holdPulseTween = null;
-            }
-            if (holdButton) {
-                holdButton.destroy();
-                holdButton = null;
-            }
-            if (holdHitZone) {
-                holdHitZone.destroy();
-                holdHitZone = null;
-            }
-            scene.input.setTopOnly(prevTopOnly);
-            await this.animateContainerOut(ui);
-            root.destroy(true);
-            resolveDone();
-        };
-
-        let rafId = null;
-        let audioCtx = null;
-        let analyser = null;
-        let mediaStream = null;
-        let sourceNode = null;
-        let holdMode = false;
-        let holding = false;
-        let holdButton = null;
-        let holdHitZone = null;
-        let holdPulseTween = null;
-        let pointerUpHandler = null;
-        let pointerUpOutsideHandler = null;
-        const target = 100;
-        let progress = 0;
-        let smoothed = 0;
-        let noiseFloor = 0.01;
-        let lastTs = performance.now();
-        let currentAngularSpeed = 0.5;
-        let holdStrength = 0;
-        const speedSamples = [];
-        const maxSpeedSamples = 14;
-
-        const complete = async () => {
-            const sampledSpeed = speedSamples.length
-                ? speedSamples.reduce((acc, value) => acc + value, 0) / speedSamples.length
-                : currentAngularSpeed;
-            const mediumSpeed = 2.4;
-            const targetAutoSpeed = Phaser.Math.Clamp((sampledSpeed + mediumSpeed) * 0.5, 1.2, 3.6);
-            if (scene.tweens && scene.molinoAspas) {
-                if (scene.molinoAutoSpinTween) {
-                    scene.molinoAutoSpinTween.stop();
-                    scene.molinoAutoSpinTween = null;
-                }
-                scene.molinoAutoSpinSpeed = sampledSpeed;
-                scene.molinoAutoSpinTween = scene.tweens.add({
-                    targets: scene,
-                    molinoAutoSpinSpeed: targetAutoSpeed,
-                    duration: 850,
-                    ease: 'Sine.inOut',
-                    onComplete: () => {
-                        scene.molinoAutoSpinTween = null;
-                    },
-                });
-            } else {
-                scene.molinoAutoSpinSpeed = targetAutoSpeed || prevAutoSpinSpeed;
-            }
-            this.minigames.set(id, options[0] ?? 'respuesta1');
-            if (scene.cache.audio?.exists('success-bell')) {
-                scene.sound.play('success-bell', { volume: 0.65 });
-            }
-            await cleanup();
-        };
-
-        const rotateMill = (strength, dtSec) => {
-            // strength 0..1 => velocidad angular base.
-            if (scene.molinoAspas) {
-                scene.molinoAspas.rotation += (0.5 + strength * 5.5) * dtSec;
-            }
-        };
-
-        const tick = () => {
-            const now = performance.now();
-            const dtSec = Math.min((now - lastTs) / 1000, 0.05);
-            lastTs = now;
-
-            let strength = 0;
-            if (holdMode) {
-                // Fallback sin microfono: la intensidad sube gradualmente
-                // mientras se mantiene presionado, y decae al soltar.
-                const holdTarget = holding ? 0.78 : 0;
-                const risePerSecond = 0.85;
-                const fallPerSecond = 1.6;
-                if (holdTarget > holdStrength) {
-                    holdStrength = Math.min(holdTarget, holdStrength + risePerSecond * dtSec);
-                } else {
-                    holdStrength = Math.max(holdTarget, holdStrength - fallPerSecond * dtSec);
-                }
-                strength = holdStrength;
-            } else if (analyser) {
-                const data = new Uint8Array(analyser.fftSize);
-                analyser.getByteTimeDomainData(data);
-                let sum = 0;
-                for (let i = 0; i < data.length; i += 1) {
-                    const v = (data[i] - 128) / 128;
-                    sum += v * v;
-                }
-                const rms = Math.sqrt(sum / data.length);
-                noiseFloor = noiseFloor * 0.98 + Math.min(rms, 0.04) * 0.02;
-                // Muy sensible para soplar hacia pantalla, con compresion para no saturar.
-                const normalized = Phaser.Math.Clamp((rms - noiseFloor) * 28, 0, 1);
-                smoothed = smoothed * 0.78 + normalized * 0.22;
-                strength = smoothed;
-            }
-
-            updateGaugeNeedle(strength);
-            currentAngularSpeed = 0.5 + strength * 5.5;
-            if (strength > 0.06) {
-                speedSamples.push(currentAngularSpeed);
-                if (speedSamples.length > maxSpeedSamples) speedSamples.shift();
-            }
-            rotateMill(strength, dtSec);
-
-            if (strength > 0.06) {
-                progress += dtSec * (8 + strength * 42);
-                status.setText('Soplando... sigue asi');
-            } else if (holdMode) {
-                status.setText(holding ? 'Impulsando aspas...' : 'Manten presionado para soplar');
-            } else {
-                status.setText('Sopla hacia la pantalla');
-            }
-
-            progress = Phaser.Math.Clamp(progress, 0, target);
-            progressFill.scaleX = progress / target;
-
-            if (progress >= target) {
-                if (rafId) cancelAnimationFrame(rafId);
-                rafId = null;
-                complete();
-                return;
-            }
-            rafId = requestAnimationFrame(tick);
-        };
-
-        const enableHoldFallback = () => {
-            holdMode = true;
-            status.setText('Sin microfono: manten presionado para soplar');
-            const holdHint = scene.add.text(0, 150, 'Presiona y manten para soplar', {
-                fontFamily: 'fredoka',
-                fontSize: '22px',
-                color: '#ffd58a',
-            }).setOrigin(0.5);
-            ui.add(holdHint);
-
-            holdButton = scene.add.container(0, 20);
-            const holdBtnShadow = scene.add.circle(2, 5, 44, 0x000000, 0.28);
-            const holdBtnOuter = scene.add.circle(0, 0, 44, 0x1d8f4a, 1);
-            holdBtnOuter.setStrokeStyle(5, 0xfce1b4, 0.9);
-            const holdBtnInner = scene.add.circle(0, 0, 24, 0xfce1b4, 1);
-            holdButton.add([holdBtnShadow, holdBtnOuter, holdBtnInner]);
-            holdButton.setSize(92, 92);
-            ui.add(holdButton);
-
-            holdHitZone = scene.add.zone(ui.x + holdButton.x, ui.y + holdButton.y, 96, 96);
-            holdHitZone.setScrollFactor(0);
-            holdHitZone.setDepth(root.depth + 1);
-            holdHitZone.setInteractive({ useHandCursor: true });
-
-            holdHitZone.on('pointerdown', () => {
-                holding = true;
-                if (holdPulseTween) {
-                    holdPulseTween.pause();
-                }
-                holdButton.setScale(0.94);
-            });
-            holdHitZone.on('pointerup', () => {
-                holding = false;
-                holdButton.setScale(1);
-                if (holdPulseTween) {
-                    holdPulseTween.resume();
-                }
-            });
-            holdHitZone.on('pointerout', () => {
-                holding = false;
-                holdButton.setScale(1);
-                if (holdPulseTween) {
-                    holdPulseTween.resume();
-                }
-            });
-            UIHelpers.attachHoverPop(scene, holdHitZone, 0.35);
-            holdPulseTween = scene.tweens.add({
-                targets: holdButton,
-                scaleX: 1.06,
-                scaleY: 1.06,
-                duration: 460,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.inOut',
-            });
-
-            pointerUpHandler = () => {
-                holding = false;
-                if (holdButton) holdButton.setScale(1);
-                if (holdPulseTween) holdPulseTween.resume();
-            };
-            pointerUpOutsideHandler = () => {
-                holding = false;
-                if (holdButton) holdButton.setScale(1);
-                if (holdPulseTween) holdPulseTween.resume();
-            };
-            scene.input.on('pointerup', pointerUpHandler);
-            scene.input.on('pointerupoutside', pointerUpOutsideHandler);
-        };
-
-        try {
-            const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-            if (!navigator.mediaDevices?.getUserMedia || !AudioContextCtor) {
-                enableHoldFallback();
-            } else {
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false,
-                    },
-                });
-                audioCtx = new AudioContextCtor();
-                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
-                analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 512;
-                analyser.smoothingTimeConstant = 0.18;
-                sourceNode.connect(analyser);
-                status.setText('Sopla para girar las aspas');
-            }
-        } catch (error) {
-            enableHoldFallback();
-        }
-
-        rafId = requestAnimationFrame(tick);
-        await donePromise;
-
-        if (rafId) cancelAnimationFrame(rafId);
-        if (sourceNode) {
-            try { sourceNode.disconnect(); } catch {}
-        }
-        if (analyser) {
-            try { analyser.disconnect(); } catch {}
-        }
-        if (audioCtx) {
-            try { await audioCtx.close(); } catch {}
-        }
-        if (mediaStream) {
-            mediaStream.getTracks().forEach((track) => track.stop());
-        }
+        return runBlowMillMinigame.call(this, id, options);
     }
 
     // Minijuego: ubicar el molino en el mapa.
     async handleLocateMillMinigame(id) {
-        const scene = this.scene;
-        scene.input.enabled = true;
-        const prevTopOnly = scene.input.topOnly;
-        scene.input.setTopOnly(true);
-
-        let pauseWasInteractive = false;
-        if (this.pauseButton) {
-            pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
-            this.pauseButton.disableInteractive();
-            this.pauseButton.setVisible(false);
-        }
-
-        const root = scene.add.container(0, 0);
-        const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.6);
-        bg.setScrollFactor(0);
-        root.add(bg);
-
-        const map = scene.add.image(960, 520, 'mapa-molino').setOrigin(0.5);
-        map.setScrollFactor(0);
-        map.setDepth(900);
-        const scale = 0.9;
-        map.setScale(scale);
-
-        const hint = scene.add.text(960, 940, 'Toca el lugar donde debe ir el molino', {
-            fontFamily: 'fredoka',
-            fontSize: '26px',
-            color: '#ffffff',
-        }).setOrigin(0.5);
-        hint.setScrollFactor(0);
-        hint.setDepth(910);
-
-        const errorText = scene.add.text(960, 900, '', {
-            fontFamily: 'fredoka',
-            fontSize: '22px',
-            color: '#ff6b6b',
-        }).setOrigin(0.5);
-        errorText.setScrollFactor(0);
-        errorText.setDepth(910);
-
-        root.add([map, hint, errorText]);
-        root.setDepth(880);
-
-        const target = { x: 200, y: 460 }; // coordenadas en el mapa (px)
-        const tolerance = 70;
-        let marker = null;
-        let ring = null;
-
-        const placeMarker = (x, y, success) => {
-            if (marker) marker.destroy();
-            if (ring) ring.destroy();
-            marker = scene.add.image(x, y, 'mini-molino').setOrigin(0.5);
-            marker.setScrollFactor(0);
-            marker.setDepth(920);
-            marker.setScale(0.7);
-
-            ring = scene.add.circle(x, y, success ? 58 : 54, success ? 0x00c853 : 0xff3b30, 0.12);
-            ring.setStrokeStyle(4, success ? 0x00c853 : 0xff3b30, 0.9);
-            ring.setScrollFactor(0);
-            ring.setDepth(919);
-            root.add([ring, marker]);
-        };
-
-        const toLocal = (pointer) => {
-            const localX = (pointer.x - map.x) / scale + map.width / 2;
-            const localY = (pointer.y - map.y) / scale + map.height / 2;
-            return { x: localX, y: localY };
-        };
-
-        const toWorld = (local) => {
-            const worldX = map.x + (local.x - map.width / 2) * scale;
-            const worldY = map.y + (local.y - map.height / 2) * scale;
-            return { x: worldX, y: worldY };
-        };
-
-        let resolveDone;
-        const donePromise = new Promise((resolve) => {
-            resolveDone = resolve;
-        });
-
-        const onPointer = (pointer) => {
-            const local = toLocal(pointer);
-            const dist = Phaser.Math.Distance.Between(local.x, local.y, target.x, target.y);
-            const world = toWorld(local);
-            if (dist <= tolerance) {
-                errorText.setText('');
-                placeMarker(world.x, world.y, true);
-                if (scene.cache.audio?.exists('success-bell')) {
-                    scene.sound.play('success-bell', { volume: 0.7 });
-                }
-                scene.input.off('pointerdown', onPointer);
-                this.minigames.set(id, 'respuesta1');
-                hint.setText('¡Correcto! Toca para continuar.');
-                errorText.setText('');
-                const finishHandler = () => {
-                    scene.input.off('pointerdown', finishHandler);
-                    root.destroy(true);
-                    if (this.pauseButton) {
-                        this.pauseButton.setVisible(true);
-                        if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
-                    }
-                    scene.input.setTopOnly(prevTopOnly);
-                    resolveDone();
-                };
-                scene.input.once('pointerdown', finishHandler);
-                return;
-            }
-
-            placeMarker(world.x, world.y, false);
-            errorText.setText('Ese no es el lugar correcto. Intenta de nuevo.');
-            if (scene.cache.audio?.exists('wrong-option')) {
-                scene.sound.play('wrong-option', { volume: 0.7 });
-            }
-        };
-
-        scene.input.on('pointerdown', onPointer);
-        return donePromise;
+        return runLocateMillMinigame.call(this, id);
     }
 
     // Minijuego: girar la palanca del grifo 90 grados.
     async handleFaucetMinigame(id, options) {
-        const scene = this.scene;
-        scene.input.enabled = true;
-        const prevTopOnly = scene.input.topOnly;
-        scene.input.setTopOnly(true);
-
-        let pauseWasInteractive = false;
-        if (this.pauseButton) {
-            pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
-            this.pauseButton.disableInteractive();
-            this.pauseButton.setVisible(false);
-        }
-
-        const root = scene.add.container(0, 0);
-        const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.6);
-        bg.setScrollFactor(0);
-        root.add(bg);
-
-        const ui = scene.add.container(960, 540);
-        ui.setScrollFactor(0);
-        root.add(ui);
-
-        const base = scene.add.image(0, 50, 'grifo-cano').setOrigin(0.5);
-        const handleTexture = scene.textures.get('grifo-manija')?.getSourceImage();
-        const handleWidth = handleTexture?.width ?? 202;
-        const handleHeight = handleTexture?.height ?? 202;
-        // Nuevo eje de giro de la palanca.
-        const pivotX = 101;
-        const pivotY = 101;
-        const handle = scene.add.image(0, 0, 'grifo-manija')
-            .setOrigin(pivotX / handleWidth, pivotY / handleHeight);
-        handle.setDepth(2);
-
-        const handleSize = Math.min(handleWidth, handleHeight);
-        const radius = handleWidth * 0.5;
-        const startAngle = 0;
-        const endAngle = startAngle + Math.PI / 2 ;
-
-        const indicator = scene.add.graphics();
-        indicator.setDepth(3);
-        indicator.lineStyle(6, 0x4ea1ff, 1);
-        for (let t = startAngle; t < endAngle; t += 0.22) {
-            const x = Math.cos(t) * radius;
-            const y = Math.sin(t) * radius;
-            indicator.fillStyle(0x4ea1ff, 1);
-            indicator.fillCircle(x, y, 6);
-        }
-
-        const arrowX = Math.cos(endAngle) * radius;
-        const arrowY = Math.sin(endAngle) * radius;
-        const tangent = endAngle + Math.PI / 2;
-        const arrowSize = 32;
-        const left = {
-            x: arrowX - Math.cos(tangent - 0.6) * arrowSize,
-            y: arrowY - Math.sin(tangent - 0.6) * arrowSize,
-        };
-        const right = {
-            x: arrowX - Math.cos(tangent + 0.6) * arrowSize,
-            y: arrowY - Math.sin(tangent + 0.6) * arrowSize,
-        };
-        indicator.fillStyle(0x4ea1ff, 1);
-        indicator.fillTriangle(
-            arrowX,
-            arrowY,
-            left.x,
-            left.y,
-            right.x,
-            right.y
-        );
-
-        const progressLabel = scene.add.text(0, 320, 'Arrastra la palanca 90° para abrir', {
-            fontFamily: 'fredoka',
-            fontSize: '28px',
-            color: '#ffffff',
-        }).setOrigin(0.5, 0.5);
-
-        const progressBg = scene.add.rectangle(0, 370, 620, 22, 0xffffff, 0.2).setOrigin(0.5);
-        const progressFill = scene.add.rectangle(-310, 370, 600, 16, 0x4ea1ff, 1).setOrigin(0, 0.5);
-        progressFill.scaleX = 0;
-
-        ui.add([base, handle, indicator, progressLabel, progressBg, progressFill]);
-        ui.setDepth(950);
-        ui.setScrollFactor(0);
-        root.setDepth(940);
-
-        await this.animateContainerIn(ui);
-
-        let lastAngle = startAngle;
-        let openedRotation = 0;
-        let openSign = 0;
-        let finished = false;
-        const target = Math.PI / 2;
-        const squeak = scene.sound.add('metal-squeak', { volume: 0.5, loop: true });
-        const success = scene.sound.add('success-bell', { volume: 0.7 });
-
-        let resolveDone;
-        const donePromise = new Promise((resolve) => {
-            resolveDone = resolve;
-        });
-
-        const complete = async () => {
-            if (finished) return;
-            finished = true;
-            scene.input.off('pointerdown', pointerDownHandler);
-            scene.input.off('pointermove', pointerMoveHandler);
-            scene.input.off('pointerup', pointerUpHandler);
-            if (squeak.isPlaying) squeak.stop();
-            this.minigames.set(id, options[0] ?? 'respuesta1');
-            success.play();
-            await this.animateContainerOut(ui);
-            root.destroy(true);
-            if (this.pauseButton) {
-                this.pauseButton.setVisible(true);
-                if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
-            }
-            scene.input.setTopOnly(prevTopOnly);
-            resolveDone();
-        };
-
-        const onDragStart = (pointer) => {
-            lastAngle = Phaser.Math.Angle.Between(ui.x, ui.y, pointer.x, pointer.y);
-        };
-
-        const onDrag = (pointer) => {
-            const angle = Phaser.Math.Angle.Between(ui.x, ui.y, pointer.x, pointer.y);
-            const delta = Phaser.Math.Angle.Wrap(angle - lastAngle);
-            if (Math.abs(delta) > 0.002) {
-                if (openSign === 0) {
-                    openSign = delta >= 0 ? 1 : -1;
-                }
-                const signedDelta = delta * openSign;
-                openedRotation = Phaser.Math.Clamp(openedRotation + signedDelta, 0, target);
-                handle.rotation = openedRotation * openSign;
-                const progress = Phaser.Math.Clamp(openedRotation / target, 0, 1);
-                progressFill.scaleX = progress;
-                if (openedRotation >= target) {
-                    complete();
-                }
-            }
-
-            lastAngle = angle;
-        };
-
-        let dragging = false;
-        const hitRadius = Math.max(72, handleWidth * 0.5);
-
-        const pointerDownHandler = (pointer) => {
-            const worldX = ui.x;
-            const worldY = ui.y;
-            const dx = pointer.x - worldX;
-            const dy = pointer.y - worldY;
-            if (Math.hypot(dx, dy) > hitRadius) return;
-            dragging = true;
-            if (!squeak.isPlaying) squeak.play();
-            onDragStart(pointer);
-        };
-
-        const pointerMoveHandler = (pointer) => {
-            if (!dragging) return;
-            onDrag(pointer);
-        };
-
-        const pointerUpHandler = () => {
-            if (!dragging) return;
-            dragging = false;
-            if (squeak.isPlaying) squeak.stop();
-        };
-
-        scene.input.on('pointerdown', pointerDownHandler);
-        scene.input.on('pointermove', pointerMoveHandler);
-        scene.input.on('pointerup', pointerUpHandler);
-
-        return donePromise;
+        return runFaucetMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.
@@ -1479,6 +650,8 @@ export class StoryRunner {
 
     async showSceneQuestion(questionData) {
         const scene = this.scene;
+        const playerName = GameStorage.getName() || 'Jugador';
+        const injectPlayerName = (value) => String(value ?? '').replace(/\$jugador/gi, playerName);
         const prevTopOnly = scene.input.topOnly;
         scene.input.setTopOnly(true);
 
@@ -1528,7 +701,8 @@ export class StoryRunner {
             const btn = scene.add.container(0, y);
             const base = scene.add.graphics();
             const border = scene.add.graphics();
-            const label = scene.add.text(0, 0, this.language === 'wayuunaiki' ? option.wayuunaiki : option.es, {
+            const optionText = this.language === 'wayuunaiki' ? option.wayuunaiki : option.es;
+            const label = scene.add.text(0, 0, injectPlayerName(optionText), {
                 fontFamily: 'fredoka',
                 fontSize: '30px',
                 color: '#ffffff',
@@ -1655,10 +829,13 @@ export class StoryRunner {
     // Elige el texto correcto según idioma activo.
     resolveDialogText(dialogMap) {
         if (!dialogMap) return '';
+        const playerName = GameStorage.getName() || 'Jugador';
+        const injectPlayerName = (value) =>
+            String(value ?? '').replace(/\$jugador/gi, playerName);
         if (this.language === 'wayuunaiki') {
-            return dialogMap.wayuunaiki ?? dialogMap.way ?? dialogMap.es ?? '';
+            return injectPlayerName(dialogMap.wayuunaiki ?? dialogMap.way ?? dialogMap.es ?? '');
         }
-        return dialogMap.es ?? dialogMap.wayuunaiki ?? '';
+        return injectPlayerName(dialogMap.es ?? dialogMap.wayuunaiki ?? '');
     }
 
     // Animación bouncy de entrada del diálogo.
@@ -1714,382 +891,53 @@ export class StoryRunner {
 
     // Botón de pausa flotante.
     createPauseButton() {
-        if (this.pauseButton) return;
-        const scene = this.scene;
-        const key = scene.textures.exists('pause-icon') ? 'pause-icon' : ensurePlaceholder(scene);
-        this.pauseButton = scene.add.image(1840, 80, key).setOrigin(0.5).setScale(0.25);
-        this.pauseButton.setScrollFactor(0);
-        this.pauseButton.setDepth(1000);
-        this.pauseButton.setInteractive({ useHandCursor: true });
-        this.pauseButton.on('pointerdown', () => {
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            this.togglePause();
-        });
-        UIHelpers.attachHoverPop(scene, this.pauseButton, 0.35);
+        return createPauseToggleButton.call(this);
     }
 
     // Alterna pausa/reanudar.
     togglePause() {
-        if (this.isPaused) {
-            this.resume();
-        } else {
-            this.pause();
-        }
+        return togglePauseState.call(this);
     }
 
     // Pausa animaciones, timers y audio.
     pause() {
-        if (this.isPaused) return;
-        this.isPaused = true;
-        this.scene.tweens.timeScale = 0;
-        this.scene.time.timeScale = 0;
-        this.scene.sound.pauseAll();
-        this.showPauseOverlay();
+        return pauseStory.call(this);
     }
 
     // Reanuda animaciones, timers y audio.
     resume() {
-        if (!this.isPaused) return;
-        this.isPaused = false;
-        this.scene.tweens.timeScale = 1;
-        this.scene.time.timeScale = 1;
-        this.scene.sound.resumeAll();
-        this.hidePauseOverlay();
+        return resumeStory.call(this);
     }
 
     // Muestra el overlay de pausa con selector de idioma.
     showPauseOverlay() {
-        if (this.pauseOverlay) return;
-        const scene = this.scene;
-        scene.input.setTopOnly(true);
-        const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.6);
-        const panel = scene.add.rectangle(960, 540, 860, 640, 0x1f1f1f, 0.95);
-        const title = scene.add.text(960, 350, 'Pausa', {
-            fontFamily: 'fredoka',
-            fontSize: '48px',
-            color: '#ffffff',
-        }).setOrigin(0.5);
-
-        const langToggle = this.createLanguageToggle(960, 450, [
-            { id: 'es', label: 'Español' },
-            { id: 'wayuunaiki', label: 'Wayuu' },
-        ], this.language);
-
-        const currentMusicEnabled = GameStorage.getMusicEnabled();
-        const initialLevel = currentMusicEnabled ? Math.round(this.musicVolume * 10) : 0;
-        const volumeSlider = this.createVolumeSelector(960, 560, 10, initialLevel, (level) => {
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            this.setMusicVolume(level / 10, { fromUser: true });
-            this.ignoreNextDialogClick = true;
-        });
-
-        const restartBtn = this.createPauseActionButton(760, 650, 'Reiniciar capítulo', () => {
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            const chapterInfo = this.getCurrentChapterInfo();
-            if (chapterInfo) {
-                GameStorage.commitChapterSession(chapterInfo.chapter);
-            }
-            this.resume();
-            this.resetWalkingSound();
-            this.ignoreNextDialogClick = true;
-            scene.scene.restart();
-        });
-
-        const menuBtn = this.createPauseActionButton(1160, 650, 'Volver a capítulos', () => {
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            const chapterInfo = this.getCurrentChapterInfo();
-            if (chapterInfo) {
-                GameStorage.commitChapterSession(chapterInfo.chapter);
-            }
-            this.resume();
-            this.resetWalkingSound();
-            this.ignoreNextDialogClick = true;
-            scene.scene.start('Capitulos', {
-                gearsOffsetX: 0,
-                gearsOffsetY: 0,
-            });
-        });
-
-        const pagination = this.createScenePagination(960, 760, (target) => {
-            if (!target) return;
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            GameStorage.jumpToScene(this.scene?.scene?.key, target);
-            this.resume();
-            this.resetWalkingSound();
-            this.ignoreNextDialogClick = true;
-            scene.scene.start(target);
-        });
-
-        const hint = scene.add.text(960, 865, 'Toca fuera o presiona pausar para continuar', {
-            fontFamily: 'fredoka',
-            fontSize: '20px',
-            color: '#cccccc',
-        }).setOrigin(0.5);
-
-        [bg, panel, title, langToggle.container, volumeSlider.container, restartBtn.container, menuBtn.container, pagination.container, hint].forEach((item, index) => {
-            item.setScrollFactor(0);
-            item.setDepth(1100 + index);
-        });
-
-        bg.setInteractive();
-        bg.on('pointerdown', (pointer) => {
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            this.resume();
-            this.ignoreNextDialogClick = true;
-            if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-        });
-
-        langToggle.onChange((lang) => {
-            if (scene.cache.audio?.exists('pop')) {
-                scene.sound.play('pop', { volume: 0.8 });
-            }
-            this.setLanguage(lang);
-            this.ignoreNextDialogClick = true;
-        });
-
-        this.pauseOverlay = {
-            bg,
-            panel,
-            title,
-            hint,
-            buttons: [langToggle, volumeSlider, restartBtn, menuBtn, pagination],
-        };
+        return showPauseMenuOverlay.call(this);
     }
 
     // Cierra el overlay de pausa.
     hidePauseOverlay() {
-        if (!this.pauseOverlay) return;
-        const { bg, panel, title, hint, buttons } = this.pauseOverlay;
-        this.scene.input.setTopOnly(false);
-        bg.destroy();
-        panel.destroy();
-        title.destroy();
-        hint.destroy();
-        buttons.forEach((btn) => btn.destroy());
-        this.pauseOverlay = null;
+        return hidePauseMenuOverlay.call(this);
     }
 
     // Toggle de idioma estilo "pill" doble.
     createLanguageToggle(x, y, options, activeId) {
-        const scene = this.scene;
-        const container = scene.add.container(x, y);
-        const width = 560;
-        const height = 84;
-        const radius = 18;
-
-        const shadow = scene.add.graphics();
-        shadow.fillStyle(0x000000, 0.2);
-        shadow.fillRoundedRect(-width / 2 + 2, -height / 2 + 6, width, height, radius);
-
-        const bg = scene.add.graphics();
-        bg.fillStyle(0xefe5f0, 1);
-        bg.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-
-        const activePill = scene.add.graphics();
-
-        const leftText = scene.add.text(-width / 4, 0, options[0].label, {
-            fontFamily: 'fredoka',
-            fontSize: '28px',
-            color: '#6a5c6f',
-        }).setOrigin(0.5);
-        const rightText = scene.add.text(width / 4, 0, options[1].label, {
-            fontFamily: 'fredoka',
-            fontSize: '28px',
-            color: '#6a5c6f',
-        }).setOrigin(0.5);
-
-        const hitLeft = scene.add.rectangle(-width / 4, 0, width / 2, height, 0xffffff, 0.001);
-        const hitRight = scene.add.rectangle(width / 4, 0, width / 2, height, 0xffffff, 0.001);
-        hitLeft.setInteractive({ useHandCursor: true });
-        hitRight.setInteractive({ useHandCursor: true });
-
-        const render = (id) => {
-            activePill.clear();
-            const isLeft = id === options[0].id;
-            const pillX = isLeft ? -width / 4 : width / 4;
-            activePill.fillStyle(0x63a711, 1);
-            activePill.fillRoundedRect(pillX - (width / 4) + 12, -height / 2 + 10, width / 2 - 24, height - 20, 16);
-            leftText.setColor(isLeft ? '#ffffff' : '#8b8b8b');
-            rightText.setColor(!isLeft ? '#ffffff' : '#8b8b8b');
-        };
-
-        render(activeId);
-
-        [shadow, bg, activePill, leftText, rightText, hitLeft, hitRight].forEach((item) => {
-            item.setScrollFactor(0);
-        });
-        container.add([shadow, bg, activePill, leftText, rightText, hitLeft, hitRight]);
-        container.setSize(width, height);
-
-        let onChange = null;
-        hitLeft.on('pointerdown', (pointer) => {
-            render(options[0].id);
-            if (onChange) onChange(options[0].id);
-            if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-        });
-        hitRight.on('pointerdown', (pointer) => {
-            render(options[1].id);
-            if (onChange) onChange(options[1].id);
-            if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-        });
-        UIHelpers.attachHoverPop(scene, hitLeft, 0.35);
-        UIHelpers.attachHoverPop(scene, hitRight, 0.35);
-
-        return {
-            container,
-            onChange: (fn) => { onChange = fn; },
-            destroy: () => container.destroy(),
-        };
+        return createLanguageToggleControl.call(this, x, y, options, activeId);
     }
 
     createPauseActionButton(x, y, label, onClick) {
-        const scene = this.scene;
-        const container = scene.add.container(x, y);
-        const width = 360;
-        const height = 64;
-
-        const base = scene.add.graphics();
-        base.fillStyle(0x3a3a3a, 1);
-        base.fillRoundedRect(-width / 2, -height / 2, width, height, 16);
-        const border = scene.add.graphics();
-        border.lineStyle(3, 0xffffff, 0.7);
-        border.strokeRoundedRect(-width / 2, -height / 2, width, height, 16);
-        const text = scene.add.text(0, 0, label, {
-            fontFamily: 'fredoka',
-            fontSize: '24px',
-            color: '#ffffff',
-        }).setOrigin(0.5);
-
-        [base, border, text].forEach((item) => item.setScrollFactor(0));
-        container.add([base, border, text]);
-        container.setSize(width, height);
-        container.setInteractive({ useHandCursor: true });
-        container.on('pointerdown', (pointer) => {
-            if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-            onClick();
-        });
-        UIHelpers.attachHoverPop(scene, container, 0.35);
-
-        return {
-            container,
-            destroy: () => container.destroy(),
-        };
+        return createPauseActionControl.call(this, x, y, label, onClick);
     }
 
     getAdjacentChapterScene(offset) {
-        const scene = this.scene;
-        const currentKey = scene.scene.key;
-        const keys = scene.scene.manager.scenes.map((s) => s.sys.settings.key);
-        const chapterKeys = keys.filter((key) => key.startsWith('Chp'));
-        const index = chapterKeys.indexOf(currentKey);
-        if (index < 0) return null;
-        const nextIndex = index + offset;
-        if (nextIndex < 0 || nextIndex >= chapterKeys.length) return null;
-        return chapterKeys[nextIndex];
+        return getAdjacentChapterSceneKey.call(this, offset);
     }
 
     getCurrentChapterInfo() {
-        return GameStorage.parseChapterSceneKey(this.scene?.scene?.key);
+        return getCurrentChapterSceneInfo.call(this);
     }
 
     createScenePagination(x, y, onSelect) {
-        const scene = this.scene;
-        const container = scene.add.container(x, y);
-        const hitZones = [];
-        const info = this.getCurrentChapterInfo();
-
-        if (!info) {
-            const fallback = scene.add.text(0, 0, 'Escenas no disponibles', {
-                fontFamily: 'fredoka',
-                fontSize: '24px',
-                color: '#b5b5b5',
-            }).setOrigin(0.5);
-            container.add(fallback);
-            return {
-                container,
-                destroy: () => {
-                    hitZones.forEach((zone) => zone.destroy());
-                    container.destroy();
-                },
-            };
-        }
-
-        const chapter = info.chapter;
-        const currentScene = info.scene;
-        const summary = GameStorage.getChapterProgressSummary(chapter);
-        const chapterProgress = GameStorage.getChapterProgress(chapter);
-        const reached = new Set([
-            ...chapterProgress.reachedScenes,
-            ...chapterProgress.completedScenes,
-        ]);
-        const maxReached = Math.max(...Array.from(reached.values()), currentScene);
-        const totalScenes = Math.max(1, summary.totalScenes || currentScene);
-        const spacing = 84;
-        const startX = -((totalScenes - 1) * spacing) / 2;
-
-        for (let index = 1; index <= totalScenes; index += 1) {
-            const isCurrent = index === currentScene;
-            const isReached = summary.isCompleted || reached.has(index) || index <= maxReached;
-            const box = scene.add.graphics();
-            const size = 56;
-            const radius = 10;
-            const bgColor = isCurrent ? 0xf0c18a : (isReached ? 0x6a3a1b : 0x3a3a3a);
-            const textColor = isCurrent ? '#6a3a1b' : (isReached ? '#fce1b4' : '#8b8b8b');
-            box.fillStyle(bgColor, isReached ? 1 : 0.75);
-            box.fillRoundedRect(-size / 2, -size / 2, size, size, radius);
-            box.lineStyle(2, isCurrent ? 0x8b4c1d : 0xfce1b4, isReached ? 0.7 : 0.2);
-            box.strokeRoundedRect(-size / 2, -size / 2, size, size, radius);
-
-            const label = scene.add.text(0, 1, String(index), {
-                fontFamily: 'fredoka',
-                fontSize: '28px',
-                color: textColor,
-                fontStyle: 'bold',
-            }).setOrigin(0.5);
-
-            const item = scene.add.container(startX + (index - 1) * spacing, 0, [box, label]);
-            item.setSize(size, size);
-            container.add(item);
-
-            if (isReached && !isCurrent) {
-                const worldX = x + item.x;
-                const worldY = y + item.y;
-                const hit = scene.add.zone(worldX, worldY, size, size).setOrigin(0.5);
-                hit.setInteractive({ useHandCursor: true });
-                hit.setScrollFactor(0);
-                hit.setDepth(1305);
-                hit.on('pointerdown', (pointer) => {
-                    if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-                    onSelect?.(`Chp${chapter}_scn${index}`);
-                });
-                hit.on('pointerover', () => item.setScale(1.08));
-                hit.on('pointerout', () => item.setScale(1));
-                UIHelpers.attachHoverPop(scene, hit, 0.35);
-                hitZones.push(hit);
-            } else if (!isReached) {
-                item.setAlpha(0.65);
-            }
-        }
-
-        return {
-            container,
-            destroy: () => {
-                hitZones.forEach((zone) => zone.destroy());
-                container.destroy();
-            },
-        };
+        return createScenePaginationControl.call(this, x, y, onSelect);
     }
 
     handleBgScroll(tokens) {
@@ -2169,111 +1017,20 @@ export class StoryRunner {
     }
 
     createVolumeSelector(x, y, segments, activeLevel, onChange) {
-        const scene = this.scene;
-        const container = scene.add.container(x, y);
-        const totalWidth = 360;
-        const totalHeight = 24;
-        const gap = 6;
-        const segmentWidth = (totalWidth - gap * (segments - 1)) / segments;
-        const segmentHeight = totalHeight;
-
-        const bg = scene.add.graphics();
-        bg.fillStyle(0xffffff, 0.12);
-        bg.fillRoundedRect(-totalWidth / 2 - 12, -totalHeight / 2 - 10, totalWidth + 24, totalHeight + 20, 12);
-
-        const label = scene.add.text(0, -36, 'Música', {
-            fontFamily: 'fredoka',
-            fontSize: '22px',
-            color: '#ffffff',
-        }).setOrigin(0.5);
-
-        const muteLabel = scene.add.text(-totalWidth / 2 - 22, 0, '0', {
-            fontFamily: 'fredoka',
-            fontSize: '18px',
-            color: '#ffffff',
-        }).setOrigin(0.5);
-        const muteHit = scene.add.circle(-totalWidth / 2 - 22, 0, 14, 0xffffff, 0.001);
-        muteHit.setInteractive({ useHandCursor: true });
-        UIHelpers.attachHoverPop(scene, muteHit, 0.35);
-
-        const segmentsList = [];
-        for (let i = 0; i < segments; i += 1) {
-            const xPos = -totalWidth / 2 + i * (segmentWidth + gap) + segmentWidth / 2;
-            const rect = scene.add.rectangle(xPos, 0, segmentWidth, segmentHeight, 0xffffff, 0.2);
-            rect.setStrokeStyle(2, 0xffffff, 0.25);
-            rect.setInteractive({ useHandCursor: true });
-            UIHelpers.attachHoverPop(scene, rect, 0.35);
-            segmentsList.push(rect);
-        }
-
-        const render = (level) => {
-            const clamped = Phaser.Math.Clamp(level, 0, segments);
-            segmentsList.forEach((rect, idx) => {
-                const active = idx < clamped;
-                rect.setFillStyle(active ? 0x63a711 : 0xffffff, active ? 0.85 : 0.2);
-                rect.setStrokeStyle(2, active ? 0xfce1b4 : 0xffffff, active ? 0.9 : 0.25);
-            });
-        };
-
-        render(activeLevel);
-
-        segmentsList.forEach((rect, idx) => {
-            rect.on('pointerdown', (pointer) => {
-                if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-                const level = idx + 1;
-                render(level);
-                onChange(level);
-            });
-        });
-
-        muteHit.on('pointerdown', (pointer) => {
-            if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
-            render(0);
-            onChange(0);
-        });
-
-        [bg, label, muteLabel, muteHit, ...segmentsList].forEach((item) => item.setScrollFactor(0));
-        container.add([bg, label, muteLabel, muteHit, ...segmentsList]);
-        container.setSize(totalWidth + 60, totalHeight + 20);
-
-        return {
-            container,
-            destroy: () => container.destroy(),
-        };
+        return createVolumeSelectorControl.call(this, x, y, segments, activeLevel, onChange);
     }
 
     ensureMusic() {
-        this.musicSound = AudioManager.ensureLoopingMusic(this.scene, 'gametheme', this.musicVolume);
+        return ensureRunnerMusic.call(this);
     }
 
     setMusicVolume(volume, options = {}) {
-        const { fromUser = false } = options;
-        this.musicVolume = Phaser.Math.Clamp(volume, 0, 1);
-        GameStorage.setMusicVolume(this.musicVolume);
-        if (fromUser) {
-            const enabled = this.musicVolume > 0;
-            GameStorage.setMusicEnabled(enabled);
-        }
-        const enabled = GameStorage.getMusicEnabled();
-        if (this.musicSound) {
-            this.musicSound.setVolume(this.musicVolume);
-            if (enabled && !this.musicSound.isPlaying) {
-                this.musicSound.play();
-            }
-            if (!enabled && this.musicSound.isPlaying) {
-                this.musicSound.stop();
-            }
-        }
+        return setRunnerMusicVolume.call(this, volume, options);
     }
 
     // Cambia idioma activo y refresca el texto visible.
     setLanguage(lang) {
-        this.language = lang;
-        GameStorage.setLanguage(lang);
-        if (this.lastDialogMap) {
-            const nextText = this.resolveDialogText(this.lastDialogMap);
-            this.setDialogText(nextText);
-        }
+        return setRunnerLanguage.call(this, lang);
     }
 
     // Renderiza texto con resaltado usando {{palabra}}.
@@ -2315,6 +1072,29 @@ export class StoryRunner {
         const before = text.slice(0, match.index);
         const highlighted = match[1];
         const after = text.slice(match.index + match[0].length);
+        const fullText = `${before}${highlighted}${after}`;
+        const contentWidth = this.dialogMetrics.width - 220;
+
+        // Cuando hay resaltado, el render usa 3 bloques de texto.
+        // Ese layout no hace wrap multi-línea de forma natural, por eso
+        // para textos largos hacemos fallback a texto normal con wrap.
+        const measure = scene.add.text(0, y, fullText, {
+            ...defaultDialogStyle,
+            wordWrap: { width: contentWidth },
+        }).setOrigin(0.5);
+        const needsWrapFallback = measure.height > 44 || measure.width > contentWidth;
+        measure.destroy();
+
+        if (needsWrapFallback) {
+            const normalWrapped = scene.add.text(0, y, fullText, {
+                ...defaultDialogStyle,
+                wordWrap: { width: contentWidth },
+                align: 'center',
+            }).setOrigin(0.5);
+            this.dialogContainer.add(normalWrapped);
+            this.dialogTextItems.push(normalWrapped);
+            return;
+        }
 
         const style = { ...defaultDialogStyle, wordWrap: { width: 2000 } };
         const beforeText = scene.add.text(0, y, before, style).setOrigin(0, 0.5);
@@ -2325,7 +1105,7 @@ export class StoryRunner {
         const afterText = scene.add.text(0, y, after, style).setOrigin(0, 0.5);
 
         const totalWidth = beforeText.width + highlightText.width + afterText.width;
-        let startX = -totalWidth / 2;
+        const startX = -totalWidth / 2;
         beforeText.x = startX;
         highlightText.x = beforeText.x + beforeText.width;
         afterText.x = highlightText.x + highlightText.width;
@@ -2447,9 +1227,9 @@ export class StoryRunner {
         const height = Math.max(260, sh - 100);
         const side = this.getRecuadroSide();
         const x = side === 'left'
-            ? width / 2
+            ? (width / 2) + 100
             : side === 'right'
-                ? sw - width / 2
+                ? (sw - width / 2) - 100
                 : sw / 2;
         const y = sh / 2;
         return { x, y, width, height };
@@ -2605,6 +1385,12 @@ export class StoryRunner {
             image.setScale(image.scale * 0.72);
             this.recuadroContent.add(image);
             this.recuadroItems.push(image);
+
+            if (scene.cache.audio?.exists('pop-img-recuadro')) {
+                scene.time.delayedCall(idx * 45, () => {
+                    scene.sound.play('pop-img-recuadro', { volume: 0.55 });
+                });
+            }
 
             scene.tweens.add({
                 targets: image,
