@@ -35,6 +35,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.load.image('cap3', 'assets/chapters/cap3.png');
         this.load.image('cap3f', 'assets/chapters/cap3f.png');
         this.load.image('nocap', 'assets/chapters/nocap.png');
+        this.load.image('star-holder', 'assets/ui/star-holder.png');
+        this.load.image('star', 'assets/ui/star.png');
     }
 
     createChapterCard(title, image, description, i, state, summary) {
@@ -100,12 +102,32 @@ export class ChapterSelectorScene extends Phaser.Scene {
             }
         );
 
+        const starRow = this.add.container(0, 262);
+        const holders = [];
+        const filledStars = [];
+        const starCount = Math.max(0, Math.min(3, Number(summary.stars) || 0));
+        for (let index = 0; index < 3; index += 1) {
+            const x = -58 + index * 58;
+            const holder = this.add.image(x, 0, 'star-holder').setDisplaySize(46, 46);
+            holders.push(holder);
+            starRow.add(holder);
+            if (index < starCount) {
+                const star = this.add.image(x, 0, 'star').setDisplaySize(30, 30);
+                filledStars.push(star);
+                starRow.add(star);
+            }
+        }
+        const dimAlpha = state === ChapterState.LOCKED ? 0.55 : 1;
+        holders.forEach((holder) => holder.setAlpha(dimAlpha));
+        filledStars.forEach((star) => star.setAlpha(dimAlpha));
+
         const cardBody = this.add.container(0, 0, [
             body,
             titleText,
             img,
             desc,
-            progressText
+            progressText,
+            starRow
         ])
         cardBody.setSize(422, 760)
 
