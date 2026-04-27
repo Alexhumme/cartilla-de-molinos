@@ -15,6 +15,7 @@ export class Chp2_scn2 extends Phaser.Scene {
         this.load.audio('walk', 'assets/sounds/walk.mp3');
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
+        this.load.audio('pop-img-recuadro', 'assets/sounds/pop-img-recuadro.mp3');
         this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
 
         // Assets del fondo desierto.
@@ -76,6 +77,7 @@ export class Chp2_scn2 extends Phaser.Scene {
         this.bgScrollActive = false;
         this.bgScrollDirection = -1;
         this.bgScrollSpeed = 8;
+        this.faultyMillElapsed = 0;
 
         // Inicializa el runner del guion.
         const scriptText = this.cache.text.get('ch2_script');
@@ -94,6 +96,25 @@ export class Chp2_scn2 extends Phaser.Scene {
         const speed = 0.0001 * delta;
         if (this.sun1) this.sun1.rotation += speed;
         if (this.sun2) this.sun2.rotation -= speed * 0.6;
+        if (this.molinoAspas) {
+            this.faultyMillElapsed += delta / 1000;
+            const cycle = 1.45;
+            const t = (this.faultyMillElapsed % cycle) / cycle;
+            let spinSpeed = 0.18;
+            if (t < 0.34) {
+                spinSpeed = Phaser.Math.Linear(0.18, 1.55, t / 0.34);
+            } else if (t < 0.44) {
+                spinSpeed = Phaser.Math.Linear(1.55, -0.48, (t - 0.34) / 0.10);
+            } else if (t < 0.68) {
+                spinSpeed = Phaser.Math.Linear(-0.48, 1.35, (t - 0.44) / 0.24);
+            } else if (t < 0.78) {
+                spinSpeed = Phaser.Math.Linear(1.35, -0.42, (t - 0.68) / 0.10);
+            } else {
+                spinSpeed = Phaser.Math.Linear(-0.42, 1.2, (t - 0.78) / 0.22);
+            }
+            const wobble = Math.sin(this.faultyMillElapsed * 23) * 0.06;
+            this.molinoAspas.rotation += (spinSpeed + wobble) * (delta / 1000);
+        }
 
         if (this.bgScrollActive && this.bgLayers) {
             const step = (this.bgScrollSpeed * delta) / 1000;

@@ -1,33 +1,4 @@
-# Capitulo 1 - ejemplo de guion por eventos
-# Dialogo bilingue:
-# [personaje][Jouktai][habla][es:Hola][way:Wanee]
-# Si solo hay un texto, se usa como fallback para ambos idiomas.
-#
-# Ordenes disponibles:
-# [escena][Nombre]
-# [label][Nombre] o [etiqueta][Nombre]
-# [goto][Nombre] o [ir_a][Nombre]
-# [cambiar_escena][NombreScene]
-# [plano][sol_hacia_abajo]
-# [personaje][Nombre][entra][izquierda|derecha]
-# [personaje][Nombre][emocion][feliz|triste|duda]
-# [personaje][Nombre][mira][jugador|lado|auto]
-# [personaje][Nombre][habla][es:...][way:...]
-# [caminar][Nombre][derecha|izquierda][distancia][duracion][scroll]
-# [bgscroll][start][Nombre o Nombre1,Nombre2][izquierda|derecha][velocidad]
-# [bgscroll][stop] o [bgscroll][stop][Nombre o Nombre1,Nombre2]
-# [minijuego][id][respuesta1][respuesta2]
-# [minijuego][soplar_molino]
-# [if][id][respuesta1][...accion...]
-# [mostrar][imagen][textureKey]
-# [imagen][key:AssetKey][x:..][y:..][scale:..][depth:..]
-# [imagen][key:AssetKey][follow:Personaje][offsetX:..][offsetY:..][scale:..][depth:..]
-# Nota: en escenas con paneo, la cámara puede estar desplazada (por ejemplo scrollY=800),
-# así que posiciones absolutas con y bajas (ej. y:200) pueden quedar fuera de la vista.
-# [camara][subir|bajar][distancia][duracion]
-# [esperar][ms]
-# [pregunta_escena][es:Pregunta][correcta:2][op1:..][op2:..][op3:..]
-# [fin_escena]
+# Capitulo 1
 
 [escena][Inicio]
 [plano][sol_hacia_abajo]
@@ -52,13 +23,19 @@
 [personaje][Jouktai][habla][es:Kai estaba sembrando frijolitos en las hortalizas de la comunidad. ¡Acompáñame a buscarlo!]
 [bgscroll][start][Jouktai][izquierda][40]
 [personaje][Jouktai][habla][es:En mi comunidad, el {{agua}} es más que algo que bebemos... Es lo que nos da vida.][way:Ya tepiapa, tü wüiinka kojutsu wamüin saka shia waiintüin shia aapakat katouwa]
-[personaje][Jouktai][habla][img:item-sol-caliente,item-no-agua][es:Aquí, donde el sol calienta tanto, cada {{gota}} cuenta. Sin agua no podríamos sembrar, ni cocinar, ni cuidar las hortalizas, ni tener gallinas, cabras y ovejas.]
-[personaje][Jouktai][habla][img:item-sol-caliente,item-lavanderia,item-ducha][es:La usamos para cocinar el maíz, para lavar la ropa, y para refrescarnos después del trabajo. Pero también debemos {{cuidarla}}, porque no siempre hay.][way:Walakajaiyasu tü maikukat, supula ashijawaa waashein otta supula asontiawaiin tsuchikeje ayaanamaja. Aijeesü tü wiinka nojotsu wanepian.]
-[personaje][Jouktai][habla][img:item-molino-danado,item-tuberia][es:A veces, si en algún momento se daña el molino o el {{micro-acueducto}}, podríamos dejár de tener agua y conseguirla será muy difícil. Por eso nunca debemos desperdiciarla.][way:Esu sou sumojujakalou tü moliinakat otta tü sajarratiakat, nojolerrut wüiin wamana nojolen wüiin wantüin anain. Weisattajen tü winka.]
-[personaje][Jouktai][habla][img:item-ducha][es:Podemos cuidarla cerrando bien las {{llaves}}, usando solo lo que necesitamos, y arreglando los molinos cuando se dañan.][way:Waakalinjen sunain wasurruluin tü wiinka waanepia, wapain tü choujakat apulaa, otta musia sumoujalee anoktunoin tü moliinakat.]
-[personaje][Jouktai][habla][img:item-gota-vida][es:El molino nos ayuda a todos en la comunidad. Si lo cuidamos, siempre habrá {{agua}} para todos.][way:Tü moliinakat sumulianjuin wayaa wapushua yaya miichupa. Maaka waimanjüin sulu kai supushuwaa ewerrü waanepia tü wiinkat wapula wapushuwaa.]
+[recuadro][abrir]
+[recuadro][imagenes][item-sol-caliente,item-no-agua]
+[personaje][Jouktai][habla][es:Aquí, donde el sol calienta tanto, cada {{gota}} cuenta. Sin agua no podríamos sembrar, ni cocinar, ni cuidar las hortalizas, ni tener gallinas, cabras y ovejas.]
+[recuadro][imagenes][item-sol-caliente,item-lavanderia,item-ducha]
+[personaje][Jouktai][habla][es:La usamos para cocinar el maíz, para lavar la ropa, y para refrescarnos después del trabajo. Pero también debemos {{cuidarla}}, porque no siempre hay.][way:Walakajaiyasu tü maikukat, supula ashijawaa waashein otta supula asontiawaiin tsuchikeje ayaanamaja. Aijeesü tü wiinka nojotsu wanepian.]
+[recuadro][imagenes][item-molino-danado,item-tuberia]
+[personaje][Jouktai][habla][es:A veces, si en algún momento se daña el molino o el {{micro-acueducto}}, podríamos dejár de tener agua y conseguirla será muy difícil. Por eso nunca debemos desperdiciarla.][way:Esu sou sumojujakalou tü moliinakat otta tü sajarratiakat, nojolerrut wüiin wamana nojolen wüiin wantüin anain. Weisattajen tü winka.]
+[recuadro][imagenes][item-ducha]
+[personaje][Jouktai][habla][es:Podemos cuidarla cerrando bien las {{llaves}}, usando solo lo que necesitamos, y arreglando los molinos cuando se dañan.][way:Waakalinjen sunain wasurruluin tü wiinka waanepia, wapain tü choujakat apulaa, otta musia sumoujalee anoktunoin tü moliinakat.]
+[recuadro][imagenes][item-gota-vida]
+[personaje][Jouktai][habla][es:El molino nos ayuda a todos en la comunidad. Si lo cuidamos, siempre habrá {{agua}} para todos.][way:Tü moliinakat sumulianjuin wayaa wapushua yaya miichupa. Maaka waimanjüin sulu kai supushuwaa ewerrü waanepia tü wiinkat wapula wapushuwaa.]
 [pregunta_escena][es:¿Cómo se cuida mejor el agua?][way:Jamüsu sunaajaya sulu anain tumuinka][correcta:3][op1es:Usarla sin medida][op1way:Nojolen yawajiin piyawatin sau][op2es:Esperar a que otros la cuiden][op2way:Paatapajüin wanee ayaawatin sau tuwiinka][op3es:Usar solo lo necesario y cerrar bien las llaves][op3way:Papain tü choujaka pomuin otta musia pusurrula tü suju tajiaka]
-
+[recuadro][cerrar]
 [cambiar_escena][Chp1_scn3]
 
 [escena][Encuentro]

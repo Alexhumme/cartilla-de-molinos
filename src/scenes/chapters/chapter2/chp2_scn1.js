@@ -17,6 +17,7 @@ export class Chp2_scn1 extends Phaser.Scene {
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
+        this.load.audio('chirrido', 'assets/sounds/chirrido.mp3');
 
         // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
@@ -64,6 +65,11 @@ export class Chp2_scn1 extends Phaser.Scene {
         // Audio de ambiente.
         this.birdsSounds = this.sound.add('birds', { volume: 1 });
         this.birdsSounds.play();
+        this.chirridoSound = this.sound.add('chirrido', { volume: 0.12, loop: true });
+        this.chirridoSound.play();
+        this.events.once('shutdown', () => {
+            if (this.chirridoSound?.isPlaying) this.chirridoSound.stop();
+        });
 
         // Fondo estático (sin paneo inicial).
         const worldTop = -2000;
@@ -87,6 +93,7 @@ export class Chp2_scn1 extends Phaser.Scene {
         this.bgScrollActive = false;
         this.bgScrollDirection = -1;
         this.bgScrollSpeed = 8;
+        this.faultyMillElapsed = 0;
 
         // Inicializa el runner del guion.
         const scriptText = this.cache.text.get('ch2_script');
@@ -142,8 +149,24 @@ export class Chp2_scn1 extends Phaser.Scene {
         const speed = 0.0001 * delta;
         if (this.sun1) this.sun1.rotation += speed;
         if (this.sun2) this.sun2.rotation -= speed * 0.6;
-        if (this.molinoAspas && (this.molinoAutoSpinSpeed ?? 0) > 0) {
-            this.molinoAspas.rotation += this.molinoAutoSpinSpeed * (delta / 1000);
+        if (this.molinoAspas) {
+            this.faultyMillElapsed += delta / 1000;
+            const cycle = 1.45;
+            const t = (this.faultyMillElapsed % cycle) / cycle;
+            let speed = 0.18;
+            if (t < 0.34) {
+                speed = Phaser.Math.Linear(0.18, 1.55, t / 0.34);
+            } else if (t < 0.44) {
+                speed = Phaser.Math.Linear(1.55, -0.48, (t - 0.34) / 0.10);
+            } else if (t < 0.68) {
+                speed = Phaser.Math.Linear(-0.48, 1.35, (t - 0.44) / 0.24);
+            } else if (t < 0.78) {
+                speed = Phaser.Math.Linear(1.35, -0.42, (t - 0.68) / 0.10);
+            } else {
+                speed = Phaser.Math.Linear(-0.42, 1.2, (t - 0.78) / 0.22);
+            }
+            const wobble = Math.sin(this.faultyMillElapsed * 23) * 0.06;
+            this.molinoAspas.rotation += (speed + wobble) * (delta / 1000);
         }
 
         if (this.bgScrollActive && this.bgLayers) {
