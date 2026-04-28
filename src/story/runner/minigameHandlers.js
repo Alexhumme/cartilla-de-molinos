@@ -1,5 +1,12 @@
 // Enfoque: lógica completa de minijuegos (micrófono, ubicación y grifo).
 // Estas funciones se ejecutan con `this` enlazado a StoryRunner.
+import { UIHelpers } from '../../utils/ui.js';
+
+const playUiSound = (scene, key, volume = 0.7) => {
+    if (scene.cache.audio?.exists(key)) {
+        scene.sound.play(key, { volume });
+    }
+};
 
 export async function runBlowMillMinigame(id, options) {
     const scene = this.scene;
@@ -652,4 +659,231 @@ export async function runFaucetMinigame(id, options) {
     scene.input.on('pointerup', pointerUpHandler);
 
     return donePromise;
+}
+
+export async function runConnectConceptsMinigame(id, options = []) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    if (!this.recuadroPanel) await this.openRecuadro();
+    await this.moveRecuadroToCurrentSide();
+    await this.clearRecuadroContent();
+
+    const bounds = this.getRecuadroContentBounds();
+    const areaW = bounds.width;
+    const areaH = bounds.height;
+
+    const root = scene.add.container(0, 0);
+    this.recuadroContent.add(root);
+    this.recuadroItems.push(root);
+
+    const title = scene.add.text(0, -areaH * 0.47, 'Conecta cada pieza con su definicion', {
+        fontFamily: 'fredoka',
+        fontSize: '30px',
+        color: '#6f3515',
+        fontStyle: '700',
+    }).setOrigin(0.5, 0);
+
+    const leftX = -areaW * 0.34;
+    const rightX = areaW * 0.04;
+
+    const pairs = [
+        {
+            key: 'aspas',
+            imageKey: 'cc-aspas',
+            text: 'Reciben la fuerza del viento y empiezan el movimiento.',
+        },
+        {
+            key: 'convertidor',
+            imageKey: 'cc-convertidor',
+            text: 'Convierte el giro circular usando ejes y pinones.',
+        },
+        {
+            key: 'pinion',
+            imageKey: 'cc-pinion',
+            text: 'Ayuda a transformar el giro en movimiento vertical.',
+        },
+        {
+            key: 'bomba',
+            imageKey: 'cc-bomba',
+            text: 'Empuja el agua desde el pozo profundo hasta el tanque.',
+        },
+    ];
+
+    const boardFrame = scene.add.graphics();
+    boardFrame.lineStyle(3, 0x6f3515, 0.55);
+    boardFrame.strokeRoundedRect(-areaW * 0.44, -areaH * 0.39, areaW * 0.88, areaH * 0.79, 18);
+
+    const permanentLines = scene.add.graphics();
+    const transientLine = scene.add.graphics();
+    root.add([boardFrame, permanentLines, transientLine, title]);
+
+    const rows = pairs.length;
+    const topMargin = 180;
+    const bottomMargin = 36;
+    const usableHeight = Math.max(100, areaH - topMargin - bottomMargin);
+    const baseGap = rows > 1 ? usableHeight / (rows - 1) : 0;
+    const rowGap = Math.max(74, baseGap - 50);
+    const yStart = -areaH / 2 + topMargin;
+
+    const leftEntries = pairs.map((pair, index) => {
+        const y = yStart + index * rowGap;
+        const itemRoot = scene.add.container(leftX, y);
+        const bg = scene.add.graphics();
+        const image = scene.add.image(0, 0, scene.textures.exists(pair.imageKey) ? pair.imageKey : 'story-placeholder')
+            .setOrigin(0.5);
+        const fit = Math.min(86 / Math.max(1, image.width), 86 / Math.max(1, image.height));
+        image.setScale(fit);
+
+        const drawBg = (active, completed) => {
+            bg.clear();
+            const fill = completed ? 0xd9f4df : (active ? 0xffe7a8 : 0xf6eddc);
+            const stroke = completed ? 0x2b9348 : (active ? 0xd97706 : 0x8a4b25);
+            bg.fillStyle(fill, 1);
+            bg.fillRoundedRect(-56, -56, 112, 112, 18);
+            bg.lineStyle(4, stroke, 0.95);
+            bg.strokeRoundedRect(-56, -56, 112, 112, 18);
+        };
+        drawBg(false, false);
+
+        itemRoot.add([bg, image]);
+        itemRoot.setSize(112, 112);
+        itemRoot.setInteractive(new Phaser.Geom.Rectangle(-56, -56, 112, 112), Phaser.Geom.Rectangle.Contains);
+        itemRoot.input.cursor = 'pointer';
+        UIHelpers.attachHoverPop(scene, itemRoot, 0.3);
+
+        root.add(itemRoot);
+        return { pair, itemRoot, drawBg, solved: false, y };
+    });
+
+    const rightEntries = pairs.map((pair, index) => {
+        const y = yStart + index * rowGap;
+        const itemRoot = scene.add.container(rightX, y);
+        const bg = scene.add.graphics();
+        const label = scene.add.text(0, 0, pair.text, {
+            fontFamily: 'fredoka',
+            fontSize: '22px',
+            color: '#2f241e',
+            align: 'left',
+            wordWrap: { width: areaW * 0.38 },
+        }).setOrigin(0, 0.5);
+
+        const boxW = Math.min(areaW * 0.42, 450);
+        const boxH = 86;
+        const drawBg = (hovered, completed) => {
+            bg.clear();
+            const fill = completed ? 0xd9f4df : (hovered ? 0xf7e8c7 : 0xfaf4e8);
+            const stroke = completed ? 0x2b9348 : (hovered ? 0x8a4b25 : 0x9e7a5d);
+            bg.fillStyle(fill, 1);
+            bg.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
+            bg.lineStyle(3, stroke, 0.9);
+            bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
+        };
+        drawBg(false, false);
+        label.setX((-boxW / 2) + 14);
+
+        itemRoot.add([bg, label]);
+        itemRoot.setSize(boxW, boxH);
+        itemRoot.setInteractive(new Phaser.Geom.Rectangle(-boxW / 2, -boxH / 2, boxW, boxH), Phaser.Geom.Rectangle.Contains);
+        itemRoot.input.cursor = 'pointer';
+        UIHelpers.attachHoverPop(scene, itemRoot, 0.3);
+        root.add(itemRoot);
+        return { pair, itemRoot, drawBg, solved: false, y };
+    });
+
+    let activeLeft = null;
+    let solvedCount = 0;
+    const total = pairs.length;
+
+    const drawPermanentLine = (leftEntry, rightEntry, color) => {
+        permanentLines.lineStyle(6, color, 0.95);
+        permanentLines.beginPath();
+        permanentLines.moveTo(leftEntry.itemRoot.x + 56, leftEntry.itemRoot.y);
+        permanentLines.lineTo(rightEntry.itemRoot.x - (rightEntry.itemRoot.width / 2), rightEntry.itemRoot.y);
+        permanentLines.strokePath();
+    };
+
+    const drawTransientLine = (leftEntry, rightEntry, color) => {
+        transientLine.clear();
+        transientLine.lineStyle(6, color, 0.95);
+        transientLine.beginPath();
+        transientLine.moveTo(leftEntry.itemRoot.x + 56, leftEntry.itemRoot.y);
+        transientLine.lineTo(rightEntry.itemRoot.x - (rightEntry.itemRoot.width / 2), rightEntry.itemRoot.y);
+        transientLine.strokePath();
+    };
+
+    const resetLeftActiveVisuals = () => {
+        leftEntries.forEach((entry) => entry.drawBg(false, entry.solved));
+    };
+
+    let resolveDone;
+    const donePromise = new Promise((resolve) => {
+        resolveDone = resolve;
+    });
+
+    const finish = async () => {
+        this.minigames.set(id, options[0] ?? 'respuesta1');
+        playUiSound(scene, 'success-bell', 0.65);
+        scene.time.delayedCall(260, () => resolveDone());
+    };
+
+    leftEntries.forEach((leftEntry) => {
+        leftEntry.itemRoot.on('pointerover', () => {
+            if (!leftEntry.solved && leftEntry !== activeLeft) leftEntry.drawBg(true, false);
+            playUiSound(scene, 'pop', 0.22);
+        });
+        leftEntry.itemRoot.on('pointerout', () => {
+            if (!leftEntry.solved && leftEntry !== activeLeft) leftEntry.drawBg(false, false);
+        });
+        leftEntry.itemRoot.on('pointerdown', () => {
+            if (leftEntry.solved) return;
+            activeLeft = leftEntry;
+            resetLeftActiveVisuals();
+            leftEntry.drawBg(true, false);
+            playUiSound(scene, 'pop', 0.7);
+        });
+    });
+
+    rightEntries.forEach((rightEntry) => {
+        rightEntry.itemRoot.on('pointerover', () => {
+            if (!rightEntry.solved) rightEntry.drawBg(true, false);
+            playUiSound(scene, 'pop', 0.22);
+        });
+        rightEntry.itemRoot.on('pointerout', () => {
+            if (!rightEntry.solved) rightEntry.drawBg(false, false);
+        });
+        rightEntry.itemRoot.on('pointerdown', () => {
+            if (rightEntry.solved || !activeLeft) return;
+            const isCorrect = activeLeft.pair.key === rightEntry.pair.key;
+            drawTransientLine(activeLeft, rightEntry, isCorrect ? 0x2b9348 : 0xd62828);
+            playUiSound(scene, isCorrect ? 'success-bell' : 'wrong-option', isCorrect ? 0.45 : 0.7);
+
+            if (isCorrect) {
+                drawPermanentLine(activeLeft, rightEntry, 0x2b9348);
+                activeLeft.solved = true;
+                rightEntry.solved = true;
+                activeLeft.drawBg(false, true);
+                rightEntry.drawBg(false, true);
+                activeLeft = null;
+                transientLine.clear();
+                solvedCount += 1;
+                if (solvedCount >= total) {
+                    finish();
+                }
+                return;
+            }
+
+            scene.time.delayedCall(320, () => {
+                transientLine.clear();
+                if (activeLeft && !activeLeft.solved) {
+                    activeLeft.drawBg(true, false);
+                }
+            });
+        });
+    });
+
+    await donePromise;
+    scene.input.setTopOnly(prevTopOnly);
 }

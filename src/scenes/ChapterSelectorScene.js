@@ -102,33 +102,23 @@ export class ChapterSelectorScene extends Phaser.Scene {
             }
         );
 
-        const starRow = this.add.container(0, 262);
-        const holders = [];
-        const filledStars = [];
-        const starCount = Math.max(0, Math.min(3, Number(summary.stars) || 0));
-        for (let index = 0; index < 3; index += 1) {
-            const x = -58 + index * 58;
-            const holder = this.add.image(x, 0, 'star-holder').setDisplaySize(46, 46);
-            holders.push(holder);
-            starRow.add(holder);
-            if (index < starCount) {
-                const star = this.add.image(x, 0, 'star').setDisplaySize(30, 30);
-                filledStars.push(star);
-                starRow.add(star);
+        const cardChildren = [body, titleText, img, desc, progressText];
+        if (state !== ChapterState.LOCKED) {
+            const starRow = this.add.container(0, 262);
+            const starCount = Math.max(0, Math.min(3, Number(summary.stars) || 0));
+            for (let index = 0; index < 3; index += 1) {
+                const x = -58 + index * 58;
+                const holder = this.add.image(x, 0, 'star-holder').setDisplaySize(46, 46);
+                starRow.add(holder);
+                if (index < starCount) {
+                    const star = this.add.image(x, 0, 'star').setDisplaySize(30, 30);
+                    starRow.add(star);
+                }
             }
+            cardChildren.push(starRow);
         }
-        const dimAlpha = state === ChapterState.LOCKED ? 0.55 : 1;
-        holders.forEach((holder) => holder.setAlpha(dimAlpha));
-        filledStars.forEach((star) => star.setAlpha(dimAlpha));
 
-        const cardBody = this.add.container(0, 0, [
-            body,
-            titleText,
-            img,
-            desc,
-            progressText,
-            starRow
-        ])
+        const cardBody = this.add.container(0, 0, cardChildren)
         cardBody.setSize(422, 760)
 
         if (state != ChapterState.LOCKED) {

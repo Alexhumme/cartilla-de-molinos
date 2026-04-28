@@ -18,6 +18,10 @@
 [escena][Desarrollo]
 [personaje][Kamanewaa][entra][Derecha]
 [personaje][Jouktai][entra][izquierda]
+[recuadro][abrir]
+[minijuego][conectar_conceptos][respuesta1]
+[recuadro][cerrar]
+
 [personaje][Jouktai][habla][emocion][idle][es:Buenos dias kamanewa, como le va? ¿esta ocupado?]
 [personaje][Kamanewaa][habla][emocion][idle][es:Buenos días, Jouktai. Estoy organizando mi taller, que te trae por aqui?]
 [personaje][Jouktai][emocion][idle]
@@ -95,6 +99,5 @@
 [personaje][Jouktai][mira][jugador][habla][{{$jugador}} espero que nos ayudes la siguiente ocasion]
 [personaje][Jouktai][emocion][feliz][habla][es:Hasta la proxima!]
 [cambiar_escena][Chp2_end]
-
 
 

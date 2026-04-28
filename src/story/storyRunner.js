@@ -4,6 +4,7 @@ import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
 import {
     runBlowMillMinigame,
+    runConnectConceptsMinigame,
     runLocateMillMinigame,
     runFaucetMinigame,
 } from './runner/minigameHandlers.js';
@@ -454,6 +455,9 @@ export class StoryRunner {
         if (id === 'soplar_molino') {
             return this.handleBlowMillMinigame(id, resolvedOptions);
         }
+        if (id === 'conectar_conceptos') {
+            return this.handleConnectConceptsMinigame(id, resolvedOptions);
+        }
 
         const scene = this.scene;
         scene.input.enabled = true;
@@ -528,6 +532,11 @@ export class StoryRunner {
     // Minijuego: girar la palanca del grifo 90 grados.
     async handleFaucetMinigame(id, options) {
         return runFaucetMinigame.call(this, id, options);
+    }
+
+    // Minijuego: conectar piezas del molino con su definicion.
+    async handleConnectConceptsMinigame(id, options) {
+        return runConnectConceptsMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.
