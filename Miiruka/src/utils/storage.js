@@ -321,11 +321,13 @@ export const GameStorage = {
         const totalQuestions = questionResults.length;
         const earnedPoints = questionResults.filter((result) => !!result.awarded).length;
         const ratio = totalQuestions > 0 ? earnedPoints / totalQuestions : 0;
-        const stars = totalQuestions <= 0
-            ? 1
-            : (earnedPoints === totalQuestions
-                ? 3
-                : (ratio > 0.3 ? 2 : 1));
+        const stars = !isCompleted
+            ? 0
+            : (totalQuestions <= 0
+                ? 1
+                : (earnedPoints === totalQuestions
+                    ? 3
+                    : (ratio > 0.3 ? 2 : 1)));
         return {
             chapter: chapterNum,
             totalScenes,
