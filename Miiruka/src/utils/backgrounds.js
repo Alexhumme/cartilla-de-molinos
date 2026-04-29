@@ -26,7 +26,7 @@ export const addDesertLayer = (scene, key, y, scrollFactor, options = {}) => {
     const texture = scene.textures.get(key)?.getSourceImage();
     const textureWidth = texture?.width || width;
     const textureHeight = texture?.height || 1080;
-    const layerWidth = options.width || width * 2;
+    const layerWidth = options.width || width * 2.3;
     const layerHeight = options.height || Math.round(layerWidth * (textureHeight / textureWidth));
     const x = options.x ?? layerWidth / 2;
     const layer = scene.add.tileSprite(x, y, layerWidth, layerHeight, key);
