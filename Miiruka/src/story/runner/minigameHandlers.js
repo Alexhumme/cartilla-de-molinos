@@ -521,16 +521,16 @@ export async function runFaucetMinigame(id, options) {
     const base = scene.add.image(0, 0, 'grifo-cano').setOrigin(0.5);
     const handleTexture = scene.textures.get('grifo-manija')?.getSourceImage();
     const handleWidth = handleTexture?.width ?? 202;
-    const handleHeight = handleTexture?.height ?? 202;
+    const handleHeight = handleTexture?.height ?? 50;
     const pivotX = 101;
     const pivotY = 101;
-    const handle = scene.add.image(0, 0, 'grifo-manija')
+    const handle = scene.add.image(0, -50, 'grifo-manija')
         .setOrigin(pivotX / handleWidth, pivotY / handleHeight);
     handle.setDepth(2);
 
-    const handleSize = Math.min(handleWidth, handleHeight);
-    const radius = handleSize * 0.38;
-    const startAngle = -Math.PI / 2;
+    const handleSize = handleWidth
+    const radius = handleSize * 0.4;
+    const startAngle = 0;
     const endAngle = startAngle + Math.PI / 2;
 
     const indicator = scene.add.graphics();
