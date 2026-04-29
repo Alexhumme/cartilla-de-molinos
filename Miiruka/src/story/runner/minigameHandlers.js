@@ -674,10 +674,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
     const bounds = this.getRecuadroContentBounds();
     const areaW = bounds.width;
     const areaH = bounds.height;
+    const contentCenterX = bounds.x + (areaW / 2);
+    const contentCenterY = bounds.y + (areaH / 2);
 
     const root = scene.add.container(0, 0);
+    root.setScrollFactor(0);
     this.recuadroContent.add(root);
     this.recuadroItems.push(root);
+    const hitZones = [];
 
     const title = scene.add.text(0, -areaH * 0.47, 'Conecta cada pieza con su definicion', {
         fontFamily: 'fredoka',
@@ -750,12 +754,16 @@ export async function runConnectConceptsMinigame(id, options = []) {
 
         itemRoot.add([bg, image]);
         itemRoot.setSize(112, 112);
-        itemRoot.setInteractive(new Phaser.Geom.Rectangle(-56, -56, 112, 112), Phaser.Geom.Rectangle.Contains);
-        itemRoot.input.cursor = 'pointer';
-        UIHelpers.attachHoverPop(scene, itemRoot, 0.3);
 
         root.add(itemRoot);
-        return { pair, itemRoot, drawBg, solved: false, y };
+        const hitZone = scene.add.zone(contentCenterX + leftX, contentCenterY + y, 112, 112);
+        hitZone.setScrollFactor(0);
+        hitZone.setDepth((this.recuadroPanel?.depth ?? 760) + 20);
+        hitZone.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, hitZone, 0.3);
+        hitZones.push(hitZone);
+
+        return { pair, itemRoot, hitZone, drawBg, solved: false, y };
     });
 
     const rightEntries = pairs.map((pair, index) => {
@@ -786,11 +794,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
 
         itemRoot.add([bg, label]);
         itemRoot.setSize(boxW, boxH);
-        itemRoot.setInteractive(new Phaser.Geom.Rectangle(-boxW / 2, -boxH / 2, boxW, boxH), Phaser.Geom.Rectangle.Contains);
-        itemRoot.input.cursor = 'pointer';
-        UIHelpers.attachHoverPop(scene, itemRoot, 0.3);
         root.add(itemRoot);
-        return { pair, itemRoot, drawBg, solved: false, y };
+        const hitZone = scene.add.zone(contentCenterX + rightX, contentCenterY + y, boxW, boxH);
+        hitZone.setScrollFactor(0);
+        hitZone.setDepth((this.recuadroPanel?.depth ?? 760) + 20);
+        hitZone.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, hitZone, 0.3);
+        hitZones.push(hitZone);
+        return { pair, itemRoot, hitZone, drawBg, solved: false, y };
     });
 
     let activeLeft = null;
@@ -830,14 +841,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
     };
 
     leftEntries.forEach((leftEntry) => {
-        leftEntry.itemRoot.on('pointerover', () => {
+        leftEntry.hitZone.on('pointerover', () => {
             if (!leftEntry.solved && leftEntry !== activeLeft) leftEntry.drawBg(true, false);
             playUiSound(scene, 'pop', 0.22);
         });
-        leftEntry.itemRoot.on('pointerout', () => {
+        leftEntry.hitZone.on('pointerout', () => {
             if (!leftEntry.solved && leftEntry !== activeLeft) leftEntry.drawBg(false, false);
         });
-        leftEntry.itemRoot.on('pointerdown', () => {
+        leftEntry.hitZone.on('pointerdown', () => {
             if (leftEntry.solved) return;
             activeLeft = leftEntry;
             resetLeftActiveVisuals();
@@ -847,14 +858,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
     });
 
     rightEntries.forEach((rightEntry) => {
-        rightEntry.itemRoot.on('pointerover', () => {
+        rightEntry.hitZone.on('pointerover', () => {
             if (!rightEntry.solved) rightEntry.drawBg(true, false);
             playUiSound(scene, 'pop', 0.22);
         });
-        rightEntry.itemRoot.on('pointerout', () => {
+        rightEntry.hitZone.on('pointerout', () => {
             if (!rightEntry.solved) rightEntry.drawBg(false, false);
         });
-        rightEntry.itemRoot.on('pointerdown', () => {
+        rightEntry.hitZone.on('pointerdown', () => {
             if (rightEntry.solved || !activeLeft) return;
             const isCorrect = activeLeft.pair.key === rightEntry.pair.key;
             drawTransientLine(activeLeft, rightEntry, isCorrect ? 0x2b9348 : 0xd62828);
@@ -885,5 +896,6 @@ export async function runConnectConceptsMinigame(id, options = []) {
     });
 
     await donePromise;
+    hitZones.forEach((zone) => zone.destroy());
     scene.input.setTopOnly(prevTopOnly);
 }

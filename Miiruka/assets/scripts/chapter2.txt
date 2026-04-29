@@ -18,10 +18,6 @@
 [escena][Desarrollo]
 [personaje][Kamanewaa][entra][Derecha]
 [personaje][Jouktai][entra][izquierda]
-[recuadro][abrir]
-[minijuego][conectar_conceptos][respuesta1]
-[recuadro][cerrar]
-
 [personaje][Jouktai][habla][emocion][idle][es:Buenos dias kamanewa, como le va? ¿esta ocupado?]
 [personaje][Kamanewaa][habla][emocion][idle][es:Buenos días, Jouktai. Estoy organizando mi taller, que te trae por aqui?]
 [personaje][Jouktai][emocion][idle]
@@ -43,7 +39,7 @@
 [personaje][Kamanewaa][habla][es:La varilla o vastago transmite ese movimiento hasta la {{bomba}}, que empuja el agua desde el {{pozo profundo}} hacia el tanque]
 [recuadro][limpiar]
 [personaje][Kamanewaa][habla][es:Entendiste bien?]
-# Juego de conectar imagen con su definicion
+[minijuego][conectar_conceptos][respuesta1]
 [recuadro][cerrar]
 [personaje][Kamanewaa][mira][lado]
 [personaje][Jouktai][mira][lado]

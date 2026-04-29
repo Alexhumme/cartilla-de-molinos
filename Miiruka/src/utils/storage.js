@@ -1,8 +1,10 @@
 const CHAPTER_SCENE_COUNT = {
     1: 6,
-    2: 5,
-    3: 6,
 };
+
+const PUBLISHED_CHAPTERS = Object.keys(CHAPTER_SCENE_COUNT).map(Number);
+
+const isPublishedChapter = (chapter) => PUBLISHED_CHAPTERS.includes(Number(chapter));
 
 const SCENE_KEY_REGEX = /^Chp(\d+)_scn(\d+)$/i;
 
@@ -56,16 +58,21 @@ const ensureSaveShape = (save) => {
     const normalized = {
         name: base.name || localStorage.getItem('playerName') || 'Jugador',
         createdAt: Number(base.createdAt) || Date.now(),
-        completedChapters: toSortedUniqueNumbers(base.completedChapters, 1),
-        unlockedChapters: toSortedUniqueNumbers(base.unlockedChapters, 1),
-        lastChapter: Number(base.lastChapter) || 1,
+        completedChapters: toSortedUniqueNumbers(base.completedChapters, 1).filter(isPublishedChapter),
+        unlockedChapters: toSortedUniqueNumbers(base.unlockedChapters, 1).filter(isPublishedChapter),
+        lastChapter: isPublishedChapter(base.lastChapter) ? Number(base.lastChapter) : 1,
         chapterProgress: base.chapterProgress ?? {},
     };
 
     if (!normalized.unlockedChapters.length) normalized.unlockedChapters = [1];
 
-    Object.keys(CHAPTER_SCENE_COUNT).forEach((chapterKey) => {
-        ensureChapterProgress(normalized, Number(chapterKey));
+    normalized.chapterProgress = Object.fromEntries(
+        Object.entries(normalized.chapterProgress)
+            .filter(([chapterKey]) => isPublishedChapter(chapterKey))
+    );
+
+    PUBLISHED_CHAPTERS.forEach((chapter) => {
+        ensureChapterProgress(normalized, chapter);
     });
 
     return normalized;
@@ -178,6 +185,7 @@ export const GameStorage = {
 
     touchChapterScene(chapter, scene) {
         const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
         const sceneNum = Math.max(1, Number(scene) || 1);
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, chapterNum);
@@ -208,6 +216,7 @@ export const GameStorage = {
         const save = this.ensureGameSave();
         const parsed = parseChapterSceneKey(sceneKey);
         if (!parsed) return save;
+        if (!isPublishedChapter(parsed.chapter)) return save;
         const chapterProgress = ensureChapterProgress(save, parsed.chapter);
         const questionResults = chapterProgress.questionResults ?? {};
         const scenePrefix = `${sceneKey}#q`;
@@ -222,6 +231,7 @@ export const GameStorage = {
     registerSceneQuestionResult(sceneKey, questionIndex, awardedPoint) {
         const parsed = parseChapterSceneKey(sceneKey);
         if (!parsed) return this.ensureGameSave();
+        if (!isPublishedChapter(parsed.chapter)) return this.ensureGameSave();
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, parsed.chapter);
         const questionResults = chapterProgress.questionResults ?? {};
@@ -238,6 +248,7 @@ export const GameStorage = {
 
     markSceneCompleted(chapter, scene) {
         const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
         const sceneNum = Math.max(1, Number(scene) || 1);
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, chapterNum);
@@ -263,6 +274,7 @@ export const GameStorage = {
 
     setLastScene(chapter, scene) {
         const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
         const sceneNum = Math.max(1, Number(scene) || 1);
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, chapterNum);
@@ -300,6 +312,14 @@ export const GameStorage = {
     },
 
     getChapterProgress(chapter) {
+        if (!isPublishedChapter(chapter)) {
+            return {
+                reachedScenes: [],
+                completedScenes: [],
+                lastScene: 1,
+                questionResults: {},
+            };
+        }
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, chapter);
         return {
@@ -350,6 +370,7 @@ export const GameStorage = {
 
     completeChapterIfReady(chapter) {
         const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
         const save = this.ensureGameSave();
         const chapterProgress = ensureChapterProgress(save, chapterNum);
         if (!chapterProgress) return save;
@@ -373,8 +394,8 @@ export const GameStorage = {
 
         const unlocked = new Set(save.unlockedChapters ?? [1]);
         unlocked.add(chapterNum);
-        unlocked.add(chapterNum + 1);
-        save.unlockedChapters = Array.from(unlocked).sort((a, b) => a - b);
+        if (isPublishedChapter(chapterNum + 1)) unlocked.add(chapterNum + 1);
+        save.unlockedChapters = Array.from(unlocked).filter(isPublishedChapter).sort((a, b) => a - b);
         save.lastChapter = chapterNum;
 
         this.setSave(save);
