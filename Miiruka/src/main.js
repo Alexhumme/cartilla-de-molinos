@@ -5,7 +5,7 @@ import { SettingsScene } from './scenes/SettingsScene.js';
 import chapter1Scenes from './scenes/chapters/chapter1/index.js'
 
 const config = {
-    type: Phaser.AUTO,
+    type: Phaser.CANVAS,
     title: 'Miiruku',
     description: '',
     parent: 'game-container',
