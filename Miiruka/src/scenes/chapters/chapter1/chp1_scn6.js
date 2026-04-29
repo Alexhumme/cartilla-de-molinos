@@ -2,6 +2,7 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 
 export class Chp1_scn6 extends Phaser.Scene {
     constructor() {
@@ -75,13 +76,13 @@ export class Chp1_scn6 extends Phaser.Scene {
         const worldHeight = 5000;
         this.cameras.main.setBounds(0, worldTop, 1920, worldHeight);
         this.cameras.main.scrollY = 800;
-        this.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
+        addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         this.sun2 = this.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        const layer1 = this.add.tileSprite(960, 1230, 1920, 1080, 'bg_layer1').setScrollFactor(0.7);
-        const layer2 = this.add.tileSprite(960, 1260, 1920, 1080, 'bg_layer2').setScrollFactor(0.8);
-        const layer3 = this.add.tileSprite(960, 1300, 1920, 1080, 'bg_layer3').setScrollFactor(0.9);
-        const layer4 = this.add.tileSprite(960, 1340, 1920, 1080, 'bg_layer4').setScrollFactor(1);
+        const layer1 = addDesertLayer(this, 'bg_layer1', 1230, 0.7);
+        const layer2 = addDesertLayer(this, 'bg_layer2', 1260, 0.8);
+        const layer3 = addDesertLayer(this, 'bg_layer3', 1300, 0.9);
+        const layer4 = addDesertLayer(this, 'bg_layer4', 1340, 1);
 
         this.bgLayers = [
             { sprite: layer1, speed: 0.15 },

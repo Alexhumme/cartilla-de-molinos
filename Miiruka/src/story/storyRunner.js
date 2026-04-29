@@ -40,6 +40,7 @@ import {
     setRunnerMusicVolume,
     setRunnerLanguage,
 } from './runner/pauseHandlers.js';
+import { addDesertLayer, addSkyBackground } from '../utils/backgrounds.js';
 
 // Textura placeholder para assets faltantes.
 const PLACEHOLDER_KEY = 'story-placeholder';
@@ -264,13 +265,13 @@ export class StoryRunner {
         cam.fadeIn(500, 0, 0, 0);
         scene.input.enabled = false;
 
-        scene.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
+        addSkyBackground(scene);
         scene.sun1 = scene.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         scene.sun2 = scene.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        scene.add.image(960, 1230, 'bg_layer1').setScrollFactor(0.7);
-        scene.add.image(960, 1260, 'bg_layer2').setScrollFactor(0.8);
-        scene.add.image(960, 1300, 'bg_layer3').setScrollFactor(0.9);
-        scene.add.image(960, 1340, 'bg_layer4').setScrollFactor(1);
+        addDesertLayer(scene, 'bg_layer1', 1230, 0.7);
+        addDesertLayer(scene, 'bg_layer2', 1260, 0.8);
+        addDesertLayer(scene, 'bg_layer3', 1300, 0.9);
+        addDesertLayer(scene, 'bg_layer4', 1340, 1);
 
         await new Promise((resolve) => {
             scene.tweens.add({

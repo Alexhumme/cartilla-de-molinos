@@ -1,6 +1,7 @@
 import { toColorString } from '../utils/colors.js';
 import { GameStorage } from '../utils/storage.js';
 import { UIHelpers } from '../utils/ui.js';
+import { addFullScreenImage } from '../utils/backgrounds.js';
 
 const ChapterState = {
     LOCKED: 'locked',
@@ -165,7 +166,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.popSound = this.sound.add('pop', { volume: 0.8 });
         this.cardList = this.add.container(0, 0)
 
-        this.add.image(960, 540, 'gradient');
+        addFullScreenImage(this, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,
             this.scale.width,

@@ -1,6 +1,7 @@
 import { GameStorage } from '../utils/storage.js'
 import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
+import { addFullScreenImage } from '../utils/backgrounds.js';
 
 export class StartScene extends Phaser.Scene {
     constructor() {
@@ -181,13 +182,13 @@ export class StartScene extends Phaser.Scene {
     create() {
         UIHelpers.setGameCursor(this);
         this.popSound = this.sound.add('pop', { volume: 0.8 });
-        this.add.image(960, 540, 'gradient');
+        addFullScreenImage(this, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,
             this.scale.width,
             this.scale.height, 'gears'
         ).setOrigin(0, 0);
-        this.add.image(960, 650, 'illustration').setOrigin(0.5);
+        this.add.image(960, 650, 'illustration').setOrigin(0.5).setDisplaySize(1920, 873);
 
         AudioManager.ensureLoopingMusic(this, 'gametheme', 0.7);
         this.sound.once('unlocked', () => {
