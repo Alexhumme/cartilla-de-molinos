@@ -256,6 +256,7 @@ export class StartScene extends Phaser.Scene {
             greeting.x = greeting.x - greeting.width - 50;
         }
 
+        this.createFullscreenButton(1648, 980);
         this.createMusicToggle(1760, 980);
     }
 
@@ -385,6 +386,117 @@ export class StartScene extends Phaser.Scene {
             container.setScale(1);
         });
         UIHelpers.attachHoverPop(this, container, 0.35);
+
+        return container;
+    }
+
+    createFullscreenButton(x, y) {
+        const container = this.add.container(x, y);
+        const size = 86;
+        const bg = this.add.graphics();
+        bg.fillStyle(0x8b4c1d, 1);
+        bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
+        const inner = this.add.graphics();
+        inner.fillStyle(0xf0c18a, 1);
+        inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
+
+        const icon = this.add.graphics();
+        const drawIcon = () => {
+            icon.clear();
+            icon.lineStyle(5, 0x6a3a1b, 1);
+            const isFullscreen = !!document.fullscreenElement;
+            if (isFullscreen) {
+                icon.lineBetween(-24, -10, -10, -10);
+                icon.lineBetween(-10, -24, -10, -10);
+                icon.lineBetween(24, -10, 10, -10);
+                icon.lineBetween(10, -24, 10, -10);
+                icon.lineBetween(-24, 10, -10, 10);
+                icon.lineBetween(-10, 24, -10, 10);
+                icon.lineBetween(24, 10, 10, 10);
+                icon.lineBetween(10, 24, 10, 10);
+            } else {
+                icon.lineBetween(-24, -24, -8, -24);
+                icon.lineBetween(-24, -24, -24, -8);
+                icon.lineBetween(24, -24, 8, -24);
+                icon.lineBetween(24, -24, 24, -8);
+                icon.lineBetween(-24, 24, -8, 24);
+                icon.lineBetween(-24, 24, -24, 8);
+                icon.lineBetween(24, 24, 8, 24);
+                icon.lineBetween(24, 24, 24, 8);
+            }
+        };
+        drawIcon();
+
+        container.add([bg, inner, icon]);
+        container.setSize(size, size);
+        container.setInteractive({ useHandCursor: true });
+
+        const lockLandscape = async () => {
+            const orientation = globalThis.screen?.orientation;
+            if (!orientation?.lock) return;
+            try {
+                await orientation.lock('landscape');
+            } catch (error) {
+                // Algunos navegadores solo permiten bloquear orientación en PWA/fullscreen.
+            }
+        };
+
+        const enterFullscreen = async () => {
+            const target = this.game.canvas?.parentElement || document.documentElement;
+            if (target.requestFullscreen) {
+                await target.requestFullscreen();
+            } else if (target.webkitRequestFullscreen) {
+                target.webkitRequestFullscreen();
+            } else {
+                this.scale.startFullscreen();
+            }
+            await lockLandscape();
+        };
+
+        const exitFullscreen = async () => {
+            const orientation = globalThis.screen?.orientation;
+            if (orientation?.unlock) {
+                try { orientation.unlock(); } catch (error) {}
+            }
+            if (document.exitFullscreen && document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (this.scale.isFullscreen) {
+                this.scale.stopFullscreen();
+            }
+        };
+
+        container.on('pointerdown', async () => {
+            this.sound.play('pop', { volume: 0.8 });
+            try {
+                if (document.fullscreenElement || this.scale.isFullscreen) {
+                    await exitFullscreen();
+                } else {
+                    await enterFullscreen();
+                }
+            } finally {
+                drawIcon();
+            }
+        });
+        container.on('pointerover', () => {
+            container.setScale(1.06);
+        });
+        container.on('pointerout', () => {
+            container.setScale(1);
+        });
+        UIHelpers.attachHoverPop(this, container, 0.35);
+
+        this.fullscreenChangeHandler = () => drawIcon();
+        document.addEventListener('fullscreenchange', this.fullscreenChangeHandler);
+        document.addEventListener('webkitfullscreenchange', this.fullscreenChangeHandler);
+        this.events.once('shutdown', () => {
+            if (this.fullscreenChangeHandler) {
+                document.removeEventListener('fullscreenchange', this.fullscreenChangeHandler);
+                document.removeEventListener('webkitfullscreenchange', this.fullscreenChangeHandler);
+                this.fullscreenChangeHandler = null;
+            }
+        });
 
         return container;
     }
