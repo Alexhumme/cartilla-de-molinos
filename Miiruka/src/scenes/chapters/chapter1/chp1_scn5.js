@@ -35,6 +35,7 @@ export class Chp1_scn5 extends Phaser.Scene {
         // Molino y aspas.
         this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
+        this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
@@ -128,7 +129,29 @@ export class Chp1_scn5 extends Phaser.Scene {
         const aspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5);
         aspas.setDepth(130);
 
+        const movingPiece = this.add.image(baseX + 703, baseY + 1736, 'moving-piece').setOrigin(0.5, 1);
+        movingPiece.setDepth(119);
+
         this.molinoAspas = aspas;
+        this.movingPiece = movingPiece;
+        this.movingPieceBaseY = movingPiece.y;
+        this.movingPieceTopY = 1034;
+        this.movingPiecePhase = 0;
+    }
+
+    updateMovingPiece(delta) {
+        if (!this.movingPiece) return;
+        const spinSpeed = Number(this.molinoAutoSpinSpeed ?? 0) * 0.2;
+        if (spinSpeed <= 0.01) {
+            this.movingPiece.y = this.movingPieceBaseY;
+            return;
+        }
+        const dt = delta / 1000;
+        this.movingPiecePhase += dt * Phaser.Math.Clamp(0.9 + spinSpeed * 0.25, 0.9, 2.8);
+        const cycle = (this.movingPiecePhase % 1 + 1) % 1;
+        const upDown = cycle < 0.5 ? (cycle / 0.5) : (1 - (cycle - 0.5) / 0.5);
+        const eased = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(upDown, 0, 1));
+        this.movingPiece.y = Phaser.Math.Linear(this.movingPieceBaseY, this.movingPieceTopY, eased);
     }
 
     getCameraPanDistance() {
@@ -147,6 +170,7 @@ export class Chp1_scn5 extends Phaser.Scene {
         if (this.molinoAspas && (this.molinoAutoSpinSpeed ?? 0) > 0) {
             this.molinoAspas.rotation += this.molinoAutoSpinSpeed * (delta / 1000);
         }
+        this.updateMovingPiece(delta);
 
         if (this.bgScrollActive && this.bgLayers) {
             const step = (this.bgScrollSpeed * delta) / 1000;

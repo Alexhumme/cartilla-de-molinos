@@ -35,6 +35,7 @@ export class Chp1_scn6 extends Phaser.Scene {
         // Molino y aspas.
         this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
+        this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
         this.load.image('water-flow-1', 'assets/juegos/molino/water_flow01.png');
         this.load.image('water-flow-2', 'assets/juegos/molino/water_flow02.png');
         this.load.image('water-flow-3', 'assets/juegos/molino/water_flow03.png');
@@ -101,6 +102,7 @@ export class Chp1_scn6 extends Phaser.Scene {
 
         this.time.delayedCall(0, async () => {
             this.placeMill();
+            this.molinoAutoSpinSpeed = 2.2;
             await this.storyRunner.run('Despedida');
         });
 
@@ -140,7 +142,14 @@ export class Chp1_scn6 extends Phaser.Scene {
         const aspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5);
         aspas.setDepth(130);
 
+        const movingPiece = this.add.image(baseX + 703, baseY + 1736, 'moving-piece').setOrigin(0.5, 1);
+        movingPiece.setDepth(119);
+
         this.molinoAspas = aspas;
+        this.movingPiece = movingPiece;
+        this.movingPieceBaseY = movingPiece.y;
+        this.movingPieceTopY = 1034;
+        this.movingPiecePhase = 0;
 
         this.createWaterFlow(baseX, baseY);
     }
@@ -167,12 +176,30 @@ export class Chp1_scn6 extends Phaser.Scene {
         return Math.max(0, Math.round(target));
     }
 
+    updateMovingPiece(delta) {
+        if (!this.movingPiece) return;
+        const spinSpeed = Number(this.molinoAutoSpinSpeed ?? 0) * 0.2;
+        if (spinSpeed <= 0.01) {
+            this.movingPiece.y = this.movingPieceBaseY;
+            return;
+        }
+        const dt = delta / 1000;
+        this.movingPiecePhase += dt * Phaser.Math.Clamp(0.9 + spinSpeed * 0.25, 0.9, 2.8);
+        const cycle = (this.movingPiecePhase % 1 + 1) % 1;
+        const upDown = cycle < 0.5 ? (cycle / 0.5) : (1 - (cycle - 0.5) / 0.5);
+        const eased = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(upDown, 0, 1));
+        this.movingPiece.y = Phaser.Math.Linear(this.movingPieceBaseY, this.movingPieceTopY, eased);
+    }
+
     update(time, delta) {
         // Detiene animaciones si está en pausa.
         if (this.storyRunner?.isPaused) return;
         const speed = 0.0001 * delta;
         if (this.sun1) this.sun1.rotation += speed;
         if (this.sun2) this.sun2.rotation -= speed * 0.6;
+        if (this.molinoAspas && (this.molinoAutoSpinSpeed ?? 0) > 0) {
+            this.molinoAspas.rotation += this.molinoAutoSpinSpeed * (delta / 1000);
+        }
 
         if (this.bgScrollActive && this.bgLayers) {
             const step = (this.bgScrollSpeed * delta) / 1000;
@@ -180,5 +207,6 @@ export class Chp1_scn6 extends Phaser.Scene {
                 sprite.tilePositionX += step * this.bgScrollDirection * layerSpeed * 40;
             });
         }
+        this.updateMovingPiece(delta);
     }
 }

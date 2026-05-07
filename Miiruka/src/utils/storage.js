@@ -1,5 +1,6 @@
 const CHAPTER_SCENE_COUNT = {
     1: 6,
+    2: 5
 };
 
 const PUBLISHED_CHAPTERS = Object.keys(CHAPTER_SCENE_COUNT).map(Number);

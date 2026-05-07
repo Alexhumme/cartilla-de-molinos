@@ -7,6 +7,7 @@ import {
     runConnectConceptsMinigame,
     runLocateMillMinigame,
     runFaucetMinigame,
+    runLocateIssuesMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -104,13 +105,19 @@ export class StoryRunner {
         this.recuadroContent = null;
         this.recuadroItems = [];
         this.recuadroShiftState = null;
+        this.autoPausedByFocusLoss = false;
+        this.gameBlurHandler = null;
+        this.gameFocusHandler = null;
+        this.visibilityHandler = null;
 
         // Blindaje: si la escena se cierra abruptamente, no dejamos pasos sonando.
         this.scene.events.once('shutdown', () => {
+            this.detachFocusPauseHandlers();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
         this.scene.events.once('destroy', () => {
+            this.detachFocusPauseHandlers();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
@@ -145,6 +152,51 @@ export class StoryRunner {
         GameStorage.touchChapterSceneBySceneKey(this.scene?.scene?.key);
         this.createPauseButton();
         this.ensureMusic();
+        this.attachFocusPauseHandlers();
+    }
+
+    attachFocusPauseHandlers() {
+        const game = this.scene?.game;
+        if (!game || this.gameBlurHandler || this.gameFocusHandler) return;
+
+        this.gameBlurHandler = () => {
+            if (this.isPaused) return;
+            this.autoPausedByFocusLoss = true;
+            this.pause();
+        };
+        this.gameFocusHandler = () => {
+            if (!this.autoPausedByFocusLoss) return;
+            this.autoPausedByFocusLoss = false;
+            this.resume();
+        };
+        this.visibilityHandler = () => {
+            if (document.hidden) {
+                this.gameBlurHandler?.();
+            } else {
+                this.gameFocusHandler?.();
+            }
+        };
+
+        game.events.on(Phaser.Core.Events.BLUR, this.gameBlurHandler);
+        game.events.on(Phaser.Core.Events.FOCUS, this.gameFocusHandler);
+        document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
+
+    detachFocusPauseHandlers() {
+        const game = this.scene?.game;
+        if (game && this.gameBlurHandler) {
+            game.events.off(Phaser.Core.Events.BLUR, this.gameBlurHandler);
+        }
+        if (game && this.gameFocusHandler) {
+            game.events.off(Phaser.Core.Events.FOCUS, this.gameFocusHandler);
+        }
+        if (this.visibilityHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityHandler);
+        }
+        this.gameBlurHandler = null;
+        this.gameFocusHandler = null;
+        this.visibilityHandler = null;
+        this.autoPausedByFocusLoss = false;
     }
 
     // Ejecuta todos los eventos de una escena del guion en orden.
@@ -459,6 +511,9 @@ export class StoryRunner {
         if (id === 'conectar_conceptos') {
             return this.handleConnectConceptsMinigame(id, resolvedOptions);
         }
+        if (id === 'ubicar_problemas') {
+            return this.handleLocateIssuesMinigame(id, resolvedOptions);
+        }
 
         const scene = this.scene;
         scene.input.enabled = true;
@@ -538,6 +593,11 @@ export class StoryRunner {
     // Minijuego: conectar piezas del molino con su definicion.
     async handleConnectConceptsMinigame(id, options) {
         return runConnectConceptsMinigame.call(this, id, options);
+    }
+
+    // Minijuego: ubicar problemas visibles del molino.
+    async handleLocateIssuesMinigame(id, options) {
+        return runLocateIssuesMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.

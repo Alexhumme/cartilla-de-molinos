@@ -6,9 +6,9 @@
 [personaje][Jouktai][habla][es:Hola $jugador! Hoy fui a buscar agua una vez mas, pero como puedes ver, {{no sale agua}}]
 [personaje][Jouktai][emocion][duda][habla][es:Vine a ver si hay algo mal con el molino]
 [personaje][Jouktai][habla][es:Me ayudas a {{revisarlo}}?]
-[recuadro][abrir]
-# juego de ubicar daños aqui
-[recuadro][cerrar]
+
+[minijuego][ubicar_problemas][respuesta1]
+
 [personaje][Jouktai][habla][es:Debe haber algo desgastado adentro...]
 [personaje][Jouktai][habla][es:Cuando algo asi pasa, hay que {{frenar}} el molino y  llamar a alguien que pueda revisar de donde viene el golpe para evitar un daño mayor]
 [personaje][Jouktai][emocion][idle][habla][es:Mejor voy donde el señor {{Kamanewaa}}. Él siempre sabe que revisar.]
@@ -95,5 +95,4 @@
 [personaje][Jouktai][mira][jugador][habla][{{$jugador}} espero que nos ayudes la siguiente ocasion]
 [personaje][Jouktai][emocion][feliz][habla][es:Hasta la proxima!]
 [cambiar_escena][Chp2_end]
-
 

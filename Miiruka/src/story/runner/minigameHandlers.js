@@ -899,3 +899,276 @@ export async function runConnectConceptsMinigame(id, options = []) {
     hitZones.forEach((zone) => zone.destroy());
     scene.input.setTopOnly(prevTopOnly);
 }
+
+export async function runLocateIssuesMinigame(id, options = []) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    if (this.recuadroPanel) {
+        await this.closeRecuadro();
+    }
+
+    const jouktaiEntry = Array.from(this.characters.entries())
+        .find(([name, sprite]) => (name || '').toLowerCase() === 'jouktai' && sprite?.active);
+    const jouktai = jouktaiEntry?.[1] ?? null;
+    const jouktaiStart = jouktai ? { x: jouktai.x, y: jouktai.y, alpha: jouktai.alpha } : null;
+    if (jouktai) {
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: jouktai,
+                x: jouktai.x - 320,
+                alpha: 0,
+                duration: 260,
+                ease: 'Sine.in',
+                onComplete: resolve,
+            });
+        });
+        jouktai.setVisible(false);
+    }
+
+    const cam = scene.cameras.main;
+    const initialScrollY = cam.scrollY;
+
+    const toScrollY = async (target, duration = 420) => {
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: cam,
+                scrollY: target,
+                duration,
+                ease: 'Sine.inOut',
+                onComplete: resolve,
+            });
+        });
+    };
+
+    const getClampedScrollForCenterY = (worldY) => {
+        const b = cam.getBounds();
+        const minY = b.y;
+        const maxY = b.y + b.height - cam.height;
+        return Phaser.Math.Clamp(worldY - (scene.scale.height / 2), minY, maxY);
+    };
+
+    const ensureUpperRoomFor = (worldY) => {
+        const b = cam.getBounds();
+        const minNeeded = worldY - (scene.scale.height / 2) - 12;
+        if (minNeeded >= b.y) return;
+        const newTop = Math.min(b.y, minNeeded - 64);
+        const newHeight = b.height + (b.y - newTop);
+        cam.setBounds(b.x, newTop, b.width, newHeight);
+    };
+
+    // Debe quedar por debajo del overlay de pausa (depth 1100+).
+    const uiRoot = scene.add.container(0, 0).setScrollFactor(0).setDepth(1050);
+
+    const listPanel = scene.add.container(88, 88).setScrollFactor(0);
+    const panelBg = scene.add.graphics();
+    panelBg.fillStyle(0x000000, 0.6);
+    panelBg.fillRoundedRect(0, 0, 760, 340, 22);
+    panelBg.lineStyle(3, 0xfce1b4, 1);
+    panelBg.strokeRoundedRect(0, 0, 760, 340, 22);
+    const panelTitle = scene.add.text(24, 16, 'Sintomas identificados', {
+        fontFamily: 'fredoka',
+        fontSize: '34px',
+        color: '#fce1b4',
+    });
+    const listText = scene.add.text(24, 72, '', {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#ffffff',
+        wordWrap: { width: 710 },
+        lineSpacing: 10,
+    });
+    const continueText = scene.add.text(24, 296, '', {
+        fontFamily: 'fredoka',
+        fontSize: '24px',
+        color: '#9df0a8',
+    });
+    listPanel.add([panelBg, panelTitle, listText, continueText]);
+    uiRoot.add(listPanel);
+
+    const mkRoundButton = (iconText) => {
+        const btn = scene.add.container(scene.scale.width - 92, scene.scale.height - 92).setScrollFactor(0);
+        const bg = scene.add.graphics();
+        const icon = scene.add.text(0, -1, iconText, {
+            fontFamily: 'fredoka',
+            fontSize: '50px',
+            color: '#6a3a1b',
+        }).setOrigin(0.5);
+        const redraw = (hover = false) => {
+            bg.clear();
+            bg.fillStyle(hover ? 0xfce1b4 : 0xf0c18a, 1);
+            bg.fillCircle(0, 0, 46);
+            bg.lineStyle(5, hover ? 0x6a3a1b : 0x8b4c1d, 1);
+            bg.strokeCircle(0, 0, 44);
+        };
+        redraw(false);
+        btn.add([bg, icon]);
+        btn.setSize(92, 92);
+        btn.setInteractive({ useHandCursor: true });
+        btn.on('pointerover', () => redraw(true));
+        btn.on('pointerout', () => redraw(false));
+        UIHelpers.attachHoverPop(scene, btn, 0.35);
+        return btn;
+    };
+
+    const upButton = mkRoundButton('↑');
+    upButton.setVisible(false);
+    if (upButton.input) upButton.input.enabled = false;
+    uiRoot.add(upButton);
+
+    let nextPanTargetId = null;
+    let isPanning = false;
+    const showUpButton = () => {
+        upButton.setVisible(true);
+        if (upButton.input) upButton.input.enabled = true;
+    };
+    const hideUpButton = () => {
+        upButton.setVisible(false);
+        if (upButton.input) upButton.input.enabled = false;
+    };
+    upButton.on('pointerdown', async () => {
+        if (isPanning || !upButton.visible) return;
+        playUiSound(scene, 'pop', 0.75);
+        isPanning = true;
+        hideUpButton();
+        const targetSymptom = symptoms.find((item) => item.id === nextPanTargetId);
+        const desiredCenterY = targetSymptom?.y ?? cam.worldView.centerY;
+        ensureUpperRoomFor(desiredCenterY);
+        const targetScroll = getClampedScrollForCenterY(desiredCenterY);
+        await toScrollY(targetScroll, 420);
+        nextPanTargetId = null;
+        isPanning = false;
+    });
+
+    const baseX = scene.molinoBase?.x ?? 800;
+    const baseY = scene.molinoBase?.y ?? 700;
+    const symptoms = [
+        { id: 'base', text: 'Base: se oye un chirrido viniendo de la bomba', x: baseX + 703, y: baseY + 1710 },
+        { id: 'cuerpo', text: 'Cuerpo: la varilla de la bomba parece no moverse bien', x: baseX + 655, y: baseY + 980 },
+        { id: 'aspas', text: 'Aspas: las aspas no giran correctamente', x: scene.molinoAspas?.x ?? (baseX + 700), y: scene.molinoAspas?.y ?? (baseY + 175) },
+    ];
+
+    const found = new Set();
+    const markers = symptoms.map((item) => {
+        const marker = scene.add.container(item.x, item.y).setDepth(1040);
+        const circle = scene.add.graphics();
+        const icon = scene.add.text(0, -1, '!', {
+            fontFamily: 'fredoka',
+            fontSize: '32px',
+            color: '#6a3a1b',
+            fontStyle: '700',
+        }).setOrigin(0.5);
+        marker.add([circle, icon]);
+        marker.setSize(84, 84);
+        marker.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, marker, 0.35);
+        return { item, marker, circle, hover: false };
+    });
+
+    const drawMarker = (entry, pulse = 0) => {
+        entry.circle.clear();
+        const radius = (entry.hover ? 37 : 33) + pulse;
+        entry.circle.fillStyle(entry.hover ? 0xfff2c8 : 0xfce1b4, 0.95);
+        entry.circle.fillCircle(0, 0, radius);
+        entry.circle.lineStyle(4, entry.hover ? 0x2b9348 : 0x8b4c1d, 1);
+        entry.circle.strokeCircle(0, 0, radius);
+    };
+    markers.forEach((entry) => drawMarker(entry, 0));
+
+    const pulseEvent = scene.time.addEvent({
+        delay: 60,
+        loop: true,
+        callback: () => {
+            const pulse = Math.sin(scene.time.now * 0.01) * 2.2;
+            markers.forEach((entry) => {
+                if (found.has(entry.item.id)) return;
+                drawMarker(entry, pulse);
+            });
+        },
+    });
+
+    const refreshList = () => {
+        const lines = symptoms.filter((item) => found.has(item.id)).map((item) => `• ${item.text}`);
+        listText.setText(lines.join('\n'));
+        if (found.size === symptoms.length) {
+            continueText.setText('Presiona en cualquier lugar para continuar');
+            hideUpButton();
+        }
+    };
+    refreshList();
+
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+    let waitingForContinue = false;
+
+    markers.forEach((entry) => {
+        entry.marker.on('pointerover', () => {
+            entry.hover = true;
+            drawMarker(entry, 0);
+        });
+        entry.marker.on('pointerout', () => {
+            entry.hover = false;
+            drawMarker(entry, 0);
+        });
+        entry.marker.on('pointerdown', () => {
+            if (found.has(entry.item.id)) return;
+            found.add(entry.item.id);
+            playUiSound(scene, 'success-bell', 0.7);
+            entry.marker.disableInteractive();
+            entry.hover = false;
+            drawMarker(entry, 0);
+            refreshList();
+            if (found.size < symptoms.length && !isPanning) {
+                if (entry.item.id === 'base') nextPanTargetId = 'cuerpo';
+                else if (entry.item.id === 'cuerpo') nextPanTargetId = 'aspas';
+                else {
+                    const pending = symptoms.find((item) => !found.has(item.id));
+                    nextPanTargetId = pending?.id ?? null;
+                }
+                showUpButton();
+            }
+            if (found.size !== symptoms.length || waitingForContinue) return;
+            waitingForContinue = true;
+            // Importante: registrar el listener en el siguiente tick para no capturar
+            // el mismo click que acabó de seleccionar el tercer indicador.
+            scene.time.delayedCall(0, () => {
+                const finishHandler = () => {
+                    scene.input.off('pointerdown', finishHandler);
+                    resolveDone();
+                };
+                scene.input.on('pointerdown', finishHandler);
+            });
+        });
+    });
+
+    await donePromise;
+
+    pulseEvent.remove(false);
+    markers.forEach(({ marker }) => marker.destroy());
+    uiRoot.destroy(true);
+
+    if (Math.abs(cam.scrollY - initialScrollY) > 1) {
+        ensureUpperRoomFor(initialScrollY + scene.scale.height / 2);
+        await toScrollY(initialScrollY, 420);
+    }
+
+    if (jouktai && jouktaiStart) {
+        jouktai.setVisible(true);
+        jouktai.setAlpha(1);
+        jouktai.setPosition(jouktaiStart.x - 320, jouktaiStart.y);
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: jouktai,
+                x: jouktaiStart.x,
+                duration: 320,
+                ease: 'Sine.out',
+                onComplete: resolve,
+            });
+        });
+    }
+
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    scene.input.setTopOnly(prevTopOnly);
+}

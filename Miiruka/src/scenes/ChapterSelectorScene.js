@@ -28,9 +28,13 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.load.audio('birds', 'assets/sounds/birds.mp3')
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
-
+        
         this.load.image('cap1', 'assets/chapters/cap1.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
+        this.load.image('cap2', 'assets/chapters/cap2.png');
+        this.load.image('cap2f', 'assets/chapters/cap2f.png');
+        this.load.image('cap3', 'assets/chapters/cap3.png');
+        this.load.image('cap3f', 'assets/chapters/cap3f.png');
         this.load.image('nocap', 'assets/chapters/nocap.png');
         this.load.image('star-holder', 'assets/ui/star-holder.png');
         this.load.image('star', 'assets/ui/star.png');
@@ -150,7 +154,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
             UIHelpers.attachHoverPop(this, cardBody, 0.35);
         }
 
-        const card = this.add.container(960, 700, [
+        const card = this.add.container(500 + (i - 1) * 420, 700, [
             border,
             cardBody,
         ])
@@ -189,6 +193,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.createDownloadButton(1770, 110);
 
         const isCompleted = (chapter) => GameStorage.isChapterCompleted(chapter);
+        const isUnlocked = (chapter) => GameStorage.isChapterUnlocked(chapter);
         const getSummary = (chapter) => GameStorage.getChapterProgressSummary(chapter);
 
         this.createChapterCard(
@@ -197,6 +202,20 @@ export class ChapterSelectorScene extends Phaser.Scene {
             1,
             isCompleted(1) ? ChapterState.COMPLETED : ChapterState.AVAILABLE,
             getSummary(1)
+        )
+        this.createChapterCard(
+            `${UIHelpers.getText('chapter')} 2`, 'cap2',
+            'El molino esta fallando y algo podria estar dañado, arreglalo con Jouktai y Kamanewaa',
+            2,
+            isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
+            getSummary(2)
+        )
+        this.createChapterCard(
+            `${UIHelpers.getText('chapter')} 3`, 'cap3',
+            'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
+            3,
+            isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
+            getSummary(3)
         )
     }
 
