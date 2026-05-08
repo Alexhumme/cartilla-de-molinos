@@ -89,9 +89,6 @@ export class StartScene extends Phaser.Scene {
     askForName(onComplete) {
         if (this.namePromptActive) return;
         this.namePromptActive = true;
-        const canvasRect = this.game.canvas.getBoundingClientRect();
-        const inputX = canvasRect.left + canvasRect.width * 0.5;
-        const inputY = canvasRect.top + canvasRect.height * 0.82;
 
         const promptText = this.add.text(
             960, 800,
@@ -104,24 +101,87 @@ export class StartScene extends Phaser.Scene {
             }
         ).setOrigin(0.5);
 
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = UIHelpers.getText('name_placeholder');
-        input.style.position = 'absolute';
-        input.style.left = `${inputX}px`;
-        input.style.top = `${inputY}px`;
-        input.style.transform = 'translate(-50%, -50%)';
-        input.style.fontSize = '20px';
-        input.style.padding = '12px 16px';
-        input.style.borderRadius = '12px';
-        input.style.border = '3px solid #8b4c1d';
-        input.style.background = '#f0c18a';
-        input.style.color = '#6a3a1b';
-        input.style.outline = 'none';
-        input.maxLength = 15;
-        input.style.textAlign = 'center';
+        const inputContainer = this.add.container(960, 885);
+        const inputBorder = this.add.graphics();
+        const inputBody = this.add.graphics();
+        const inputCaret = this.add.text(0, 0, '|', {
+            fontFamily: 'fredoka',
+            fontSize: '36px',
+            color: '#6a3a1b',
+        }).setOrigin(0.5);
+        const inputText = this.add.text(0, 0, UIHelpers.getText('name_placeholder'), {
+            fontFamily: 'fredoka',
+            fontSize: '34px',
+            color: '#8f6f4f',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+        const inputW = 680;
+        const inputH = 88;
+        let focused = false;
+        let currentName = '';
 
-        document.body.appendChild(input);
+        const drawInput = () => {
+            inputBorder.clear();
+            inputBody.clear();
+            inputBorder.fillStyle(focused ? 0x6a3a1b : 0x8b4c1d);
+            inputBorder.fillRoundedRect(-inputW / 2, -inputH / 2, inputW + 10, inputH + 10, 14);
+            inputBody.fillStyle(0xf0c18a);
+            inputBody.fillRoundedRect(-inputW / 2, -inputH / 2, inputW, inputH, 14);
+            const showPlaceholder = currentName.length === 0;
+            inputText.setText(showPlaceholder ? UIHelpers.getText('name_placeholder') : currentName);
+            inputText.setColor(showPlaceholder ? '#8f6f4f' : '#6a3a1b');
+            inputCaret.setVisible(focused);
+            const textRight = Math.min((inputText.width / 2) + 18, inputW / 2 - 26);
+            inputCaret.setX(showPlaceholder ? 0 : textRight);
+        };
+
+        inputContainer.add([inputBorder, inputBody, inputText, inputCaret]);
+        inputContainer.setSize(inputW, inputH);
+        inputContainer.setInteractive({ useHandCursor: true });
+        drawInput();
+
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'text';
+        hiddenInput.maxLength = 15;
+        hiddenInput.autocomplete = 'off';
+        hiddenInput.autocorrect = 'off';
+        hiddenInput.autocapitalize = 'words';
+        hiddenInput.spellcheck = false;
+        hiddenInput.style.position = 'absolute';
+        hiddenInput.style.left = '8px';
+        hiddenInput.style.top = '8px';
+        hiddenInput.style.width = '1px';
+        hiddenInput.style.height = '1px';
+        hiddenInput.style.border = '0';
+        hiddenInput.style.padding = '0';
+        hiddenInput.style.margin = '0';
+        hiddenInput.style.pointerEvents = 'none';
+        hiddenInput.style.opacity = '0';
+        const inputHost = this.game.canvas?.parentElement || document.body;
+        const hostStyle = window.getComputedStyle(inputHost);
+        if (hostStyle.position === 'static') {
+            inputHost.style.position = 'relative';
+        }
+        inputHost.appendChild(hiddenInput);
+
+        const syncName = () => {
+            currentName = hiddenInput.value.slice(0, 15);
+            drawInput();
+        };
+
+        hiddenInput.addEventListener('input', syncName);
+        inputContainer.on('pointerdown', () => {
+            focused = true;
+            drawInput();
+            hiddenInput.focus();
+        });
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.event?.target === this.game.canvas) return;
+            if (!inputContainer.getBounds().contains(pointer.x, pointer.y)) {
+                focused = false;
+                drawInput();
+            }
+        });
 
         const btnLabel = this.add.text(0, 0, UIHelpers.getText('continue'), {
             fontFamily: 'fredoka',
@@ -147,17 +207,15 @@ export class StartScene extends Phaser.Scene {
         confirmBtn.setInteractive({ useHandCursor: true });
 
         confirmBtn.on('pointerdown', () => {
-            const name = input.value.trim();
+            const name = currentName.trim();
 
             if (name.length > 0) {
                 GameStorage.startNewGame(name);
-                input.remove();
+                hiddenInput.removeEventListener('input', syncName);
+                hiddenInput.remove();
                 promptText.destroy();
+                inputContainer.destroy();
                 confirmBtn.destroy();
-                if (this.nameInputResizeHandler) {
-                    this.scale.off('resize', this.nameInputResizeHandler);
-                    this.nameInputResizeHandler = null;
-                }
                 this.namePromptActive = false;
                 if (onComplete) onComplete();
             }
@@ -170,13 +228,14 @@ export class StartScene extends Phaser.Scene {
             confirmBtn.setScale(1);
         });
         UIHelpers.attachHoverPop(this, confirmBtn, 0.35);
-
-        this.nameInputResizeHandler = () => {
-            const rect = this.game.canvas.getBoundingClientRect();
-            input.style.left = `${rect.left + rect.width * 0.5}px`;
-            input.style.top = `${rect.top + rect.height * 0.82}px`;
-        };
-        this.scale.on('resize', this.nameInputResizeHandler);
+        this.tweens.add({
+            targets: inputCaret,
+            alpha: 0.2,
+            yoyo: true,
+            repeat: -1,
+            duration: 450,
+            ease: 'Sine.inOut',
+        });
     }
 
     create() {
