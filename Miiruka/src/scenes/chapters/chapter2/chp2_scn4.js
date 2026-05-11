@@ -2,6 +2,7 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
 
 export class Chp2_scn4 extends Phaser.Scene {
     constructor() {
@@ -9,6 +10,7 @@ export class Chp2_scn4 extends Phaser.Scene {
     }
 
     preload() {
+        attachLoadingOverlay(this, 'Cargando capítulo...');
         // Guion del capítulo (texto editable).
         this.load.text('ch2_script', 'assets/scripts/chapter2.txt');
         // Audio ambiente.

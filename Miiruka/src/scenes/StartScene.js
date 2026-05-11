@@ -2,12 +2,15 @@ import { GameStorage } from '../utils/storage.js'
 import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
 import { addFullScreenImage } from '../utils/backgrounds.js';
+import { attachLoadingOverlay } from '../utils/loadingOverlay.js';
 
 export class StartScene extends Phaser.Scene {
     constructor() {
         super("Inicio")
     }
     preload() {
+        attachLoadingOverlay(this, 'Cargando...');
+
         // UI
         this.load.audio('pop', 'assets/sounds/pop.mp3')
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a')
