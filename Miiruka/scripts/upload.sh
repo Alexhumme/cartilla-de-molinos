@@ -28,15 +28,27 @@ fi
 
 echo "Subiendo archivos a ${HOSTINGER_SSH_USER}@${HOSTINGER_SSH_HOST}:${HOSTINGER_REMOTE_DIR}/"
 
-# IMPORTANTE: no se usa --delete para no borrar otras carpetas (ej. subdominios)
+# Seguridad minima para evitar borrados peligrosos.
+case "${HOSTINGER_REMOTE_DIR}" in
+  ""|"/"|".")
+    echo "HOSTINGER_REMOTE_DIR no es seguro: '${HOSTINGER_REMOTE_DIR}'"
+    exit 1
+    ;;
+esac
+
+echo "Limpiando contenido previo en ${HOSTINGER_REMOTE_DIR}/ ..."
+ssh -p "${HOSTINGER_SSH_PORT}" "${HOSTINGER_SSH_USER}@${HOSTINGER_SSH_HOST}" \
+  "mkdir -p '${HOSTINGER_REMOTE_DIR}' && find '${HOSTINGER_REMOTE_DIR}' -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
+
+# Subida completa del proyecto (reemplazo limpio).
 rsync -avz \
   --progress \
   --exclude='.git/' \
   --exclude='.DS_Store' \
   --exclude='node_modules/' \
   --exclude='.env' \
-  --exclude='scripts/' \
+  --exclude='/scripts/' \
   -e "ssh -p ${HOSTINGER_SSH_PORT}" \
   ./ "${HOSTINGER_SSH_USER}@${HOSTINGER_SSH_HOST}:${HOSTINGER_REMOTE_DIR}/"
 
-echo "Upload completado sin borrar contenido existente en Miiruka."
+echo "Upload completado (limpieza + carga nueva)."
