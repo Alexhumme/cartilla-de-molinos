@@ -1,0 +1,78 @@
+{
+  "highlight.regexFlags": "gm",
+  "highlight.regexes": {
+    "^(\\s*#.*)$": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#8ea0b3",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+    "^(\\[escena\\]\\[[^\\]]+\\].*)$": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#ffd166",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[(?:personaje|char|caminar|walk|bgscroll|camara|pregunta_escena|pregunta_final|pregunta|quiz|cambiar_escena|if|goto|ir_a|recuadro|imagen|mostrar|fin|esperar)\\])": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#7dd3fc",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[minijuego\\])": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#c084fc",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[(?:es):[^\\]]+\\])": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#ffffff",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+    "(\\[(?:way|wayuunaiki):[^\\]]+\\])": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#86efac",
+          "fontStyle": "italic",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\{\\{[^\\}]+\\}\\})": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#fda4af",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[(?:correcta|correct|respuesta|op\\d+(?:es|way|wayuunaiki)?|opcion\\d+(?:es|way|wayuunaiki)?):[^\\]]+\\])": {
+      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "decorations": [
+        {
+          "color": "#fcd34d",
+          "fontStyle": "italic"
+        }
+      ]
+    }
+  }
+}

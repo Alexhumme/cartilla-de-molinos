@@ -3,6 +3,7 @@ import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
 import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
+import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 
 export class Chp2_scn2 extends Phaser.Scene {
     constructor() {
@@ -66,12 +67,12 @@ export class Chp2_scn2 extends Phaser.Scene {
 
         // Fondo estático (sin paneo inicial).
         const worldHeight = 2000;
-        this.cameras.main.setBounds(0, 0, 1920, worldHeight);
+        this.cameras.main.setBounds(0, 0, this.scale.width, worldHeight);
         this.cameras.main.scrollY = 800;
-        this.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
+        addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         this.sun2 = this.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        const layer = this.add.tileSprite(960, 1130, 1920, 1080, 'bg_layer_taller').setScrollFactor(0.7);
+        const layer = addDesertLayer(this, 'bg_layer_taller', 1130, 0.7);
 
         this.bgLayers = [
             { sprite: layer, speed: 0.15 },

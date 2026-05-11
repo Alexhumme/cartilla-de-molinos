@@ -766,7 +766,16 @@ export async function runConnectConceptsMinigame(id, options = []) {
         return { pair, itemRoot, hitZone, drawBg, solved: false, y };
     });
 
-    const rightEntries = pairs.map((pair, index) => {
+    // Desorden intencional de definiciones para evitar emparejado trivial por fila.
+    // Resultado:
+    // imagen 1 -> concepto 4
+    // imagen 2 -> concepto 1
+    // imagen 3 -> concepto 3
+    // imagen 4 -> concepto 2
+    const definitionOrder = [3, 0, 2, 1];
+    const rightPairs = definitionOrder.map((idx) => pairs[idx]).filter(Boolean);
+
+    const rightEntries = rightPairs.map((pair, index) => {
         const y = yStart + index * rowGap;
         const itemRoot = scene.add.container(rightX, y);
         const bg = scene.add.graphics();
