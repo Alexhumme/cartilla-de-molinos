@@ -74,7 +74,25 @@
         }
       ]
     },
-    "(\\[(?:correcta|correct|respuesta|op\\d+(?:es|way|wayuunaiki)?|opcion\\d+(?:es|way|wayuunaiki)?):[^\\]]+\\])": {
+    "(\\[(?:op\\d+(?:es)?|opcion\\d+(?:es)?):[^\\]]+\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#FAD105",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+    "(\\[(?:op\\d+(?:way|wayuunaiki)?|opcion\\d+(?:way|wayuunaiki)?):[^\\]]+\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#FFEC96",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+    "(\\[(?:correcta|correct|respuesta):[^\\]]+\\])": {
       "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {

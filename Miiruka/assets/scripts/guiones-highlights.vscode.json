@@ -74,11 +74,12 @@
         }
       ]
     },
-    "(\\[(?:correcta|correct|respuesta|op\\d+(?:es|way|wayuunaiki)?|opcion\\d+(?:es|way|wayuunaiki)?):[^\\]]+\\])": {
+ 
+    "(\\[(?:op\\d+(?:es|way|wayuunaiki)?|opcion\\d+(?:es|way|wayuunaiki)?):[^\\]]+\\])": {
       "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
-          "color": "#fcd34d",
+          "color": "#ffffff",
           "fontStyle": "italic"
         }
       ]

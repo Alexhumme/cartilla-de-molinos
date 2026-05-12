@@ -154,7 +154,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
             UIHelpers.attachHoverPop(this, cardBody, 0.35);
         }
 
-        const card = this.add.container(500 + (i - 1) * 420, 700, [
+        //const card = this.add.container(500 + (i - 1) * 420, 700, [
+        const card = this.add.container(710 + (i - 1) * 420, 700, [
             border,
             cardBody,
         ])
@@ -210,13 +211,13 @@ export class ChapterSelectorScene extends Phaser.Scene {
             isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
             getSummary(2)
         )
-        this.createChapterCard(
+        /*this.createChapterCard(
             `${UIHelpers.getText('chapter')} 3`, 'cap3',
             'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
             3,
             isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
             getSummary(3)
-        )
+        )*/
     }
 
     update() {
