@@ -90,6 +90,6 @@
 [personaje][Kamanewaa][habla][emocion][feliz][es:Si, que tal si la proxima hacemos unos mantenimientos preventivos al molino?]
 [personaje][Jouktai][habla][es:Me encantaria!]
 [personaje][Kamanewaa][mira][jugador]
-[personaje][Jouktai][mira][jugador][habla][{{$jugador}} espero que nos ayudes la siguiente ocasion]
+[personaje][Jouktai][mira][jugador][habla][es:{{$jugador}} espero que nos ayudes la siguiente ocasion]
 [personaje][Jouktai][emocion][feliz][habla][es:Hasta la proxima!]
 [cambiar_escena][Chp2_end]

@@ -2,8 +2,17 @@
   "//": "Copia este bloque a .vscode/settings.json si quieres editarlo manualmente.",
   "highlight.regexFlags": "gm",
   "highlight.regexes": {
+    "(\\{\\{[^\\}]+\\}\\})": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#fda4af",
+          "fontWeight": "bold"
+        }
+      ]
+    },
     "^(\\s*#.*)$": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
           "color": "#8ea0b3",
@@ -12,7 +21,7 @@
       ]
     },
     "^(\\[escena\\]\\[[^\\]]+\\].*)$": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
           "color": "#ffd166",
@@ -20,8 +29,8 @@
         }
       ]
     },
-    "(\\[(?:personaje|char|caminar|walk|bgscroll|camara|pregunta_escena|pregunta_final|pregunta|quiz|cambiar_escena|if|goto|ir_a|recuadro|imagen|mostrar|fin|esperar)\\])": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+    "(\\[(?:personaje|char|caminar|walk|bgscroll|camara|pregunta_escena|pregunta_final|pregunta|quiz|cambiar_escena|if|goto|ir_a|imagen|mostrar|fin|esperar)\\])": {
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
           "color": "#7dd3fc",
@@ -30,7 +39,7 @@
       ]
     },
     "(\\[minijuego\\])": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
           "color": "#c084fc",
@@ -38,8 +47,17 @@
         }
       ]
     },
+    "(\\[recuadro\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#7FF5EE",
+          "fontWeight": "bold"
+        }
+      ]
+    },
     "(\\[(?:es):[^\\]]+\\])": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
           "color": "#ffffff",
@@ -48,26 +66,16 @@
       ]
     },
     "(\\[(?:way|wayuunaiki):[^\\]]+\\])": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
-          "color": "#86efac",
-          "fontStyle": "italic",
-          "fontWeight": "bold"
-        }
-      ]
-    },
-    "(\\{\\{[^\\}]+\\}\\})": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
-      "decorations": [
-        {
-          "color": "#fda4af",
-          "fontWeight": "bold"
+          "color": "#E6FFD1",
+          "fontStyle": "italic"
         }
       ]
     },
     "(\\[(?:correcta|correct|respuesta|op\\d+(?:es|way|wayuunaiki)?|opcion\\d+(?:es|way|wayuunaiki)?):[^\\]]+\\])": {
-      "filterFileRegex": ".*/assets/scripts/.*\\.txt$",
+      "filterFileRegex": ".*\\.txt$",
       "decorations": [
         {
           "color": "#fcd34d",
