@@ -8,6 +8,7 @@ import {
     runLocateMillMinigame,
     runFaucetMinigame,
     runLocateIssuesMinigame,
+    runSeparateUnionsMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -511,6 +512,9 @@ export class StoryRunner {
         if (id === 'conectar_conceptos') {
             return this.handleConnectConceptsMinigame(id, resolvedOptions);
         }
+        if (id === 'separar_uniones') {
+            return this.handleSeparateUnionsMinigame(id, resolvedOptions);
+        }
         if (id === 'ubicar_problemas') {
             return this.handleLocateIssuesMinigame(id, resolvedOptions);
         }
@@ -593,6 +597,11 @@ export class StoryRunner {
     // Minijuego: conectar piezas del molino con su definicion.
     async handleConnectConceptsMinigame(id, options) {
         return runConnectConceptsMinigame.call(this, id, options);
+    }
+
+    // Minijuego: separar uniones
+    async handleSeparateUnionsMinigame(id, options) {
+        return runSeparateUnionsMinigame.call(this, id, options);
     }
 
     // Minijuego: ubicar problemas visibles del molino.

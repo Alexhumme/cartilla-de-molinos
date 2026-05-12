@@ -3,7 +3,7 @@ import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
 import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
-import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
+import { addWorkshopLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 
 export class Chp2_scn2 extends Phaser.Scene {
     constructor() {
@@ -72,7 +72,7 @@ export class Chp2_scn2 extends Phaser.Scene {
         addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         this.sun2 = this.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        const layer = addDesertLayer(this, 'bg_layer_taller', 1130, 0.7);
+        const layer = addWorkshopLayer(this, 'bg_layer_taller', 1350);
 
         this.bgLayers = [
             { sprite: layer, speed: 0.15 },

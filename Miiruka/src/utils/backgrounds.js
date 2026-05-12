@@ -38,3 +38,20 @@ export const addDesertLayer = (scene, key, y, scrollFactor, options = {}) => {
     if (typeof options.depth === 'number') layer.setDepth(options.depth);
     return layer;
 };
+
+export const addWorkshopLayer = (scene, key, y, options = {}) => {
+    const { width } = getGameSize(scene);
+    const texture = scene.textures.get(key)?.getSourceImage();
+    const textureWidth = texture?.width || width;
+    const textureHeight = texture?.height || 1080;
+    const layerWidth = options.width || width * 1;
+    const layerHeight = options.height || Math.round(layerWidth * (textureHeight / textureWidth));
+    const x = options.x ?? layerWidth / 2;
+    const layer = scene.add.tileSprite(x, y, layerWidth, layerHeight, key);
+    layer.setOrigin(0.5);
+    layer.setTileScale(layerWidth / textureWidth, layerHeight / textureHeight);
+    layer.tilePositionX = 0;
+    layer.tilePositionY = 0;
+    if (typeof options.depth === 'number') layer.setDepth(options.depth);
+    return layer;
+};

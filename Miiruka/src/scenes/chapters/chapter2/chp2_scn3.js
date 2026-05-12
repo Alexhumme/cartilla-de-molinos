@@ -39,6 +39,14 @@ export class Chp2_scn3 extends Phaser.Scene {
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
         this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
 
+        // Imágenes para minijuego separar uniones
+        this.load.image('su-varilla_arriba', 'assets/juegos/separar_union/varilla_arriba.png');
+        this.load.image('su-boca_abajo', 'assets/juegos/separar_union/boca_abajo.png');
+        this.load.image('su-rosca', 'assets/juegos/separar_union/rosca.png');
+        this.load.image('su-varilla_abajo', 'assets/juegos/separar_union/varilla_abajo.png');
+        this.load.image('su-boca_arriba', 'assets/juegos/separar_union/boca_arriba.png');
+        this.load.image('varilla-doblada', 'assets/juegos/meter_varilla/varilla_doblada.png');
+
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch2_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);

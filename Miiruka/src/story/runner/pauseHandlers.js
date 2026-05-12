@@ -174,7 +174,7 @@ export function showPauseMenuOverlay() {
         this.ignoreNextDialogClick = true;
     });
 
-    const restartBtn = this.createPauseActionButton(760, 650, 'Reiniciar capítulo', () => {
+    const restartBtn = this.createPauseActionButton(760, 650, 'Reiniciar escena', () => {
         if (scene.cache.audio?.exists('pop')) {
             scene.sound.play('pop', { volume: 0.8 });
         }

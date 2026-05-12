@@ -1181,3 +1181,220 @@ export async function runLocateIssuesMinigame(id, options = []) {
     this.minigames.set(id, options[0] ?? 'respuesta1');
     scene.input.setTopOnly(prevTopOnly);
 }
+
+export async function runSeparateUnionsMinigame(id, options = []) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    if (!this.recuadroPanel) await this.openRecuadro();
+    await this.moveRecuadroToCurrentSide();
+    await this.clearRecuadroContent();
+
+    const bounds = this.getRecuadroContentBounds();
+    const areaW = bounds.width;
+    const areaH = bounds.height;
+    const root = scene.add.container(0, 0);
+    root.setScrollFactor(0);
+    this.recuadroContent.add(root);
+    this.recuadroItems.push(root);
+
+    const elements = [
+        { key: 'su-varilla_arriba', y: 100 },
+        { key: 'su-boca_abajo', y: 525 },
+        { key: 'su-rosca', y: 500 },
+        { key: 'su-varilla_abajo', y: 583 },
+        { key: 'su-boca_arriba', y: 386 },
+    ];
+
+    const itemSprites = elements.map((element, index) => {
+        const image = scene.add.image(0, areaH * -0.54 + element.y, element.key);
+        image.setOrigin(0.5, 0);
+        image.setDepth(100 + index);
+        root.add(image);
+        return image;
+    });
+
+    const topRod = itemSprites[0];
+    const topMouth = itemSprites[4];
+    const topRodOriginalY = topRod.y;
+    const topMouthOriginalY = topMouth.y;
+
+    const instruction = scene.add.text(0, (-areaH / 2) + 28, 'Separa las varillas deslizando la llave', {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#482e00',
+        align: 'center',
+        wordWrap: { width: areaW * 0.9 },
+    }).setOrigin(0.5, 0);
+    root.add(instruction);
+
+    const sliderY = (areaH / 2) - 104;
+    const sliderWidth = Math.min(areaW * 0.78, 740);
+    const sliderHeight = 42;
+    const sliderLeft = -sliderWidth / 2;
+    const sliderRight = sliderWidth / 2;
+    const indicatorRadius = 26;
+    const passCountTarget = 3;
+    const passDelta = 100 / passCountTarget;
+
+    const sliderTrack = scene.add.graphics();
+    sliderTrack.fillStyle(0x3f2f20, 0.95);
+    sliderTrack.fillRoundedRect(sliderLeft, sliderY - (sliderHeight / 2), sliderWidth, sliderHeight, 22);
+    sliderTrack.lineStyle(4, 0xfce1b4, 0.95);
+    sliderTrack.strokeRoundedRect(sliderLeft, sliderY - (sliderHeight / 2), sliderWidth, sliderHeight, 22);
+    root.add(sliderTrack);
+
+    const sliderFill = scene.add.rectangle(sliderLeft + 4, sliderY, 2, sliderHeight - 16, 0x9df0a8, 0.8)
+        .setOrigin(0, 0.5);
+    sliderFill.setDepth(105);
+    root.add(sliderFill);
+
+    const indicator = scene.add.circle(sliderLeft + indicatorRadius, sliderY, indicatorRadius, 0xfce1b4)
+        .setStrokeStyle(4, 0x6f3515, 1)
+        .setDepth(110);
+    const indicatorHit = scene.add.zone(sliderLeft + indicatorRadius, sliderY, indicatorRadius * 2, indicatorRadius * 2)
+        .setOrigin(0.5)
+        .setDepth(111);
+    root.add([indicator, indicatorHit]);
+
+    const indicatorPulse = scene.tweens.add({
+        targets: indicator,
+        scale: 1.08,
+        duration: 630,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+    });
+
+    const progressText = scene.add.text(0, sliderY + 66, 'Arrastra la llave hacia la derecha', {
+        fontFamily: 'fredoka',
+        fontSize: '24px',
+        color: '#ffffff',
+        align: 'center',
+    }).setOrigin(0.5, 0.5);
+    root.add(progressText);
+
+    let activePasses = 0;
+    let dragging = false;
+    let readyToFinish = false;
+    let finished = false;
+    let isOverZone = false;
+    let finishResolve;
+    const donePromise = new Promise((resolve) => { finishResolve = resolve; });
+
+    const updateSliderFill = () => {
+        const fillWidth = Phaser.Math.Clamp(indicator.x - sliderLeft - indicatorRadius, 0, sliderWidth - (indicatorRadius * 2));
+        sliderFill.width = Math.max(2, fillWidth);
+        indicatorHit.setPosition(indicator.x, indicator.y);
+    };
+
+    const cleanup = () => {
+        if (finished) return;
+        finished = true;
+        scene.input.off('pointerdown', onPointerDown);
+        scene.input.off('pointermove', onPointerMove);
+        scene.input.off('pointerup', onPointerUp);
+        this.recuadroItems = this.recuadroItems.filter((item) => item !== root);
+        if (root && root.destroy) root.destroy(true);
+        this.minigames.set(id, options[0] ?? 'respuesta1');
+        scene.input.setTopOnly(prevTopOnly);
+        finishResolve();
+    };
+
+    const finishGame = () => {
+        if (readyToFinish && !finished) {
+            cleanup();
+        }
+    };
+
+    const completePass = () => {
+        activePasses += 1;
+        const targetOffset = activePasses >= passCountTarget
+            ? 100
+            : Math.round(passDelta * activePasses * 100) / 100;
+
+        scene.tweens.add({
+            targets: [topRod, topMouth],
+            y: (target, key, value, targetIndex) => {
+                const original = targetIndex === 0 ? topRodOriginalY : topMouthOriginalY;
+                return original - targetOffset;
+            },
+            duration: 220,
+            ease: 'Sine.out',
+        });
+
+        if (activePasses >= passCountTarget) {
+            readyToFinish = true;
+            progressText.setText('¡Listo! Toca para continuar');
+            indicatorHit.disableInteractive();
+            indicatorPulse.stop();
+            if (scene.cache.audio?.exists('success-bell')) {
+                scene.sound.play('success-bell', { volume: 0.7 });
+            }
+            return;
+        }
+
+        progressText.setText(`Paso ${activePasses} de ${passCountTarget}`);
+        indicatorHit.disableInteractive();
+        scene.tweens.add({
+            targets: indicator,
+            x: sliderLeft + indicatorRadius,
+            duration: 180,
+            ease: 'Sine.inOut',
+            onUpdate: updateSliderFill,
+            onComplete: () => {
+                updateSliderFill();
+                indicatorHit.setInteractive({ useHandCursor: true });
+            },
+        });
+        sliderFill.width = 4;
+    };
+
+    const onPointerDown = (pointer) => {
+        if (readyToFinish) {
+            finishGame();
+            return;
+        }
+        const bounds = indicatorHit.getBounds();
+        if (pointer.x >= bounds.left && pointer.x <= bounds.right &&
+            pointer.y >= bounds.top && pointer.y <= bounds.bottom) {
+            dragging = true;
+        }
+    };
+
+    const onPointerMove = (pointer) => {
+        const bounds = indicatorHit.getBounds();
+        const overZone = pointer.x >= bounds.left && pointer.x <= bounds.right &&
+            pointer.y >= bounds.top && pointer.y <= bounds.bottom;
+        if (overZone && !isOverZone) {
+            isOverZone = true;
+            if (scene.input && scene.__hoverCursor) scene.input.setDefaultCursor(scene.__hoverCursor);
+        } else if (!overZone && isOverZone) {
+            isOverZone = false;
+            if (scene.input && scene.__defaultCursor) scene.input.setDefaultCursor(scene.__defaultCursor);
+        }
+
+        if (!dragging || readyToFinish) return;
+        const localPoint = root.getLocalPoint(pointer.x, pointer.y);
+        const newX = Phaser.Math.Clamp(localPoint.x, sliderLeft + indicatorRadius, sliderRight - indicatorRadius);
+        indicator.x = newX;
+        indicatorHit.x = newX;
+        updateSliderFill();
+        if (indicator.x >= sliderRight - indicatorRadius - 2) {
+            dragging = false;
+            completePass();
+        }
+    };
+
+    const onPointerUp = () => {
+        dragging = false;
+    };
+
+    scene.input.on('pointerdown', onPointerDown);
+    scene.input.on('pointermove', onPointerMove);
+    scene.input.on('pointerup', onPointerUp);
+
+    return donePromise;
+}
