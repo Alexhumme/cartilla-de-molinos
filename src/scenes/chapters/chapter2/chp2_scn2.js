@@ -2,6 +2,8 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
+import { addWorkshopLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 
 export class Chp2_scn2 extends Phaser.Scene {
     constructor() {
@@ -9,6 +11,7 @@ export class Chp2_scn2 extends Phaser.Scene {
     }
 
     preload() {
+        attachLoadingOverlay(this, 'Cargando capítulo...');
         // Guion del capítulo (texto editable).
         this.load.text('ch2_script', 'assets/scripts/chapter2.txt');
         // Audio ambiente.
@@ -64,12 +67,12 @@ export class Chp2_scn2 extends Phaser.Scene {
 
         // Fondo estático (sin paneo inicial).
         const worldHeight = 2000;
-        this.cameras.main.setBounds(0, 0, 1920, worldHeight);
+        this.cameras.main.setBounds(0, 0, this.scale.width, worldHeight);
         this.cameras.main.scrollY = 800;
-        this.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
+        addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         this.sun2 = this.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        const layer = this.add.tileSprite(960, 1130, 1920, 1080, 'bg_layer_taller').setScrollFactor(0.7);
+        const layer = addWorkshopLayer(this, 'bg_layer_taller', 1350);
 
         this.bgLayers = [
             { sprite: layer, speed: 0.15 },

@@ -7,6 +7,8 @@ import {
     runConnectConceptsMinigame,
     runLocateMillMinigame,
     runFaucetMinigame,
+    runLocateIssuesMinigame,
+    runSeparateUnionsMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -40,6 +42,7 @@ import {
     setRunnerMusicVolume,
     setRunnerLanguage,
 } from './runner/pauseHandlers.js';
+import { addDesertLayer, addSkyBackground } from '../utils/backgrounds.js';
 
 // Textura placeholder para assets faltantes.
 const PLACEHOLDER_KEY = 'story-placeholder';
@@ -103,13 +106,19 @@ export class StoryRunner {
         this.recuadroContent = null;
         this.recuadroItems = [];
         this.recuadroShiftState = null;
+        this.autoPausedByFocusLoss = false;
+        this.gameBlurHandler = null;
+        this.gameFocusHandler = null;
+        this.visibilityHandler = null;
 
         // Blindaje: si la escena se cierra abruptamente, no dejamos pasos sonando.
         this.scene.events.once('shutdown', () => {
+            this.detachFocusPauseHandlers();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
         this.scene.events.once('destroy', () => {
+            this.detachFocusPauseHandlers();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
@@ -144,6 +153,51 @@ export class StoryRunner {
         GameStorage.touchChapterSceneBySceneKey(this.scene?.scene?.key);
         this.createPauseButton();
         this.ensureMusic();
+        this.attachFocusPauseHandlers();
+    }
+
+    attachFocusPauseHandlers() {
+        const game = this.scene?.game;
+        if (!game || this.gameBlurHandler || this.gameFocusHandler) return;
+
+        this.gameBlurHandler = () => {
+            if (this.isPaused) return;
+            this.autoPausedByFocusLoss = true;
+            this.pause();
+        };
+        this.gameFocusHandler = () => {
+            if (!this.autoPausedByFocusLoss) return;
+            this.autoPausedByFocusLoss = false;
+            this.resume();
+        };
+        this.visibilityHandler = () => {
+            if (document.hidden) {
+                this.gameBlurHandler?.();
+            } else {
+                this.gameFocusHandler?.();
+            }
+        };
+
+        game.events.on(Phaser.Core.Events.BLUR, this.gameBlurHandler);
+        game.events.on(Phaser.Core.Events.FOCUS, this.gameFocusHandler);
+        document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
+
+    detachFocusPauseHandlers() {
+        const game = this.scene?.game;
+        if (game && this.gameBlurHandler) {
+            game.events.off(Phaser.Core.Events.BLUR, this.gameBlurHandler);
+        }
+        if (game && this.gameFocusHandler) {
+            game.events.off(Phaser.Core.Events.FOCUS, this.gameFocusHandler);
+        }
+        if (this.visibilityHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityHandler);
+        }
+        this.gameBlurHandler = null;
+        this.gameFocusHandler = null;
+        this.visibilityHandler = null;
+        this.autoPausedByFocusLoss = false;
     }
 
     // Ejecuta todos los eventos de una escena del guion en orden.
@@ -264,13 +318,13 @@ export class StoryRunner {
         cam.fadeIn(500, 0, 0, 0);
         scene.input.enabled = false;
 
-        scene.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
+        addSkyBackground(scene);
         scene.sun1 = scene.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         scene.sun2 = scene.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        scene.add.image(960, 1230, 'bg_layer1').setScrollFactor(0.7);
-        scene.add.image(960, 1260, 'bg_layer2').setScrollFactor(0.8);
-        scene.add.image(960, 1300, 'bg_layer3').setScrollFactor(0.9);
-        scene.add.image(960, 1340, 'bg_layer4').setScrollFactor(1);
+        addDesertLayer(scene, 'bg_layer1', 1230, 0.7);
+        addDesertLayer(scene, 'bg_layer2', 1260, 0.8);
+        addDesertLayer(scene, 'bg_layer3', 1300, 0.9);
+        addDesertLayer(scene, 'bg_layer4', 1340, 1);
 
         await new Promise((resolve) => {
             scene.tweens.add({
@@ -458,6 +512,12 @@ export class StoryRunner {
         if (id === 'conectar_conceptos') {
             return this.handleConnectConceptsMinigame(id, resolvedOptions);
         }
+        if (id === 'separar_uniones') {
+            return this.handleSeparateUnionsMinigame(id, resolvedOptions);
+        }
+        if (id === 'ubicar_problemas') {
+            return this.handleLocateIssuesMinigame(id, resolvedOptions);
+        }
 
         const scene = this.scene;
         scene.input.enabled = true;
@@ -537,6 +597,16 @@ export class StoryRunner {
     // Minijuego: conectar piezas del molino con su definicion.
     async handleConnectConceptsMinigame(id, options) {
         return runConnectConceptsMinigame.call(this, id, options);
+    }
+
+    // Minijuego: separar uniones
+    async handleSeparateUnionsMinigame(id, options) {
+        return runSeparateUnionsMinigame.call(this, id, options);
+    }
+
+    // Minijuego: ubicar problemas visibles del molino.
+    async handleLocateIssuesMinigame(id, options) {
+        return runLocateIssuesMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.
@@ -1064,14 +1134,6 @@ export class StoryRunner {
         }
         this.dialogTextItems = [];
 
-        if (text.includes('||')) {
-            const parts = text.split('||').map((item) => item.trim());
-            const intro = parts.shift() ?? '';
-            const items = parts.filter(Boolean);
-            this.renderDialogList(items, intro);
-            return;
-        }
-
         if (this.dialogMetrics.height !== 170) {
             this.dialogMetrics.height = 170;
             this.dialogBox.clear();
@@ -1080,104 +1142,131 @@ export class StoryRunner {
             this.dialogSpeaker.setPosition(-this.dialogMetrics.width / 2 + 80, -this.dialogMetrics.height / 2 + 30);
         }
 
-        const match = text.match(/\{\{([^}]+)\}\}/);
-        if (!match) {
-            const normal = scene.add.text(0, y, text.replace(/\{\{|\}\}/g, ''), defaultDialogStyle).setOrigin(0.5);
+        const toCircled = (digit) => {
+            const n = Number(digit);
+            if (!Number.isFinite(n) || n < 1 || n > 20) return digit;
+            const chars = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'];
+            return chars[n - 1];
+        };
+
+        const segments = [];
+        const tokenRegex = /\{\{([^}]+)\}\}/g;
+        let cursor = 0;
+        let match = tokenRegex.exec(text);
+        while (match) {
+            const start = match.index;
+            const end = tokenRegex.lastIndex;
+            if (start > cursor) {
+                segments.push({ text: text.slice(cursor, start), highlight: false });
+            }
+            const token = (match[1] ?? '').trim();
+            const stepToken = token.match(/^#(\d{1,2})$/);
+            if (stepToken) {
+                segments.push({ text: toCircled(stepToken[1]), highlight: true });
+            } else {
+                segments.push({ text: token, highlight: true });
+            }
+            cursor = end;
+            match = tokenRegex.exec(text);
+        }
+        if (cursor < text.length) {
+            segments.push({ text: text.slice(cursor), highlight: false });
+        }
+        if (!segments.length) {
+            segments.push({ text, highlight: false });
+        }
+
+        const fullText = segments.map((item) => item.text).join('');
+        const hasHighlight = segments.some((item) => item.highlight);
+        const contentWidth = this.dialogMetrics.width - 220;
+
+        if (!hasHighlight) {
+            const normal = scene.add.text(0, y, fullText, {
+                ...defaultDialogStyle,
+                wordWrap: { width: contentWidth },
+                align: 'center',
+            }).setOrigin(0.5);
             this.dialogContainer.add(normal);
             this.dialogTextItems.push(normal);
             return;
         }
 
-        const before = text.slice(0, match.index);
-        const highlighted = match[1];
-        const after = text.slice(match.index + match[0].length);
-        const fullText = `${before}${highlighted}${after}`;
-        const contentWidth = this.dialogMetrics.width - 220;
-
-        // Cuando hay resaltado, el render usa 3 bloques de texto.
-        // Ese layout no hace wrap multi-línea de forma natural, por eso
-        // para textos largos hacemos fallback a texto normal con wrap.
-        const measure = scene.add.text(0, y, fullText, {
-            ...defaultDialogStyle,
-            wordWrap: { width: contentWidth },
-        }).setOrigin(0.5);
-        const needsWrapFallback = measure.height > 44 || measure.width > contentWidth;
-        measure.destroy();
-
-        if (needsWrapFallback) {
-            const normalWrapped = scene.add.text(0, y, fullText, {
-                ...defaultDialogStyle,
-                wordWrap: { width: contentWidth },
-                align: 'center',
-            }).setOrigin(0.5);
-            this.dialogContainer.add(normalWrapped);
-            this.dialogTextItems.push(normalWrapped);
-            return;
-        }
-
-        const style = { ...defaultDialogStyle, wordWrap: { width: 2000 } };
-        const beforeText = scene.add.text(0, y, before, style).setOrigin(0, 0.5);
-        const highlightText = scene.add.text(0, y, highlighted, {
-            ...defaultDialogStyle,
-            color: highlightColor,
-        }).setOrigin(0, 0.5);
-        const afterText = scene.add.text(0, y, after, style).setOrigin(0, 0.5);
-
-        const totalWidth = beforeText.width + highlightText.width + afterText.width;
-        const startX = -totalWidth / 2;
-        beforeText.x = startX;
-        highlightText.x = beforeText.x + beforeText.width;
-        afterText.x = highlightText.x + highlightText.width;
-
-        this.dialogContainer.add(beforeText);
-        this.dialogContainer.add(highlightText);
-        this.dialogContainer.add(afterText);
-        this.dialogTextItems.push(beforeText, highlightText, afterText);
+        this.renderHighlightedWrappedText(segments, contentWidth, y, highlightColor);
     }
 
-    renderDialogList(items, intro) {
+    renderHighlightedWrappedText(segments, contentWidth, centerY, highlightColor) {
         const scene = this.scene;
-        const paddingX = 36;
-        const itemHeight = 42;
-        const itemGap = 12;
-        const contentWidth = this.dialogMetrics.width - 220;
-        const listHeight = items.length * itemHeight + (items.length - 1) * itemGap;
-        const introHeight = intro ? 36 : 0;
-        const boxHeight = Math.max(this.dialogMetrics.height, listHeight + introHeight + 110);
+        const normalStyle = {
+            ...defaultDialogStyle,
+            wordWrap: { width: 2000 },
+        };
+        const highlightStyle = {
+            ...defaultDialogStyle,
+            color: highlightColor,
+            wordWrap: { width: 2000 },
+        };
 
-        this.dialogMetrics.height = boxHeight;
-        this.dialogBox.clear();
-        this.dialogBox.fillStyle(0x000000, 0.6);
-        this.dialogBox.fillRoundedRect(-this.dialogMetrics.width / 2, -boxHeight / 2, this.dialogMetrics.width, boxHeight, 24);
-        this.dialogSpeaker.setPosition(-this.dialogMetrics.width / 2 + 80, -boxHeight / 2 + 30);
+        const measure = scene.add.text(0, 0, '', normalStyle).setOrigin(0, 0.5);
+        const measurePartWidth = (text, highlighted) => {
+            measure.setStyle(highlighted ? highlightStyle : normalStyle);
+            measure.setText(text);
+            return measure.width;
+        };
 
-        let startY = -listHeight / 2 + 10;
-        if (intro) {
-            const introText = scene.add.text(0, -boxHeight / 2 + 72, intro, {
-                ...defaultDialogStyle,
-                fontSize: '26px',
-                align: 'center',
-                wordWrap: { width: contentWidth }
-            }).setOrigin(0.5, 0.5);
-            this.dialogContainer.add(introText);
-            this.dialogTextItems.push(introText);
-            startY += introHeight;
-        }
-        const startX = -contentWidth / 2;
-
-        items.forEach((item, index) => {
-            const y = startY + index * (itemHeight + itemGap);
-            const text = scene.add.text(startX + paddingX, y, `• ${item}`, {
-                fontFamily: 'fredoka',
-                fontSize: '24px',
-                color: '#ffffff',
-                align: 'left',
-                wordWrap: { width: contentWidth - paddingX * 2 }
-            }).setOrigin(0, 0.5);
-
-            this.dialogContainer.add(text);
-            this.dialogTextItems.push(text);
+        const rawParts = [];
+        segments.forEach((segment) => {
+            segment.text.split(/(\s+)/).forEach((part) => {
+                if (part.length === 0) return;
+                rawParts.push({ text: part, highlight: segment.highlight });
+            });
         });
+        const lines = [];
+        let currentLine = [];
+        let lineWidth = 0;
+
+        rawParts.forEach((part) => {
+            const chunks = part.text.split('\n');
+            chunks.forEach((chunk, idx) => {
+                const isWhitespace = /^\s+$/.test(chunk);
+                const width = chunk ? measurePartWidth(chunk, part.highlight) : 0;
+                if (chunk && !isWhitespace && lineWidth > 0 && lineWidth + width > contentWidth) {
+                    lines.push({ parts: currentLine, width: lineWidth });
+                    currentLine = [];
+                    lineWidth = 0;
+                }
+                if (chunk && !(lineWidth === 0 && isWhitespace)) {
+                    currentLine.push({ text: chunk, highlight: part.highlight, width });
+                    lineWidth += width;
+                }
+                if (idx < chunks.length - 1) {
+                    lines.push({ parts: currentLine, width: lineWidth });
+                    currentLine = [];
+                    lineWidth = 0;
+                }
+            });
+        });
+        if (currentLine.length) {
+            lines.push({ parts: currentLine, width: lineWidth });
+        }
+        if (!lines.length) {
+            lines.push({ parts: [{ text: '', highlight: false, width: 0 }], width: 0 });
+        }
+        const lineHeight = Math.max(42, measure.height + 4);
+        const totalHeight = lines.length * lineHeight;
+        let y = centerY - (totalHeight / 2) + (lineHeight / 2);
+
+        lines.forEach((line) => {
+            let x = -line.width / 2;
+            line.parts.forEach((part) => {
+                const node = scene.add.text(x, y, part.text, part.highlight ? highlightStyle : normalStyle)
+                    .setOrigin(0, 0.5);
+                this.dialogContainer.add(node);
+                this.dialogTextItems.push(node);
+                x += part.width;
+            });
+            y += lineHeight;
+        });
+        measure.destroy();
     }
 
 

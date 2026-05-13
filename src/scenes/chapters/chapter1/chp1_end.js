@@ -1,5 +1,6 @@
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { addFullScreenImage } from '../../../utils/backgrounds.js';
 
 export class Chp1_end extends Phaser.Scene {
     constructor() {
@@ -83,7 +84,7 @@ export class Chp1_end extends Phaser.Scene {
         this.chapterCompletedSound.play();
 
         // Fondo con engranes en movimiento.
-        this.add.image(960, 540, 'gradient');
+        addFullScreenImage(this, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,
             this.scale.width,

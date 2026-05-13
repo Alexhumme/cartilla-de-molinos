@@ -1,6 +1,7 @@
 import { toColorString } from '../utils/colors.js';
 import { GameStorage } from '../utils/storage.js';
 import { UIHelpers } from '../utils/ui.js';
+import { addFullScreenImage } from '../utils/backgrounds.js';
 
 const ChapterState = {
     LOCKED: 'locked',
@@ -27,7 +28,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.load.audio('birds', 'assets/sounds/birds.mp3')
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
-
+        
         this.load.image('cap1', 'assets/chapters/cap1.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('cap2', 'assets/chapters/cap2.png');
@@ -153,7 +154,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
             UIHelpers.attachHoverPop(this, cardBody, 0.35);
         }
 
-        const card = this.add.container(500 + (i - 1) * 420, 700, [
+        //const card = this.add.container(500 + (i - 1) * 420, 700, [
+        const card = this.add.container(710 + (i - 1) * 420, 700, [
             border,
             cardBody,
         ])
@@ -169,7 +171,7 @@ export class ChapterSelectorScene extends Phaser.Scene {
         this.popSound = this.sound.add('pop', { volume: 0.8 });
         this.cardList = this.add.container(0, 0)
 
-        this.add.image(960, 540, 'gradient');
+        addFullScreenImage(this, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,
             this.scale.width,
@@ -209,13 +211,13 @@ export class ChapterSelectorScene extends Phaser.Scene {
             isCompleted(2) ? ChapterState.COMPLETED : (isUnlocked(2) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
             getSummary(2)
         )
-        this.createChapterCard(
+        /*this.createChapterCard(
             `${UIHelpers.getText('chapter')} 3`, 'cap3',
             'EL molino tambien necesita amor y cuidado, ayuda riendo con Jouktai y a Martin',
             3,
             isCompleted(3) ? ChapterState.COMPLETED : (isUnlocked(3) ? ChapterState.AVAILABLE : ChapterState.LOCKED),
             getSummary(3)
-        )
+        )*/
     }
 
     update() {

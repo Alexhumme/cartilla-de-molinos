@@ -20,7 +20,7 @@ const config = {
         InfoScene,
         SettingsScene,
         ...chapter1Scenes,
-        ...chapter2Scenes,
+        ...chapter2Scenes
     ],
     scale: {
         mode: Phaser.Scale.FIT,

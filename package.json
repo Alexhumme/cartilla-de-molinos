@@ -1,0 +1,7 @@
+{
+  "name": "sennova-guajira-site",
+  "private": true,
+  "scripts": {
+    "upload": "bash scripts/upload.sh"
+  }
+}

@@ -2,6 +2,7 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
 
 export class Chp1_scn1 extends Phaser.Scene {
     constructor() {
@@ -13,6 +14,7 @@ export class Chp1_scn1 extends Phaser.Scene {
     }
 
     preload() {
+        attachLoadingOverlay(this, 'Cargando capítulo...');
         // Guion del capítulo (texto editable).
         this.load.text('ch1_script', 'assets/scripts/chapter1.txt');
         // Audio ambiente.
@@ -33,7 +35,7 @@ export class Chp1_scn1 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
         // Minijuego: girar grifo.
-        this.load.image('grifo-cano', 'assets/juegos/girar_grifo/caño.png');
+        this.load.image('grifo-cano', 'assets/juegos/girar_grifo/cano.png');
         this.load.image('grifo-manija', 'assets/juegos/girar_grifo/manija.png');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
         this.load.audio('metal-squeak', 'assets/juegos/girar_grifo/metal-squeak.mp3');

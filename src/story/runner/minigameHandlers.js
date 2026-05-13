@@ -521,16 +521,16 @@ export async function runFaucetMinigame(id, options) {
     const base = scene.add.image(0, 0, 'grifo-cano').setOrigin(0.5);
     const handleTexture = scene.textures.get('grifo-manija')?.getSourceImage();
     const handleWidth = handleTexture?.width ?? 202;
-    const handleHeight = handleTexture?.height ?? 202;
+    const handleHeight = handleTexture?.height ?? 50;
     const pivotX = 101;
     const pivotY = 101;
-    const handle = scene.add.image(0, 0, 'grifo-manija')
+    const handle = scene.add.image(0, -50, 'grifo-manija')
         .setOrigin(pivotX / handleWidth, pivotY / handleHeight);
     handle.setDepth(2);
 
-    const handleSize = Math.min(handleWidth, handleHeight);
-    const radius = handleSize * 0.38;
-    const startAngle = -Math.PI / 2;
+    const handleSize = handleWidth
+    const radius = handleSize * 0.4;
+    const startAngle = 0;
     const endAngle = startAngle + Math.PI / 2;
 
     const indicator = scene.add.graphics();
@@ -674,10 +674,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
     const bounds = this.getRecuadroContentBounds();
     const areaW = bounds.width;
     const areaH = bounds.height;
+    const contentCenterX = bounds.x + (areaW / 2);
+    const contentCenterY = bounds.y + (areaH / 2);
 
     const root = scene.add.container(0, 0);
+    root.setScrollFactor(0);
     this.recuadroContent.add(root);
     this.recuadroItems.push(root);
+    const hitZones = [];
 
     const title = scene.add.text(0, -areaH * 0.47, 'Conecta cada pieza con su definicion', {
         fontFamily: 'fredoka',
@@ -750,15 +754,28 @@ export async function runConnectConceptsMinigame(id, options = []) {
 
         itemRoot.add([bg, image]);
         itemRoot.setSize(112, 112);
-        itemRoot.setInteractive(new Phaser.Geom.Rectangle(-56, -56, 112, 112), Phaser.Geom.Rectangle.Contains);
-        itemRoot.input.cursor = 'pointer';
-        UIHelpers.attachHoverPop(scene, itemRoot, 0.3);
 
         root.add(itemRoot);
-        return { pair, itemRoot, drawBg, solved: false, y };
+        const hitZone = scene.add.zone(contentCenterX + leftX, contentCenterY + y, 112, 112);
+        hitZone.setScrollFactor(0);
+        hitZone.setDepth((this.recuadroPanel?.depth ?? 760) + 20);
+        hitZone.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, hitZone, 0.3);
+        hitZones.push(hitZone);
+
+        return { pair, itemRoot, hitZone, drawBg, solved: false, y };
     });
 
-    const rightEntries = pairs.map((pair, index) => {
+    // Desorden intencional de definiciones para evitar emparejado trivial por fila.
+    // Resultado:
+    // imagen 1 -> concepto 4
+    // imagen 2 -> concepto 1
+    // imagen 3 -> concepto 3
+    // imagen 4 -> concepto 2
+    const definitionOrder = [3, 0, 2, 1];
+    const rightPairs = definitionOrder.map((idx) => pairs[idx]).filter(Boolean);
+
+    const rightEntries = rightPairs.map((pair, index) => {
         const y = yStart + index * rowGap;
         const itemRoot = scene.add.container(rightX, y);
         const bg = scene.add.graphics();
@@ -786,11 +803,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
 
         itemRoot.add([bg, label]);
         itemRoot.setSize(boxW, boxH);
-        itemRoot.setInteractive(new Phaser.Geom.Rectangle(-boxW / 2, -boxH / 2, boxW, boxH), Phaser.Geom.Rectangle.Contains);
-        itemRoot.input.cursor = 'pointer';
-        UIHelpers.attachHoverPop(scene, itemRoot, 0.3);
         root.add(itemRoot);
-        return { pair, itemRoot, drawBg, solved: false, y };
+        const hitZone = scene.add.zone(contentCenterX + rightX, contentCenterY + y, boxW, boxH);
+        hitZone.setScrollFactor(0);
+        hitZone.setDepth((this.recuadroPanel?.depth ?? 760) + 20);
+        hitZone.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, hitZone, 0.3);
+        hitZones.push(hitZone);
+        return { pair, itemRoot, hitZone, drawBg, solved: false, y };
     });
 
     let activeLeft = null;
@@ -830,14 +850,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
     };
 
     leftEntries.forEach((leftEntry) => {
-        leftEntry.itemRoot.on('pointerover', () => {
+        leftEntry.hitZone.on('pointerover', () => {
             if (!leftEntry.solved && leftEntry !== activeLeft) leftEntry.drawBg(true, false);
             playUiSound(scene, 'pop', 0.22);
         });
-        leftEntry.itemRoot.on('pointerout', () => {
+        leftEntry.hitZone.on('pointerout', () => {
             if (!leftEntry.solved && leftEntry !== activeLeft) leftEntry.drawBg(false, false);
         });
-        leftEntry.itemRoot.on('pointerdown', () => {
+        leftEntry.hitZone.on('pointerdown', () => {
             if (leftEntry.solved) return;
             activeLeft = leftEntry;
             resetLeftActiveVisuals();
@@ -847,14 +867,14 @@ export async function runConnectConceptsMinigame(id, options = []) {
     });
 
     rightEntries.forEach((rightEntry) => {
-        rightEntry.itemRoot.on('pointerover', () => {
+        rightEntry.hitZone.on('pointerover', () => {
             if (!rightEntry.solved) rightEntry.drawBg(true, false);
             playUiSound(scene, 'pop', 0.22);
         });
-        rightEntry.itemRoot.on('pointerout', () => {
+        rightEntry.hitZone.on('pointerout', () => {
             if (!rightEntry.solved) rightEntry.drawBg(false, false);
         });
-        rightEntry.itemRoot.on('pointerdown', () => {
+        rightEntry.hitZone.on('pointerdown', () => {
             if (rightEntry.solved || !activeLeft) return;
             const isCorrect = activeLeft.pair.key === rightEntry.pair.key;
             drawTransientLine(activeLeft, rightEntry, isCorrect ? 0x2b9348 : 0xd62828);
@@ -885,5 +905,496 @@ export async function runConnectConceptsMinigame(id, options = []) {
     });
 
     await donePromise;
+    hitZones.forEach((zone) => zone.destroy());
     scene.input.setTopOnly(prevTopOnly);
+}
+
+export async function runLocateIssuesMinigame(id, options = []) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    if (this.recuadroPanel) {
+        await this.closeRecuadro();
+    }
+
+    const jouktaiEntry = Array.from(this.characters.entries())
+        .find(([name, sprite]) => (name || '').toLowerCase() === 'jouktai' && sprite?.active);
+    const jouktai = jouktaiEntry?.[1] ?? null;
+    const jouktaiStart = jouktai ? { x: jouktai.x, y: jouktai.y, alpha: jouktai.alpha } : null;
+    if (jouktai) {
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: jouktai,
+                x: jouktai.x - 320,
+                alpha: 0,
+                duration: 260,
+                ease: 'Sine.in',
+                onComplete: resolve,
+            });
+        });
+        jouktai.setVisible(false);
+    }
+
+    const cam = scene.cameras.main;
+    const initialScrollY = cam.scrollY;
+
+    const toScrollY = async (target, duration = 420) => {
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: cam,
+                scrollY: target,
+                duration,
+                ease: 'Sine.inOut',
+                onComplete: resolve,
+            });
+        });
+    };
+
+    const getClampedScrollForCenterY = (worldY) => {
+        const b = cam.getBounds();
+        const minY = b.y;
+        const maxY = b.y + b.height - cam.height;
+        return Phaser.Math.Clamp(worldY - (scene.scale.height / 2), minY, maxY);
+    };
+
+    const ensureUpperRoomFor = (worldY) => {
+        const b = cam.getBounds();
+        const minNeeded = worldY - (scene.scale.height / 2) - 12;
+        if (minNeeded >= b.y) return;
+        const newTop = Math.min(b.y, minNeeded - 64);
+        const newHeight = b.height + (b.y - newTop);
+        cam.setBounds(b.x, newTop, b.width, newHeight);
+    };
+
+    // Debe quedar por debajo del overlay de pausa (depth 1100+).
+    const uiRoot = scene.add.container(0, 0).setScrollFactor(0).setDepth(1050);
+
+    const listPanel = scene.add.container(88, 88).setScrollFactor(0);
+    const panelBg = scene.add.graphics();
+    panelBg.fillStyle(0x000000, 0.6);
+    panelBg.fillRoundedRect(0, 0, 760, 340, 22);
+    panelBg.lineStyle(3, 0xfce1b4, 1);
+    panelBg.strokeRoundedRect(0, 0, 760, 340, 22);
+    const panelTitle = scene.add.text(24, 16, 'Sintomas identificados', {
+        fontFamily: 'fredoka',
+        fontSize: '34px',
+        color: '#fce1b4',
+    });
+    const listText = scene.add.text(24, 72, '', {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#ffffff',
+        wordWrap: { width: 710 },
+        lineSpacing: 10,
+    });
+    const continueText = scene.add.text(24, 296, '', {
+        fontFamily: 'fredoka',
+        fontSize: '24px',
+        color: '#9df0a8',
+    });
+    listPanel.add([panelBg, panelTitle, listText, continueText]);
+    uiRoot.add(listPanel);
+
+    const mkRoundButton = (iconText) => {
+        const btn = scene.add.container(scene.scale.width - 92, scene.scale.height - 92).setScrollFactor(0);
+        const bg = scene.add.graphics();
+        const icon = scene.add.text(0, -1, iconText, {
+            fontFamily: 'fredoka',
+            fontSize: '50px',
+            color: '#6a3a1b',
+        }).setOrigin(0.5);
+        const redraw = (hover = false) => {
+            bg.clear();
+            bg.fillStyle(hover ? 0xfce1b4 : 0xf0c18a, 1);
+            bg.fillCircle(0, 0, 46);
+            bg.lineStyle(5, hover ? 0x6a3a1b : 0x8b4c1d, 1);
+            bg.strokeCircle(0, 0, 44);
+        };
+        redraw(false);
+        btn.add([bg, icon]);
+        btn.setSize(92, 92);
+        btn.setInteractive({ useHandCursor: true });
+        btn.on('pointerover', () => redraw(true));
+        btn.on('pointerout', () => redraw(false));
+        UIHelpers.attachHoverPop(scene, btn, 0.35);
+        return btn;
+    };
+
+    const upButton = mkRoundButton('↑');
+    upButton.setVisible(false);
+    if (upButton.input) upButton.input.enabled = false;
+    uiRoot.add(upButton);
+
+    let nextPanTargetId = null;
+    let isPanning = false;
+    const showUpButton = () => {
+        upButton.setVisible(true);
+        if (upButton.input) upButton.input.enabled = true;
+    };
+    const hideUpButton = () => {
+        upButton.setVisible(false);
+        if (upButton.input) upButton.input.enabled = false;
+    };
+    upButton.on('pointerdown', async () => {
+        if (isPanning || !upButton.visible) return;
+        playUiSound(scene, 'pop', 0.75);
+        isPanning = true;
+        hideUpButton();
+        const targetSymptom = symptoms.find((item) => item.id === nextPanTargetId);
+        const desiredCenterY = targetSymptom?.y ?? cam.worldView.centerY;
+        ensureUpperRoomFor(desiredCenterY);
+        const targetScroll = getClampedScrollForCenterY(desiredCenterY);
+        await toScrollY(targetScroll, 420);
+        nextPanTargetId = null;
+        isPanning = false;
+    });
+
+    const baseX = scene.molinoBase?.x ?? 800;
+    const baseY = scene.molinoBase?.y ?? 700;
+    const symptoms = [
+        { id: 'base', text: 'Base: se oye un chirrido viniendo de la bomba', x: baseX + 703, y: baseY + 1710 },
+        { id: 'cuerpo', text: 'Cuerpo: la varilla de la bomba parece no moverse bien', x: baseX + 655, y: baseY + 980 },
+        { id: 'aspas', text: 'Aspas: las aspas no giran correctamente', x: scene.molinoAspas?.x ?? (baseX + 700), y: scene.molinoAspas?.y ?? (baseY + 175) },
+    ];
+
+    const found = new Set();
+    const markers = symptoms.map((item) => {
+        const marker = scene.add.container(item.x, item.y).setDepth(1040);
+        const circle = scene.add.graphics();
+        const icon = scene.add.text(0, -1, '!', {
+            fontFamily: 'fredoka',
+            fontSize: '32px',
+            color: '#6a3a1b',
+            fontStyle: '700',
+        }).setOrigin(0.5);
+        marker.add([circle, icon]);
+        marker.setSize(84, 84);
+        marker.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, marker, 0.35);
+        return { item, marker, circle, hover: false };
+    });
+
+    const drawMarker = (entry, pulse = 0) => {
+        entry.circle.clear();
+        const radius = (entry.hover ? 37 : 33) + pulse;
+        entry.circle.fillStyle(entry.hover ? 0xfff2c8 : 0xfce1b4, 0.95);
+        entry.circle.fillCircle(0, 0, radius);
+        entry.circle.lineStyle(4, entry.hover ? 0x2b9348 : 0x8b4c1d, 1);
+        entry.circle.strokeCircle(0, 0, radius);
+    };
+    markers.forEach((entry) => drawMarker(entry, 0));
+
+    const pulseEvent = scene.time.addEvent({
+        delay: 60,
+        loop: true,
+        callback: () => {
+            const pulse = Math.sin(scene.time.now * 0.01) * 2.2;
+            markers.forEach((entry) => {
+                if (found.has(entry.item.id)) return;
+                drawMarker(entry, pulse);
+            });
+        },
+    });
+
+    const refreshList = () => {
+        const lines = symptoms.filter((item) => found.has(item.id)).map((item) => `• ${item.text}`);
+        listText.setText(lines.join('\n'));
+        if (found.size === symptoms.length) {
+            continueText.setText('Presiona en cualquier lugar para continuar');
+            hideUpButton();
+        }
+    };
+    refreshList();
+
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+    let waitingForContinue = false;
+
+    markers.forEach((entry) => {
+        entry.marker.on('pointerover', () => {
+            entry.hover = true;
+            drawMarker(entry, 0);
+        });
+        entry.marker.on('pointerout', () => {
+            entry.hover = false;
+            drawMarker(entry, 0);
+        });
+        entry.marker.on('pointerdown', () => {
+            if (found.has(entry.item.id)) return;
+            found.add(entry.item.id);
+            playUiSound(scene, 'success-bell', 0.7);
+            entry.marker.disableInteractive();
+            entry.hover = false;
+            drawMarker(entry, 0);
+            refreshList();
+            if (found.size < symptoms.length && !isPanning) {
+                if (entry.item.id === 'base') nextPanTargetId = 'cuerpo';
+                else if (entry.item.id === 'cuerpo') nextPanTargetId = 'aspas';
+                else {
+                    const pending = symptoms.find((item) => !found.has(item.id));
+                    nextPanTargetId = pending?.id ?? null;
+                }
+                showUpButton();
+            }
+            if (found.size !== symptoms.length || waitingForContinue) return;
+            waitingForContinue = true;
+            // Importante: registrar el listener en el siguiente tick para no capturar
+            // el mismo click que acabó de seleccionar el tercer indicador.
+            scene.time.delayedCall(0, () => {
+                const finishHandler = () => {
+                    scene.input.off('pointerdown', finishHandler);
+                    resolveDone();
+                };
+                scene.input.on('pointerdown', finishHandler);
+            });
+        });
+    });
+
+    await donePromise;
+
+    pulseEvent.remove(false);
+    markers.forEach(({ marker }) => marker.destroy());
+    uiRoot.destroy(true);
+
+    if (Math.abs(cam.scrollY - initialScrollY) > 1) {
+        ensureUpperRoomFor(initialScrollY + scene.scale.height / 2);
+        await toScrollY(initialScrollY, 420);
+    }
+
+    if (jouktai && jouktaiStart) {
+        jouktai.setVisible(true);
+        jouktai.setAlpha(1);
+        jouktai.setPosition(jouktaiStart.x - 320, jouktaiStart.y);
+        await new Promise((resolve) => {
+            scene.tweens.add({
+                targets: jouktai,
+                x: jouktaiStart.x,
+                duration: 320,
+                ease: 'Sine.out',
+                onComplete: resolve,
+            });
+        });
+    }
+
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    scene.input.setTopOnly(prevTopOnly);
+}
+
+export async function runSeparateUnionsMinigame(id, options = []) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    if (!this.recuadroPanel) await this.openRecuadro();
+    await this.moveRecuadroToCurrentSide();
+    await this.clearRecuadroContent();
+
+    const bounds = this.getRecuadroContentBounds();
+    const areaW = bounds.width;
+    const areaH = bounds.height;
+    const root = scene.add.container(0, 0);
+    root.setScrollFactor(0);
+    this.recuadroContent.add(root);
+    this.recuadroItems.push(root);
+
+    const elements = [
+        { key: 'su-varilla_arriba', y: 100 },
+        { key: 'su-boca_abajo', y: 525 },
+        { key: 'su-rosca', y: 500 },
+        { key: 'su-varilla_abajo', y: 583 },
+        { key: 'su-boca_arriba', y: 386 },
+    ];
+
+    const itemSprites = elements.map((element, index) => {
+        const image = scene.add.image(0, areaH * -0.54 + element.y, element.key);
+        image.setOrigin(0.5, 0);
+        image.setDepth(100 + index);
+        root.add(image);
+        return image;
+    });
+
+    const topRod = itemSprites[0];
+    const topMouth = itemSprites[4];
+    const topRodOriginalY = topRod.y;
+    const topMouthOriginalY = topMouth.y;
+
+    const instruction = scene.add.text(0, (-areaH / 2) + 28, 'Separa las varillas deslizando la llave', {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#482e00',
+        align: 'center',
+        wordWrap: { width: areaW * 0.9 },
+    }).setOrigin(0.5, 0);
+    root.add(instruction);
+
+    const sliderY = (areaH / 2) - 104;
+    const sliderWidth = Math.min(areaW * 0.78, 740);
+    const sliderHeight = 42;
+    const sliderLeft = -sliderWidth / 2;
+    const sliderRight = sliderWidth / 2;
+    const indicatorRadius = 26;
+    const passCountTarget = 3;
+    const passDelta = 100 / passCountTarget;
+
+    const sliderTrack = scene.add.graphics();
+    sliderTrack.fillStyle(0x3f2f20, 0.95);
+    sliderTrack.fillRoundedRect(sliderLeft, sliderY - (sliderHeight / 2), sliderWidth, sliderHeight, 22);
+    sliderTrack.lineStyle(4, 0xfce1b4, 0.95);
+    sliderTrack.strokeRoundedRect(sliderLeft, sliderY - (sliderHeight / 2), sliderWidth, sliderHeight, 22);
+    root.add(sliderTrack);
+
+    const sliderFill = scene.add.rectangle(sliderLeft + 4, sliderY, 2, sliderHeight - 16, 0x9df0a8, 0.8)
+        .setOrigin(0, 0.5);
+    sliderFill.setDepth(105);
+    root.add(sliderFill);
+
+    const indicator = scene.add.circle(sliderLeft + indicatorRadius, sliderY, indicatorRadius, 0xfce1b4)
+        .setStrokeStyle(4, 0x6f3515, 1)
+        .setDepth(110);
+    const indicatorHit = scene.add.zone(sliderLeft + indicatorRadius, sliderY, indicatorRadius * 2, indicatorRadius * 2)
+        .setOrigin(0.5)
+        .setDepth(111);
+    root.add([indicator, indicatorHit]);
+
+    const indicatorPulse = scene.tweens.add({
+        targets: indicator,
+        scale: 1.08,
+        duration: 630,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+    });
+
+    const progressText = scene.add.text(0, sliderY + 66, 'Arrastra la llave hacia la derecha', {
+        fontFamily: 'fredoka',
+        fontSize: '24px',
+        color: '#ffffff',
+        align: 'center',
+    }).setOrigin(0.5, 0.5);
+    root.add(progressText);
+
+    let activePasses = 0;
+    let dragging = false;
+    let readyToFinish = false;
+    let finished = false;
+    let isOverZone = false;
+    let finishResolve;
+    const donePromise = new Promise((resolve) => { finishResolve = resolve; });
+
+    const updateSliderFill = () => {
+        const fillWidth = Phaser.Math.Clamp(indicator.x - sliderLeft - indicatorRadius, 0, sliderWidth - (indicatorRadius * 2));
+        sliderFill.width = Math.max(2, fillWidth);
+        indicatorHit.setPosition(indicator.x, indicator.y);
+    };
+
+    const cleanup = () => {
+        if (finished) return;
+        finished = true;
+        scene.input.off('pointerdown', onPointerDown);
+        scene.input.off('pointermove', onPointerMove);
+        scene.input.off('pointerup', onPointerUp);
+        this.recuadroItems = this.recuadroItems.filter((item) => item !== root);
+        if (root && root.destroy) root.destroy(true);
+        this.minigames.set(id, options[0] ?? 'respuesta1');
+        scene.input.setTopOnly(prevTopOnly);
+        finishResolve();
+    };
+
+    const finishGame = () => {
+        if (readyToFinish && !finished) {
+            cleanup();
+        }
+    };
+
+    const completePass = () => {
+        activePasses += 1;
+        const targetOffset = activePasses >= passCountTarget
+            ? 100
+            : Math.round(passDelta * activePasses * 100) / 100;
+
+        scene.tweens.add({
+            targets: [topRod, topMouth],
+            y: (target, key, value, targetIndex) => {
+                const original = targetIndex === 0 ? topRodOriginalY : topMouthOriginalY;
+                return original - targetOffset;
+            },
+            duration: 220,
+            ease: 'Sine.out',
+        });
+
+        if (activePasses >= passCountTarget) {
+            readyToFinish = true;
+            progressText.setText('¡Listo! Toca para continuar');
+            indicatorHit.disableInteractive();
+            indicatorPulse.stop();
+            if (scene.cache.audio?.exists('success-bell')) {
+                scene.sound.play('success-bell', { volume: 0.7 });
+            }
+            return;
+        }
+
+        progressText.setText(`Paso ${activePasses} de ${passCountTarget}`);
+        indicatorHit.disableInteractive();
+        scene.tweens.add({
+            targets: indicator,
+            x: sliderLeft + indicatorRadius,
+            duration: 180,
+            ease: 'Sine.inOut',
+            onUpdate: updateSliderFill,
+            onComplete: () => {
+                updateSliderFill();
+                indicatorHit.setInteractive({ useHandCursor: true });
+            },
+        });
+        sliderFill.width = 4;
+    };
+
+    const onPointerDown = (pointer) => {
+        if (readyToFinish) {
+            finishGame();
+            return;
+        }
+        const bounds = indicatorHit.getBounds();
+        if (pointer.x >= bounds.left && pointer.x <= bounds.right &&
+            pointer.y >= bounds.top && pointer.y <= bounds.bottom) {
+            dragging = true;
+        }
+    };
+
+    const onPointerMove = (pointer) => {
+        const bounds = indicatorHit.getBounds();
+        const overZone = pointer.x >= bounds.left && pointer.x <= bounds.right &&
+            pointer.y >= bounds.top && pointer.y <= bounds.bottom;
+        if (overZone && !isOverZone) {
+            isOverZone = true;
+            if (scene.input && scene.__hoverCursor) scene.input.setDefaultCursor(scene.__hoverCursor);
+        } else if (!overZone && isOverZone) {
+            isOverZone = false;
+            if (scene.input && scene.__defaultCursor) scene.input.setDefaultCursor(scene.__defaultCursor);
+        }
+
+        if (!dragging || readyToFinish) return;
+        const localPoint = root.getLocalPoint(pointer.x, pointer.y);
+        const newX = Phaser.Math.Clamp(localPoint.x, sliderLeft + indicatorRadius, sliderRight - indicatorRadius);
+        indicator.x = newX;
+        indicatorHit.x = newX;
+        updateSliderFill();
+        if (indicator.x >= sliderRight - indicatorRadius - 2) {
+            dragging = false;
+            completePass();
+        }
+    };
+
+    const onPointerUp = () => {
+        dragging = false;
+    };
+
+    scene.input.on('pointerdown', onPointerDown);
+    scene.input.on('pointermove', onPointerMove);
+    scene.input.on('pointerup', onPointerUp);
+
+    return donePromise;
 }

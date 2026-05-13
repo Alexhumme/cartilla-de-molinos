@@ -22,6 +22,21 @@ const extractTokens = (line) => {
     return matches.map((match) => match[1].trim()).filter(Boolean);
 };
 
+const isLanguageContinuationToken = (token) => {
+    const idx = token.indexOf(':');
+    if (idx <= 0) return false;
+    const key = normalize(token.slice(0, idx));
+    return key === 'way' || key === 'wayuunaiki' || key === 'es';
+};
+
+const isKeyValueToken = (token) => token.indexOf(':') > 0;
+
+const isQuestionKeyword = (keyword) =>
+    keyword === 'pregunta' ||
+    keyword === 'quiz' ||
+    keyword === 'pregunta_escena' ||
+    keyword === 'pregunta_final';
+
 // Convierte el texto del guion en una lista de escenas con eventos.
 export const parseScript = (text) => {
     const scenes = [];
@@ -34,6 +49,30 @@ export const parseScript = (text) => {
 
         const tokens = extractTokens(trimmed);
         if (tokens.length === 0) continue;
+
+        // Permite escribir traducciones en la línea siguiente:
+        // [personaje]...[es:texto]
+        // [way:texto]
+        if (tokens.length === 1 && isLanguageContinuationToken(tokens[0])) {
+            const lastEvent = currentScene?.events?.[currentScene.events.length - 1];
+            if (lastEvent) {
+                lastEvent.tokens.push(tokens[0]);
+                lastEvent.line = `${lastEvent.line} ${trimmed}`;
+            }
+            continue;
+        }
+
+        // Permite continuar preguntas en líneas siguientes:
+        // [pregunta_escena][es:...]
+        // [op1es:...][op2es:...]
+        // [op1way:...][op2way:...]
+        const lastEvent = currentScene?.events?.[currentScene.events.length - 1];
+        const lastKeyword = normalize(lastEvent?.tokens?.[0] ?? '');
+        if (lastEvent && isQuestionKeyword(lastKeyword) && tokens.every(isKeyValueToken)) {
+            lastEvent.tokens.push(...tokens);
+            lastEvent.line = `${lastEvent.line} ${trimmed}`;
+            continue;
+        }
 
         const keyword = normalize(tokens[0]);
         if (keyword === 'escena' || keyword === 'scene') {
