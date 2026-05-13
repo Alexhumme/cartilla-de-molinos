@@ -1,0 +1,88 @@
+{
+  "//": "Copia este bloque a .vscode/settings.json si quieres editarlo manualmente.",
+  "highlight.regexFlags": "gm",
+  "highlight.regexes": {
+    "(\\{\\{[^\\}]+\\}\\})": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#fda4af",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "^(\\s*#.*)$": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#8ea0b3",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+    "^(\\[escena\\]\\[[^\\]]+\\].*)$": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#ffd166",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[(?:personaje|char|caminar|walk|bgscroll|camara|pregunta_escena|pregunta_final|pregunta|quiz|cambiar_escena|if|goto|ir_a|imagen|mostrar|fin|esperar)\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#7dd3fc",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[minijuego\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#c084fc",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[recuadro\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#7FF5EE",
+          "fontWeight": "bold"
+        }
+      ]
+    },
+    "(\\[(?:es):[^\\]]+\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#ffffff",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+    "(\\[(?:way|wayuunaiki):[^\\]]+\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#E6FFD1",
+          "fontStyle": "italic"
+        }
+      ]
+    },
+ 
+    "(\\[(?:op\\d+(?:es|way|wayuunaiki)?|opcion\\d+(?:es|way|wayuunaiki)?):[^\\]]+\\])": {
+      "filterFileRegex": ".*\\.txt$",
+      "decorations": [
+        {
+          "color": "#ffffff",
+          "fontStyle": "italic"
+        }
+      ]
+    }
+  }
+}

@@ -2,6 +2,8 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
+import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 
 export class Chp2_scn3 extends Phaser.Scene {
     constructor() {
@@ -9,6 +11,7 @@ export class Chp2_scn3 extends Phaser.Scene {
     }
 
     preload() {
+        attachLoadingOverlay(this, 'Cargando capítulo...');
         // Guion del capítulo (texto editable).
         this.load.text('ch2_script', 'assets/scripts/chapter2.txt');
         // Audio ambiente.
@@ -34,6 +37,15 @@ export class Chp2_scn3 extends Phaser.Scene {
         // Molino y aspas.
         this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
+        this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
+
+        // Imágenes para minijuego separar uniones
+        this.load.image('su-varilla_arriba', 'assets/juegos/separar_union/varilla_arriba.png');
+        this.load.image('su-boca_abajo', 'assets/juegos/separar_union/boca_abajo.png');
+        this.load.image('su-rosca', 'assets/juegos/separar_union/rosca.png');
+        this.load.image('su-varilla_abajo', 'assets/juegos/separar_union/varilla_abajo.png');
+        this.load.image('su-boca_arriba', 'assets/juegos/separar_union/boca_arriba.png');
+        this.load.image('varilla-doblada', 'assets/juegos/meter_varilla/varilla_doblada.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch2_script', (key, type, data) => {
@@ -68,15 +80,15 @@ export class Chp2_scn3 extends Phaser.Scene {
         // Fondo estático (sin paneo inicial).
         const worldTop = -2000;
         const worldHeight = 5000;
-        this.cameras.main.setBounds(0, worldTop, 1920, worldHeight);
+        this.cameras.main.setBounds(0, worldTop, this.scale.width, worldHeight);
         this.cameras.main.scrollY = 800;
-        this.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
+        addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
         this.sun2 = this.add.image(1440, 400, 'sun2').setScrollFactor(0.6);
-        const layer1 = this.add.tileSprite(960, 1230, 1920, 1080, 'bg_layer1').setScrollFactor(0.7);
-        const layer2 = this.add.tileSprite(960, 1260, 1920, 1080, 'bg_layer2').setScrollFactor(0.8);
-        const layer3 = this.add.tileSprite(960, 1300, 1920, 1080, 'bg_layer3').setScrollFactor(0.9);
-        const layer4 = this.add.tileSprite(960, 1340, 1920, 1080, 'bg_layer4').setScrollFactor(1);
+        const layer1 = addDesertLayer(this, 'bg_layer1', 1230, 0.7);
+        const layer2 = addDesertLayer(this, 'bg_layer2', 1260, 0.8);
+        const layer3 = addDesertLayer(this, 'bg_layer3', 1300, 0.9);
+        const layer4 = addDesertLayer(this, 'bg_layer4', 1340, 1);
 
         this.bgLayers = [
             { sprite: layer1, speed: 0.15 },
@@ -127,7 +139,14 @@ export class Chp2_scn3 extends Phaser.Scene {
         const aspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5);
         aspas.setDepth(130);
 
+        const movingPiece = this.add.image(baseX + 703, baseY + 1736, 'moving-piece').setOrigin(0.5, 1);
+        movingPiece.setDepth(119);
+
         this.molinoAspas = aspas;
+        this.movingPiece = movingPiece;
+        this.movingPieceBaseY = movingPiece.y;
+        this.movingPieceTopY = 1034;
+        this.movingPiecePhase = 0;
     }
 
     getCameraPanDistance() {
@@ -135,6 +154,19 @@ export class Chp2_scn3 extends Phaser.Scene {
         const cam = this.cameras.main;
         const target = (cam.scrollY + this.scale.height / 2) - this.molinoAspas.y;
         return Math.max(0, Math.round(target));
+    }
+
+    updateMovingPieceFaulty(delta, spinSpeed) {
+        if (!this.movingPiece) return;
+        const dt = delta / 1000;
+        const speedAbs = Math.abs(Number(spinSpeed) || 0) * 0.2;
+        this.movingPiecePhase += dt * Phaser.Math.Clamp(1 + speedAbs * 0.45, 0.9, 3.2);
+        const cycle = (this.movingPiecePhase % 1 + 1) % 1;
+        const upDown = cycle < 0.5 ? (cycle / 0.5) : (1 - (cycle - 0.5) / 0.5);
+        const eased = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(upDown, 0, 1));
+        const amplitude = Phaser.Math.Clamp(speedAbs / 1.6, 0.12, 1);
+        const lift = eased * amplitude;
+        this.movingPiece.y = Phaser.Math.Linear(this.movingPieceBaseY, this.movingPieceTopY, lift);
     }
  
     update(time, delta) {
@@ -160,7 +192,9 @@ export class Chp2_scn3 extends Phaser.Scene {
                 speed = Phaser.Math.Linear(-0.42, 1.2, (t - 0.78) / 0.22);
             }
             const wobble = Math.sin(this.faultyMillElapsed * 23) * 0.06;
-            this.molinoAspas.rotation += (speed + wobble) * (delta / 1000);
+            const faultySpeed = speed + wobble;
+            this.molinoAspas.rotation += faultySpeed * (delta / 1000);
+            this.updateMovingPieceFaulty(delta, faultySpeed);
         }
 
         if (this.bgScrollActive && this.bgLayers) {

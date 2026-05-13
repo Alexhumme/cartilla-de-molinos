@@ -2,6 +2,7 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
+import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
 
 export class Chp2_scn1 extends Phaser.Scene {
     constructor() {
@@ -9,6 +10,7 @@ export class Chp2_scn1 extends Phaser.Scene {
     }
 
     preload() {
+        attachLoadingOverlay(this, 'Cargando capítulo...');
         // Guion del capítulo (texto editable).
         this.load.text('ch2_script', 'assets/scripts/chapter2.txt');
         // Audio ambiente.
@@ -34,6 +36,7 @@ export class Chp2_scn1 extends Phaser.Scene {
         // Molino y aspas.
         this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
+        this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch2_script', (key, type, data) => {
@@ -71,9 +74,9 @@ export class Chp2_scn1 extends Phaser.Scene {
             if (this.chirridoSound?.isPlaying) this.chirridoSound.stop();
         });
 
-        // Fondo estático (sin paneo inicial).
-        const worldTop = -2000;
-        const worldHeight = 5000;
+        // 
+        const worldTop = -4000;
+        const worldHeight = 7000;
         this.cameras.main.setBounds(0, worldTop, 1920, worldHeight);
         this.cameras.main.scrollY = 800;
         this.add.image(960, 0, 'sky').setOrigin(0.5, 0).setScrollFactor(0);
@@ -118,6 +121,7 @@ export class Chp2_scn1 extends Phaser.Scene {
 
         const molinoBase = this.add.image(baseX, baseY, 'molino-base').setOrigin(0, 0).setScale(baseScale);
         molinoBase.setDepth(120);
+        this.molinoBase = molinoBase;
 
         const shadowWidth = baseWidth * baseScale * 0.6;
         const shadowHeight = 46;
@@ -133,7 +137,14 @@ export class Chp2_scn1 extends Phaser.Scene {
         const aspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5);
         aspas.setDepth(130);
 
+        const movingPiece = this.add.image(baseX + 703, baseY + 1736, 'moving-piece').setOrigin(0.5, 1);
+        movingPiece.setDepth(119);
+
         this.molinoAspas = aspas;
+        this.movingPiece = movingPiece;
+        this.movingPieceBaseY = movingPiece.y;
+        this.movingPieceTopY = 1034;
+        this.movingPiecePhase = 0;
     }
 
     getCameraPanDistance() {
@@ -141,6 +152,19 @@ export class Chp2_scn1 extends Phaser.Scene {
         const cam = this.cameras.main;
         const target = (cam.scrollY + this.scale.height / 2) - this.molinoAspas.y;
         return Math.max(0, Math.round(target));
+    }
+
+    updateMovingPieceFaulty(delta, spinSpeed) {
+        if (!this.movingPiece) return;
+        const dt = delta / 1000;
+        const speedAbs = Math.abs(Number(spinSpeed) || 0) * 0.2;
+        this.movingPiecePhase += dt * Phaser.Math.Clamp(1 + speedAbs * 0.45, 0.9, 3.2);
+        const cycle = (this.movingPiecePhase % 1 + 1) % 1;
+        const upDown = cycle < 0.5 ? (cycle / 0.5) : (1 - (cycle - 0.5) / 0.5);
+        const eased = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(upDown, 0, 1));
+        const amplitude = Phaser.Math.Clamp(speedAbs / 1.6, 0.12, 1);
+        const lift = eased * amplitude;
+        this.movingPiece.y = Phaser.Math.Linear(this.movingPieceBaseY, this.movingPieceTopY, lift);
     }
  
     update(time, delta) {
@@ -166,7 +190,9 @@ export class Chp2_scn1 extends Phaser.Scene {
                 speed = Phaser.Math.Linear(-0.42, 1.2, (t - 0.78) / 0.22);
             }
             const wobble = Math.sin(this.faultyMillElapsed * 23) * 0.06;
-            this.molinoAspas.rotation += (speed + wobble) * (delta / 1000);
+            const faultySpeed = speed + wobble;
+            this.molinoAspas.rotation += faultySpeed * (delta / 1000);
+            this.updateMovingPieceFaulty(delta, faultySpeed);
         }
 
         if (this.bgScrollActive && this.bgLayers) {

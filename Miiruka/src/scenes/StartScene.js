@@ -1,12 +1,16 @@
 import { GameStorage } from '../utils/storage.js'
 import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
+import { addFullScreenImage } from '../utils/backgrounds.js';
+import { attachLoadingOverlay } from '../utils/loadingOverlay.js';
 
 export class StartScene extends Phaser.Scene {
     constructor() {
         super("Inicio")
     }
     preload() {
+        attachLoadingOverlay(this, 'Cargando...');
+
         // UI
         this.load.audio('pop', 'assets/sounds/pop.mp3')
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a')
@@ -88,9 +92,6 @@ export class StartScene extends Phaser.Scene {
     askForName(onComplete) {
         if (this.namePromptActive) return;
         this.namePromptActive = true;
-        const canvasRect = this.game.canvas.getBoundingClientRect();
-        const inputX = canvasRect.left + canvasRect.width * 0.5;
-        const inputY = canvasRect.top + canvasRect.height * 0.82;
 
         const promptText = this.add.text(
             960, 800,
@@ -103,24 +104,87 @@ export class StartScene extends Phaser.Scene {
             }
         ).setOrigin(0.5);
 
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = UIHelpers.getText('name_placeholder');
-        input.style.position = 'absolute';
-        input.style.left = `${inputX}px`;
-        input.style.top = `${inputY}px`;
-        input.style.transform = 'translate(-50%, -50%)';
-        input.style.fontSize = '20px';
-        input.style.padding = '12px 16px';
-        input.style.borderRadius = '12px';
-        input.style.border = '3px solid #8b4c1d';
-        input.style.background = '#f0c18a';
-        input.style.color = '#6a3a1b';
-        input.style.outline = 'none';
-        input.maxLength = 15;
-        input.style.textAlign = 'center';
+        const inputContainer = this.add.container(960, 885);
+        const inputBorder = this.add.graphics();
+        const inputBody = this.add.graphics();
+        const inputCaret = this.add.text(0, 0, '|', {
+            fontFamily: 'fredoka',
+            fontSize: '36px',
+            color: '#6a3a1b',
+        }).setOrigin(0.5);
+        const inputText = this.add.text(0, 0, UIHelpers.getText('name_placeholder'), {
+            fontFamily: 'fredoka',
+            fontSize: '34px',
+            color: '#8f6f4f',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+        const inputW = 680;
+        const inputH = 88;
+        let focused = false;
+        let currentName = '';
 
-        document.body.appendChild(input);
+        const drawInput = () => {
+            inputBorder.clear();
+            inputBody.clear();
+            inputBorder.fillStyle(focused ? 0x6a3a1b : 0x8b4c1d);
+            inputBorder.fillRoundedRect(-inputW / 2, -inputH / 2, inputW + 10, inputH + 10, 14);
+            inputBody.fillStyle(0xf0c18a);
+            inputBody.fillRoundedRect(-inputW / 2, -inputH / 2, inputW, inputH, 14);
+            const showPlaceholder = currentName.length === 0;
+            inputText.setText(showPlaceholder ? UIHelpers.getText('name_placeholder') : currentName);
+            inputText.setColor(showPlaceholder ? '#8f6f4f' : '#6a3a1b');
+            inputCaret.setVisible(focused);
+            const textRight = Math.min((inputText.width / 2) + 18, inputW / 2 - 26);
+            inputCaret.setX(showPlaceholder ? 0 : textRight);
+        };
+
+        inputContainer.add([inputBorder, inputBody, inputText, inputCaret]);
+        inputContainer.setSize(inputW, inputH);
+        inputContainer.setInteractive({ useHandCursor: true });
+        drawInput();
+
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'text';
+        hiddenInput.maxLength = 15;
+        hiddenInput.autocomplete = 'off';
+        hiddenInput.autocorrect = 'off';
+        hiddenInput.autocapitalize = 'words';
+        hiddenInput.spellcheck = false;
+        hiddenInput.style.position = 'absolute';
+        hiddenInput.style.left = '8px';
+        hiddenInput.style.top = '8px';
+        hiddenInput.style.width = '1px';
+        hiddenInput.style.height = '1px';
+        hiddenInput.style.border = '0';
+        hiddenInput.style.padding = '0';
+        hiddenInput.style.margin = '0';
+        hiddenInput.style.pointerEvents = 'none';
+        hiddenInput.style.opacity = '0';
+        const inputHost = this.game.canvas?.parentElement || document.body;
+        const hostStyle = window.getComputedStyle(inputHost);
+        if (hostStyle.position === 'static') {
+            inputHost.style.position = 'relative';
+        }
+        inputHost.appendChild(hiddenInput);
+
+        const syncName = () => {
+            currentName = hiddenInput.value.slice(0, 15);
+            drawInput();
+        };
+
+        hiddenInput.addEventListener('input', syncName);
+        inputContainer.on('pointerdown', () => {
+            focused = true;
+            drawInput();
+            hiddenInput.focus();
+        });
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.event?.target === this.game.canvas) return;
+            if (!inputContainer.getBounds().contains(pointer.x, pointer.y)) {
+                focused = false;
+                drawInput();
+            }
+        });
 
         const btnLabel = this.add.text(0, 0, UIHelpers.getText('continue'), {
             fontFamily: 'fredoka',
@@ -146,17 +210,15 @@ export class StartScene extends Phaser.Scene {
         confirmBtn.setInteractive({ useHandCursor: true });
 
         confirmBtn.on('pointerdown', () => {
-            const name = input.value.trim();
+            const name = currentName.trim();
 
             if (name.length > 0) {
                 GameStorage.startNewGame(name);
-                input.remove();
+                hiddenInput.removeEventListener('input', syncName);
+                hiddenInput.remove();
                 promptText.destroy();
+                inputContainer.destroy();
                 confirmBtn.destroy();
-                if (this.nameInputResizeHandler) {
-                    this.scale.off('resize', this.nameInputResizeHandler);
-                    this.nameInputResizeHandler = null;
-                }
                 this.namePromptActive = false;
                 if (onComplete) onComplete();
             }
@@ -169,25 +231,26 @@ export class StartScene extends Phaser.Scene {
             confirmBtn.setScale(1);
         });
         UIHelpers.attachHoverPop(this, confirmBtn, 0.35);
-
-        this.nameInputResizeHandler = () => {
-            const rect = this.game.canvas.getBoundingClientRect();
-            input.style.left = `${rect.left + rect.width * 0.5}px`;
-            input.style.top = `${rect.top + rect.height * 0.82}px`;
-        };
-        this.scale.on('resize', this.nameInputResizeHandler);
+        this.tweens.add({
+            targets: inputCaret,
+            alpha: 0.2,
+            yoyo: true,
+            repeat: -1,
+            duration: 450,
+            ease: 'Sine.inOut',
+        });
     }
 
     create() {
         UIHelpers.setGameCursor(this);
         this.popSound = this.sound.add('pop', { volume: 0.8 });
-        this.add.image(960, 540, 'gradient');
+        addFullScreenImage(this, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,
             this.scale.width,
             this.scale.height, 'gears'
         ).setOrigin(0, 0);
-        this.add.image(960, 650, 'illustration').setOrigin(0.5);
+        this.add.image(960, 650, 'illustration').setOrigin(0.5).setDisplaySize(1920, 873);
 
         AudioManager.ensureLoopingMusic(this, 'gametheme', 0.7);
         this.sound.once('unlocked', () => {
@@ -255,6 +318,7 @@ export class StartScene extends Phaser.Scene {
             greeting.x = greeting.x - greeting.width - 50;
         }
 
+        this.createFullscreenButton(1648, 980);
         this.createMusicToggle(1760, 980);
     }
 
@@ -384,6 +448,117 @@ export class StartScene extends Phaser.Scene {
             container.setScale(1);
         });
         UIHelpers.attachHoverPop(this, container, 0.35);
+
+        return container;
+    }
+
+    createFullscreenButton(x, y) {
+        const container = this.add.container(x, y);
+        const size = 86;
+        const bg = this.add.graphics();
+        bg.fillStyle(0x8b4c1d, 1);
+        bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
+        const inner = this.add.graphics();
+        inner.fillStyle(0xf0c18a, 1);
+        inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
+
+        const icon = this.add.graphics();
+        const drawIcon = () => {
+            icon.clear();
+            icon.lineStyle(5, 0x6a3a1b, 1);
+            const isFullscreen = !!document.fullscreenElement;
+            if (isFullscreen) {
+                icon.lineBetween(-24, -10, -10, -10);
+                icon.lineBetween(-10, -24, -10, -10);
+                icon.lineBetween(24, -10, 10, -10);
+                icon.lineBetween(10, -24, 10, -10);
+                icon.lineBetween(-24, 10, -10, 10);
+                icon.lineBetween(-10, 24, -10, 10);
+                icon.lineBetween(24, 10, 10, 10);
+                icon.lineBetween(10, 24, 10, 10);
+            } else {
+                icon.lineBetween(-24, -24, -8, -24);
+                icon.lineBetween(-24, -24, -24, -8);
+                icon.lineBetween(24, -24, 8, -24);
+                icon.lineBetween(24, -24, 24, -8);
+                icon.lineBetween(-24, 24, -8, 24);
+                icon.lineBetween(-24, 24, -24, 8);
+                icon.lineBetween(24, 24, 8, 24);
+                icon.lineBetween(24, 24, 24, 8);
+            }
+        };
+        drawIcon();
+
+        container.add([bg, inner, icon]);
+        container.setSize(size, size);
+        container.setInteractive({ useHandCursor: true });
+
+        const lockLandscape = async () => {
+            const orientation = globalThis.screen?.orientation;
+            if (!orientation?.lock) return;
+            try {
+                await orientation.lock('landscape');
+            } catch (error) {
+                // Algunos navegadores solo permiten bloquear orientación en PWA/fullscreen.
+            }
+        };
+
+        const enterFullscreen = async () => {
+            const target = this.game.canvas?.parentElement || document.documentElement;
+            if (target.requestFullscreen) {
+                await target.requestFullscreen();
+            } else if (target.webkitRequestFullscreen) {
+                target.webkitRequestFullscreen();
+            } else {
+                this.scale.startFullscreen();
+            }
+            await lockLandscape();
+        };
+
+        const exitFullscreen = async () => {
+            const orientation = globalThis.screen?.orientation;
+            if (orientation?.unlock) {
+                try { orientation.unlock(); } catch (error) {}
+            }
+            if (document.exitFullscreen && document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (this.scale.isFullscreen) {
+                this.scale.stopFullscreen();
+            }
+        };
+
+        container.on('pointerdown', async () => {
+            this.sound.play('pop', { volume: 0.8 });
+            try {
+                if (document.fullscreenElement || this.scale.isFullscreen) {
+                    await exitFullscreen();
+                } else {
+                    await enterFullscreen();
+                }
+            } finally {
+                drawIcon();
+            }
+        });
+        container.on('pointerover', () => {
+            container.setScale(1.06);
+        });
+        container.on('pointerout', () => {
+            container.setScale(1);
+        });
+        UIHelpers.attachHoverPop(this, container, 0.35);
+
+        this.fullscreenChangeHandler = () => drawIcon();
+        document.addEventListener('fullscreenchange', this.fullscreenChangeHandler);
+        document.addEventListener('webkitfullscreenchange', this.fullscreenChangeHandler);
+        this.events.once('shutdown', () => {
+            if (this.fullscreenChangeHandler) {
+                document.removeEventListener('fullscreenchange', this.fullscreenChangeHandler);
+                document.removeEventListener('webkitfullscreenchange', this.fullscreenChangeHandler);
+                this.fullscreenChangeHandler = null;
+            }
+        });
 
         return container;
     }
