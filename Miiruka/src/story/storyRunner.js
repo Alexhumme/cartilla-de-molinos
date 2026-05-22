@@ -9,6 +9,7 @@ import {
     runFaucetMinigame,
     runLocateIssuesMinigame,
     runSeparateUnionsMinigame,
+    runInsertRodMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -518,6 +519,9 @@ export class StoryRunner {
         if (id === 'ubicar_problemas') {
             return this.handleLocateIssuesMinigame(id, resolvedOptions);
         }
+        if (id === 'meter_varilla') {
+            return this.handleInsertRodMinigame(id, resolvedOptions);
+        }
 
         const scene = this.scene;
         scene.input.enabled = true;
@@ -607,6 +611,11 @@ export class StoryRunner {
     // Minijuego: ubicar problemas visibles del molino.
     async handleLocateIssuesMinigame(id, options) {
         return runLocateIssuesMinigame.call(this, id, options);
+    }
+
+    // Minijuego: insertar varilla en la bomba.
+    async handleInsertRodMinigame(id, options) {
+        return runInsertRodMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.

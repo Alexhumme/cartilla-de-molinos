@@ -153,20 +153,40 @@ export function showPauseMenuOverlay() {
     if (this.pauseOverlay) return;
     const scene = this.scene;
     scene.input.setTopOnly(true);
-    const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.6);
-    const panel = scene.add.rectangle(960, 540, 860, 640, 0x1f1f1f, 0.95);
-    const title = scene.add.text(960, 350, 'Pausa', {
+    const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.65);
+    const panelShadow = scene.add.rectangle(968, 548, 980, 780, 0x2f1a10, 0.65);
+    const panel = scene.add.rectangle(960, 540, 980, 780, 0x2c2018, 0.95);
+    panel.setStrokeStyle(6, 0xf0c18a, 0.95);
+
+    const title = scene.add.text(960, 225, 'Pausa', {
         fontFamily: 'fredoka',
-        fontSize: '48px',
-        color: '#ffffff',
+        fontSize: '64px',
+        color: '#fce1b4',
+        fontStyle: '700',
+    }).setOrigin(0.5);
+    const subtitle = scene.add.text(960, 278, 'Ajusta la sesión y continúa cuando quieras', {
+        fontFamily: 'fredoka',
+        fontSize: '24px',
+        color: '#e9d6bf',
     }).setOrigin(0.5);
 
-    const langToggle = this.createLanguageToggle(960, 450, [
+    const langLabel = scene.add.text(960, 352, 'Idioma', {
+        fontFamily: 'fredoka',
+        fontSize: '26px',
+        color: '#fce1b4',
+    }).setOrigin(0.5);
+
+    const langToggle = this.createLanguageToggle(960, 402, [
         { id: 'es', label: 'Español' },
         { id: 'wayuunaiki', label: 'Wayuu' },
     ], this.language);
 
-    const volumeSlider = this.createVolumeSelector(960, 560, 10, Math.round(this.musicVolume * 10), (level) => {
+    const volumeLabel = scene.add.text(960, 486, 'Música', {
+        fontFamily: 'fredoka',
+        fontSize: '26px',
+        color: '#fce1b4',
+    }).setOrigin(0.5);
+    const volumeSlider = this.createVolumeSelector(960, 536, 10, Math.round(this.musicVolume * 10), (level) => {
         if (scene.cache.audio?.exists('pop')) {
             scene.sound.play('pop', { volume: 0.8 });
         }
@@ -174,7 +194,7 @@ export function showPauseMenuOverlay() {
         this.ignoreNextDialogClick = true;
     });
 
-    const restartBtn = this.createPauseActionButton(760, 650, 'Reiniciar escena', () => {
+    const restartBtn = this.createPauseActionButton(960, 620, 'Reiniciar escena', () => {
         if (scene.cache.audio?.exists('pop')) {
             scene.sound.play('pop', { volume: 0.8 });
         }
@@ -188,7 +208,7 @@ export function showPauseMenuOverlay() {
         scene.scene.restart();
     });
 
-    const menuBtn = this.createPauseActionButton(1160, 650, 'Volver a capítulos', () => {
+    const menuBtn = this.createPauseActionButton(960, 700, 'Volver a capítulos', () => {
         if (scene.cache.audio?.exists('pop')) {
             scene.sound.play('pop', { volume: 0.8 });
         }
@@ -205,7 +225,54 @@ export function showPauseMenuOverlay() {
         });
     });
 
-    const pagination = this.createScenePagination(960, 760, (target) => {
+    const toggleFullscreen = async () => {
+        const lockLandscape = async () => {
+            const orientation = globalThis.screen?.orientation;
+            if (!orientation?.lock) return;
+            try {
+                await orientation.lock('landscape');
+            } catch (error) {}
+        };
+
+        const exitFullscreen = async () => {
+            const orientation = globalThis.screen?.orientation;
+            if (orientation?.unlock) {
+                try { orientation.unlock(); } catch (error) {}
+            }
+            if (document.exitFullscreen && document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (scene.scale.isFullscreen) {
+                scene.scale.stopFullscreen();
+            }
+        };
+
+        if (document.fullscreenElement || scene.scale.isFullscreen) {
+            await exitFullscreen();
+            return;
+        }
+
+        const target = scene.game.canvas?.parentElement || document.documentElement;
+        if (target.requestFullscreen) {
+            await target.requestFullscreen();
+        } else if (target.webkitRequestFullscreen) {
+            target.webkitRequestFullscreen();
+        } else {
+            scene.scale.startFullscreen();
+        }
+        await lockLandscape();
+    };
+
+    const fullscreenBtn = this.createPauseActionButton(960, 780, 'Pantalla completa', async () => {
+        if (scene.cache.audio?.exists('pop')) {
+            scene.sound.play('pop', { volume: 0.8 });
+        }
+        await toggleFullscreen();
+        this.ignoreNextDialogClick = true;
+    });
+
+    const pagination = this.createScenePagination(960, 860, (target) => {
         if (!target) return;
         if (scene.cache.audio?.exists('pop')) {
             scene.sound.play('pop', { volume: 0.8 });
@@ -217,13 +284,13 @@ export function showPauseMenuOverlay() {
         scene.scene.start(target);
     });
 
-    const hint = scene.add.text(960, 865, 'Toca fuera o presiona pausar para continuar', {
+    const hint = scene.add.text(960, 932, 'Toca fuera o presiona pausar para continuar', {
         fontFamily: 'fredoka',
         fontSize: '20px',
         color: '#cccccc',
     }).setOrigin(0.5);
 
-    [bg, panel, title, langToggle.container, volumeSlider.container, restartBtn.container, menuBtn.container, pagination.container, hint].forEach((item, index) => {
+    [bg, panelShadow, panel, title, subtitle, langLabel, langToggle.container, volumeLabel, volumeSlider.container, restartBtn.container, menuBtn.container, fullscreenBtn.container, pagination.container, hint].forEach((item, index) => {
         item.setScrollFactor(0);
         item.setDepth(1100 + index);
     });
@@ -248,20 +315,28 @@ export function showPauseMenuOverlay() {
 
     this.pauseOverlay = {
         bg,
-        panel,
+        panel: [panelShadow, panel],
         title,
+        subtitle,
+        labels: [langLabel, volumeLabel],
         hint,
-        buttons: [langToggle, volumeSlider, restartBtn, menuBtn, pagination],
+        buttons: [langToggle, volumeSlider, restartBtn, menuBtn, fullscreenBtn, pagination],
     };
 }
 
 export function hidePauseMenuOverlay() {
     if (!this.pauseOverlay) return;
-    const { bg, panel, title, hint, buttons } = this.pauseOverlay;
+    const { bg, panel, title, subtitle, labels, hint, buttons } = this.pauseOverlay;
     this.scene.input.setTopOnly(false);
     bg.destroy();
-    panel.destroy();
+    if (Array.isArray(panel)) {
+        panel.forEach((item) => item.destroy());
+    } else {
+        panel.destroy();
+    }
     title.destroy();
+    if (subtitle) subtitle.destroy();
+    if (labels) labels.forEach((item) => item.destroy());
     hint.destroy();
     buttons.forEach((btn) => btn.destroy());
     this.pauseOverlay = null;
@@ -345,19 +420,20 @@ export function createLanguageToggleControl(x, y, options, activeId) {
 export function createPauseActionControl(x, y, label, onClick) {
     const scene = this.scene;
     const container = scene.add.container(x, y);
-    const width = 360;
-    const height = 64;
+    const width = 460;
+    const height = 68;
 
     const base = scene.add.graphics();
-    base.fillStyle(0x3a3a3a, 1);
+    base.fillStyle(0x8b4c1d, 1);
     base.fillRoundedRect(-width / 2, -height / 2, width, height, 16);
     const border = scene.add.graphics();
-    border.lineStyle(3, 0xffffff, 0.7);
-    border.strokeRoundedRect(-width / 2, -height / 2, width, height, 16);
+    border.fillStyle(0xf0c18a, 1);
+    border.fillRoundedRect(-width / 2 + 5, -height / 2 + 5, width - 10, height - 10, 14);
     const text = scene.add.text(0, 0, label, {
         fontFamily: 'fredoka',
         fontSize: '24px',
-        color: '#ffffff',
+        color: '#6a3a1b',
+        fontStyle: '700',
     }).setOrigin(0.5);
 
     [base, border, text].forEach((item) => item.setScrollFactor(0));
@@ -368,6 +444,8 @@ export function createPauseActionControl(x, y, label, onClick) {
         if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
         onClick();
     });
+    container.on('pointerover', () => container.setScale(1.03));
+    container.on('pointerout', () => container.setScale(1));
     UIHelpers.attachHoverPop(scene, container, 0.35);
 
     return {
