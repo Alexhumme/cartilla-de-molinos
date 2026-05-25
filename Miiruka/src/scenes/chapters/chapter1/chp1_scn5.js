@@ -1,6 +1,8 @@
 import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
+import { GamepadCursor } from '../../../utils/gamepad.js';
+
 import { UIHelpers } from '../../../utils/ui.js';
 import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
@@ -61,6 +63,7 @@ export class Chp1_scn5 extends Phaser.Scene {
 
     create() {
         UIHelpers.setGameCursor(this);
+        GamepadCursor.attach(this);
         GameStorage.setLastChapter(1);
         this.useWorldCharacters = true;
         // Transición de entrada.
@@ -164,6 +167,7 @@ export class Chp1_scn5 extends Phaser.Scene {
     }
  
     update(time, delta) {
+GamepadCursor.update(this, delta);
         // Detiene animaciones si está en pausa.
         if (this.storyRunner?.isPaused) return;
         const speed = 0.0001 * delta;

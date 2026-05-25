@@ -2,6 +2,7 @@ import { UIHelpers } from '../utils/ui.js';
 import { GameStorage } from '../utils/storage.js';
 import { AudioManager } from '../utils/audio.js';
 import { addFullScreenImage } from '../utils/backgrounds.js';
+import { GamepadCursor } from '../utils/gamepad.js';
 
 export class SettingsScene extends Phaser.Scene {
     constructor() {
@@ -17,6 +18,9 @@ export class SettingsScene extends Phaser.Scene {
     }
 
     create() {
+
+        GamepadCursor.attach(this);
+
         UIHelpers.setGameCursor(this);
         this.popSound = this.sound.add('pop', { volume: 0.8 });
         addFullScreenImage(this, 'gradient');
@@ -196,7 +200,8 @@ export class SettingsScene extends Phaser.Scene {
         return container;
     }
 
-    update() {
+    update(time, delta) {
+        GamepadCursor.update(this, delta);
         this.gears.tilePositionY += 0.3;
         this.gears.tilePositionX += 0.1;
     }

@@ -2,6 +2,7 @@ import { toColorString } from '../utils/colors.js';
 import { GameStorage } from '../utils/storage.js';
 import { UIHelpers } from '../utils/ui.js';
 import { addFullScreenImage } from '../utils/backgrounds.js';
+import { GamepadCursor } from '../utils/gamepad.js';
 
 const ChapterState = {
     LOCKED: 'locked',
@@ -165,6 +166,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
 
     create() {
 
+        GamepadCursor.attach(this);
+
         UIHelpers.setGameCursor(this);
         this.cameras.main.fadeIn(500, 0, 0, 0);
 
@@ -220,8 +223,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
         )*/
     }
 
-    update() {
-
+    update(time, delta) {
+        GamepadCursor.update(this, delta);
         this.gears.tilePositionY += 0.3;
         this.gears.tilePositionX += 0.1;
     }

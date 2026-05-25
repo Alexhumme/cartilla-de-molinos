@@ -476,7 +476,7 @@ export class StoryRunner {
                 scene.input.off('pointerdown', handler);
                 resolve();
             };
-            scene.input.on('pointerdown', handler);
+            scene.input.once('pointerdown', handler);
         });
     }
 

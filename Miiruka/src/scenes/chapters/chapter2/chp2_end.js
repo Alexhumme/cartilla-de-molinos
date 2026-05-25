@@ -1,4 +1,6 @@
 import { GameStorage } from '../../../utils/storage.js';
+import { GamepadCursor } from '../../../utils/gamepad.js';
+
 import { UIHelpers } from '../../../utils/ui.js';
 
 export class Chp2_end extends Phaser.Scene {
@@ -75,6 +77,7 @@ export class Chp2_end extends Phaser.Scene {
 
     create() {
         UIHelpers.setGameCursor(this);
+        GamepadCursor.attach(this);
         GameStorage.commitChapterSession(1);
         // Transición de entrada.
         this.cameras.main.fadeIn(600, 0, 0, 0);

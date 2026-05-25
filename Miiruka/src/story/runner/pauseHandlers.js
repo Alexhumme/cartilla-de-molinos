@@ -170,7 +170,7 @@ export function showPauseMenuOverlay() {
         color: '#e9d6bf',
     }).setOrigin(0.5);
 
-    const langLabel = scene.add.text(960, 352, 'Idioma', {
+    const langLabel = scene.add.text(960, 322, 'Idioma', {
         fontFamily: 'fredoka',
         fontSize: '26px',
         color: '#fce1b4',
@@ -284,7 +284,7 @@ export function showPauseMenuOverlay() {
         scene.scene.start(target);
     });
 
-    const hint = scene.add.text(960, 932, 'Toca fuera o presiona pausar para continuar', {
+    const hint = scene.add.text(960, 962, 'Toca fuera o presiona pausar para continuar', {
         fontFamily: 'fredoka',
         fontSize: '20px',
         color: '#cccccc',
