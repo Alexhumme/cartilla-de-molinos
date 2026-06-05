@@ -1660,6 +1660,10 @@ export async function runOrdenarProcesoMinigame(id, options) {
                 scene.time.delayedCall(2500, () => {
                     root.destroy(true);
                     scene.input.setTopOnly(prevTopOnly);
+                    if (this.pauseButton) {
+                        this.pauseButton.setVisible(true);
+                        if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
+                    }
                     resolveDone();
                 });
             } else {
