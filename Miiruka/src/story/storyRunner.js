@@ -1337,21 +1337,38 @@ export class StoryRunner {
             if (!sprite || sprite.visible === false || sprite.alpha <= 0.05) return;
             visible.push(sprite);
         });
-        if (visible.length >= 2) return 'center';
-        if (visible.length === 1) {
-            const screenX = this.getCharacterScreenX(visible[0]);
-            const centerX = this.scene.scale.width / 2;
-            return screenX < centerX ? 'right' : 'left';
-        }
+
+        if (visible.length === 0) return 'center';
+
+        const centerX = this.scene.scale.width / 2;
+        let allLeft = true;
+        let allRight = true;
+
+        visible.forEach((sprite) => {
+            const screenX = this.getCharacterScreenX(sprite);
+            if (screenX >= centerX) allLeft = false;
+            if (screenX <= centerX) allRight = false;
+        });
+
+        if (allLeft) return 'right';
+        if (allRight) return 'left';
+
         return 'center';
     }
 
     getRecuadroGeometry() {
         const sw = this.scene.scale.width || 1920;
         const sh = this.scene.scale.height || 1080;
-        const width = Math.round(sw * 0.5);
-        const height = Math.max(260, sh - 100);
         const side = this.getRecuadroSide();
+
+        let width = Math.round(sw * 0.5);
+        let height = Math.max(260, sh - 100);
+
+        if (side !== 'center') {
+            width = Math.round(sw * 0.42); // Un poco menos ancho cuando está a un lado
+            height = Math.max(260, sh - 220); // Un poco menos alto cuando está a un lado
+        }
+
         const x = side === 'left'
             ? (width / 2) + 100
             : side === 'right'
