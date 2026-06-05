@@ -9,6 +9,7 @@ import {
     runFaucetMinigame,
     runLocateIssuesMinigame,
     runSeparateUnionsMinigame,
+    runOrdenarProcesoMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -232,6 +233,15 @@ export class StoryRunner {
         if (keyword === 'mostrar') return this.handleShow(tokens);
         if (keyword === 'pregunta' || keyword === 'quiz' || keyword === 'pregunta_escena' || keyword === 'pregunta_final') {
             return this.handleSceneQuestionCommand(tokens);
+        }
+        if (keyword === 'pregunta_rapida' || keyword === 'pregunta_ahora') {
+            this.handleSceneQuestionCommand(tokens);
+            if (this.pendingSceneQuestion) {
+                const question = this.pendingSceneQuestion;
+                this.pendingSceneQuestion = null;
+                return this.showSceneQuestion(question);
+            }
+            return;
         }
         if (keyword === 'minijuego') return this.handleMinigame(tokens);
         if (keyword === 'if') return this.handleIf(tokens, currentScene);
@@ -518,6 +528,9 @@ export class StoryRunner {
         if (id === 'ubicar_problemas') {
             return this.handleLocateIssuesMinigame(id, resolvedOptions);
         }
+        if (id === 'ordenar_proceso') {
+            return this.handleOrdenarProcesoMinigame(id, resolvedOptions);
+        }
 
         const scene = this.scene;
         scene.input.enabled = true;
@@ -607,6 +620,11 @@ export class StoryRunner {
     // Minijuego: ubicar problemas visibles del molino.
     async handleLocateIssuesMinigame(id, options) {
         return runLocateIssuesMinigame.call(this, id, options);
+    }
+    
+    // Minijuego: Ordenar el proceso del molino arrastrando piezas.
+    async handleOrdenarProcesoMinigame(id, options) {
+        return runOrdenarProcesoMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.

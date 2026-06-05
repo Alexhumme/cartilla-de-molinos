@@ -1398,3 +1398,294 @@ export async function runSeparateUnionsMinigame(id, options = []) {
 
     return donePromise;
 }
+
+export async function runEngrasarMinigame(id, options) {
+    const scene = this.scene;
+    // 1. Congelamos los controles de atrás y mostramos UI (mismo patrón que ya usas)
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+    
+    const root = scene.add.container(0, 0).setDepth(2000);
+    root.setScrollFactor(0);
+    const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.7).setScrollFactor(0);
+    root.add(bg);
+
+    // 2. Título e instrucciones
+    const title = scene.add.text(960, 200, 'Toca los engranajes secos para lubricarlos', {
+        fontFamily: 'fredoka', fontSize: '42px', color: '#fce1b4'
+    }).setOrigin(0.5);
+    root.add(title);
+
+    // 3. Crear los engranajes (como Hotspots)
+    const engranajes = [
+        { x: 700, y: 500, engrasado: false },
+        { x: 1200, y: 450, engrasado: false },
+        { x: 950, y: 700, engrasado: false }
+    ];
+
+    let engrasados = 0;
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+
+    engranajes.forEach((data) => {
+        // Imagina que cargas un asset llamado 'engranaje_seco'
+        const gear = scene.add.image(data.x, data.y, 'engranaje_seco').setInteractive();
+        root.add(gear);
+
+        gear.on('pointerdown', () => {
+            if (data.engrasado) return; // Si ya está, no hace nada
+            
+            data.engrasado = true;
+            engrasados++;
+            
+            // Cambiar la imagen a engranaje lubricado o añadir un efecto de brillo
+            gear.setTint(0x9df0a8); // Tinte verde como ejemplo de que está listo
+            
+            // Reproducir sonido de líquido
+            if (scene.cache.audio?.exists('squish')) {
+                scene.sound.play('squish', { volume: 0.8 });
+            }
+
+            // Verificar si el juego terminó
+            if (engrasados === engranajes.length) {
+                // Pequeño delay antes de salir
+                scene.time.delayedCall(1000, () => {
+                    root.destroy(true); // Destruye todo el minijuego
+                    scene.input.setTopOnly(prevTopOnly);
+                    this.minigames.set(id, 'respuesta1'); // Guarda el progreso
+                    resolveDone(); // Despausa el guion!
+                });
+            }
+        });
+    });
+
+    return donePromise;
+}
+
+export async function runOrdenarProcesoMinigame(id, options) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    let pauseWasInteractive = false;
+    if (this.pauseButton) {
+        pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
+        this.pauseButton.disableInteractive();
+        this.pauseButton.setVisible(false);
+    }
+
+    // 1. Contenedores y Fondo
+    const root = scene.add.container(0, 0).setDepth(2000);
+    root.setScrollFactor(0);
+    const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.8).setScrollFactor(0);
+    root.add(bg);
+    
+    const title = scene.add.text(960, 150, 'Ordena los pasos para sacar agua', {
+        fontFamily: 'fredoka', fontSize: '46px', color: '#fce1b4', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    root.add(title);
+
+    // 2. Definición del Proceso y Assets
+    // Claves esperadas en este orden. 
+    const processOrder = ['viento', 'aspas', 'engranes', 'bomba', 'tanque'];
+    const slots = [];
+    const draggables = [];
+
+    // 3. Crear Zonas de Caída (Drop Zones)
+    const startX = 360;
+    const gapX = 300;
+    const dragY = 320; // Imágenes arriba
+    const dropY = 650; // Cajas vacías abajo
+    for (let i = 0; i < 5; i++) {
+        const x = startX + (i * gapX);
+        const y = dropY;
+        
+        // Gráfico para que el jugador sepa dónde soltar
+        const box = scene.add.graphics();
+        box.lineStyle(4, 0x6f3515, 1);
+        box.fillStyle(0x3f2f20, 0.6);
+        box.fillRoundedRect(x - 100, y - 100, 200, 200, 16);
+        box.strokeRoundedRect(x - 100, y - 100, 200, 200, 16);
+        
+        // Número del paso
+        const stepText = scene.add.text(x, y - 140, `Paso ${i + 1}`, {
+            fontFamily: 'fredoka', fontSize: '28px', color: '#ffffff'
+        }).setOrigin(0.5);
+        
+        // La zona lógica de Phaser
+        const dropZone = scene.add.zone(x, y, 200, 200).setRectangleDropZone(200, 200);
+        dropZone.setScrollFactor(0);
+        dropZone.expectedKey = processOrder[i];
+        dropZone.isFilled = false;
+
+        // IMPORTANTE: El dropZone debe estar dentro del root para detectar bien el arrastre
+        root.add([box, stepText, dropZone]);
+        slots.push(dropZone);
+    }
+
+    // 4. Crear los objetos arrastrables (desordenados)
+    const shuffledOrder = ['bomba', 'viento', 'tanque', 'aspas', 'engranes'];
+    shuffledOrder.forEach((key, index) => {
+        const startPosX = startX + (index * gapX);
+        const startPosY = dragY;
+
+        // Contenedor visual del item
+        const itemContainer = scene.add.container(startPosX, startPosY);
+        itemContainer.setScrollFactor(0);
+        
+        // Fondo del item
+        const itemBg = scene.add.graphics();
+        itemBg.fillStyle(0xf6eddc, 1);
+        itemBg.fillRoundedRect(-80, -80, 160, 160, 16);
+        itemBg.lineStyle(4, 0x8a4b25, 1);
+        itemBg.strokeRoundedRect(-80, -80, 160, 160, 16);
+
+        // Imagen del item (Asegúrate de cargar: 'item-viento', 'item-aspas', etc.)
+        const textureKey = scene.textures.exists(`item-${key}`) ? `item-${key}` : 'story-placeholder';
+        const icon = scene.add.image(0, 0, textureKey).setOrigin(0.5);
+        
+        // Ajustar tamaño del icono si es muy grande
+        const fit = Math.min(120 / Math.max(1, icon.width), 120 / Math.max(1, icon.height));
+        icon.setScale(fit);
+
+        itemContainer.add([itemBg, icon]);
+        itemContainer.setSize(160, 160); // Importante para que sea interactivo
+        itemContainer.setInteractive({ useHandCursor: true });
+        scene.input.setDraggable(itemContainer);
+        
+        itemContainer.processKey = key;
+        itemContainer.originalX = startPosX;
+        itemContainer.originalY = startPosY;
+        itemContainer.bgGraphics = itemBg; // Guardar referencia para pintarlo de verde al acertar
+
+        root.add(itemContainer);
+        draggables.push(itemContainer);
+    });
+
+    // 5. Mensaje de validación inferior
+    const messageText = scene.add.text(960, 880, '', {
+        fontFamily: 'fredoka', fontSize: '32px', color: '#ffffff', align: 'center', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    root.add(messageText);
+
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+
+    // 6. Lógica de Eventos Drag & Drop
+    const onDragStart = (pointer, gameObject) => {
+        if (!draggables.includes(gameObject)) return;
+        scene.children.bringToTop(root); // Subir el minijuego
+        root.bringToTop(gameObject); // Subir la pieza por encima de las demás
+    };
+
+    const onDrag = (pointer, gameObject, dragX, dragY) => {
+        if (!draggables.includes(gameObject)) return;
+        gameObject.x = dragX;
+        gameObject.y = dragY;
+    };
+
+    const onDrop = (pointer, gameObject, dropZone) => {
+        if (!draggables.includes(gameObject)) return;
+        
+        // Si la zona ya tiene otra imagen, devolver la otra a su posición original superior
+        draggables.forEach(other => {
+            if (other !== gameObject && other.currentZone === dropZone) {
+                other.x = other.originalX;
+                other.y = other.originalY;
+                other.currentZone = null;
+            }
+        });
+
+        // Centrar en la zona
+        gameObject.x = dropZone.x;
+        gameObject.y = dropZone.y;
+        gameObject.currentZone = dropZone;
+    };
+
+    const onDragEnd = (pointer, gameObject, dropped) => {
+        if (!draggables.includes(gameObject)) return;
+        
+        if (!dropped) {
+            // Volver a la posición inicial si no se soltó en una zona
+            gameObject.x = gameObject.originalX;
+            gameObject.y = gameObject.originalY;
+            gameObject.currentZone = null;
+        }
+
+        // Resetear visualmente todas las cajas al estado neutral
+        draggables.forEach((item) => {
+            item.bgGraphics.clear();
+            item.bgGraphics.fillStyle(0xf6eddc, 1);
+            item.bgGraphics.fillRoundedRect(-80, -80, 160, 160, 16);
+            item.bgGraphics.lineStyle(4, 0x8a4b25, 1);
+            item.bgGraphics.strokeRoundedRect(-80, -80, 160, 160, 16);
+        });
+        messageText.setText('');
+
+        // Verificar si todas las zonas están ocupadas para proceder a validar
+        const placedCount = draggables.filter(item => item.currentZone !== null).length;
+        
+        if (placedCount === 5) {
+            let isCorrect = true;
+            
+            // Validar si el orden es el correcto
+            draggables.forEach((item) => {
+                if (item.currentZone.expectedKey !== item.processKey) {
+                    isCorrect = false;
+                }
+            });
+
+            if (isCorrect) {
+                // Éxito: Todo verde
+                messageText.setText('¡Excelente! Has organizado correctamente el funcionamiento del molino.');
+                messageText.setColor('#9df0a8');
+                
+                draggables.forEach((item) => {
+                    item.bgGraphics.clear();
+                item.bgGraphics.fillStyle(0xd9f4df, 1);
+                item.bgGraphics.fillRoundedRect(-80, -80, 160, 160, 16);
+                item.bgGraphics.lineStyle(6, 0x2b9348, 1);
+                item.bgGraphics.strokeRoundedRect(-80, -80, 160, 160, 16);
+                    item.disableInteractive(); // Bloquear movimiento
+                });
+                
+                scene.input.off('dragstart', onDragStart);
+                scene.input.off('drag', onDrag);
+                scene.input.off('drop', onDrop);
+                scene.input.off('dragend', onDragEnd);
+                
+                playUiSound(scene, 'success-bell', 0.8);
+                scene.time.delayedCall(2500, () => {
+                    root.destroy(true);
+                    scene.input.setTopOnly(prevTopOnly);
+                    resolveDone();
+                });
+            } else {
+                // Error: Todo rojo
+                messageText.setText('El orden no es correcto. Inténtalo nuevamente.');
+                messageText.setColor('#ffb3b3');
+                
+                if (scene.cache.audio?.exists('wrong-option')) {
+                    scene.sound.play('wrong-option', { volume: 0.7 });
+                }
+
+                draggables.forEach((item) => {
+                    item.bgGraphics.clear();
+                    item.bgGraphics.fillStyle(0xffe6e6, 1);
+                    item.bgGraphics.fillRoundedRect(-80, -80, 160, 160, 16);
+                    item.bgGraphics.lineStyle(6, 0xd62828, 1);
+                    item.bgGraphics.strokeRoundedRect(-80, -80, 160, 160, 16);
+                });
+            }
+        }
+    };
+
+    scene.input.on('dragstart', onDragStart);
+    scene.input.on('drag', onDrag);
+    scene.input.on('drop', onDrop);
+    scene.input.on('dragend', onDragEnd);
+
+    return donePromise;
+}
