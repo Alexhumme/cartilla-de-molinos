@@ -33,9 +33,17 @@ export class Chp1_scn4 extends Phaser.Scene {
         this.load.image('pause-icon', 'assets/ui/settings.png');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
         // Ilustraciones de apoyo.
+        this.load.image('seq-viento-aspas', 'assets/items/seq-viento-aspas.png');
+        this.load.image('seq-aspas-engranes', 'assets/items/seq-aspas-engranes.png');
+        this.load.image('seq-bomba-agua', 'assets/items/seq-bomba-agua.png');
+
+        // Ilustraciones para juego de ordenar secuencia.
+
+        this.load.image('item-bomba', 'assets/items/bomba_ejemplo.png');
         this.load.image('item-aspas', 'assets/items/aspas_ejemplo.png');
         this.load.image('item-engranes', 'assets/items/engranes_ejemplo.png');
-        this.load.image('item-bomba', 'assets/items/bomba_ejemplo.png');
+        this.load.image('item-viento', 'assets/items/viento.png');
+        this.load.image('item-tanque', 'assets/items/tanque.png');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
