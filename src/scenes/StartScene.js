@@ -37,12 +37,11 @@ export class StartScene extends Phaser.Scene {
         const paddingX = 50;
         const paddingY = 10;
 
-        const text = this.add.text(0, 0, label,
-            {
-                fontSize: '96px',
-                fill: '#FCE1B4',
-                fontFamily: 'fredoka',
-            }).setOrigin(0.5);
+        const text = this.add.text(0, 0, label, {
+            fontSize: '96px',
+            fill: '#FCE1B4',
+            fontFamily: 'fredoka',
+        }).setOrigin(0.5);
 
         const width = text.width + paddingX * 2;
         const height = text.height + paddingY * 2;
@@ -65,10 +64,14 @@ export class StartScene extends Phaser.Scene {
         ]);
 
         button.setSize(width, height);
-        button.setInteractive({ useHandCursor: true });
+        button.setInteractive({
+            useHandCursor: true
+        });
 
         button.on('pointerdown', () => {
-            this.sound.play('pop', { volume: 0.8 });
+            this.sound.play('pop', {
+                volume: 0.8
+            });
             callback();
         });
 
@@ -98,13 +101,12 @@ export class StartScene extends Phaser.Scene {
 
         const promptText = this.add.text(
             960, 800,
-            UIHelpers.getText('whats_name'),
-            {
-                fontSize: '46px',
-                fontFamily: 'fredoka',
-                fill: '#521461',
-                fontStyle: '800'
-            }
+            UIHelpers.getText('whats_name'), {
+            fontSize: '46px',
+            fontFamily: 'fredoka',
+            fill: '#521461',
+            fontStyle: '800'
+        }
         ).setOrigin(0.5);
 
         const inputContainer = this.add.container(960, 885);
@@ -143,7 +145,9 @@ export class StartScene extends Phaser.Scene {
 
         inputContainer.add([inputBorder, inputBody, inputText, inputCaret]);
         inputContainer.setSize(inputW, inputH);
-        inputContainer.setInteractive({ useHandCursor: true });
+        inputContainer.setInteractive({
+            useHandCursor: true
+        });
         drawInput();
 
         const hiddenInput = document.createElement('input');
@@ -210,7 +214,9 @@ export class StartScene extends Phaser.Scene {
 
         const confirmBtn = this.add.container(960, 980, [border, body, btnLabel]);
         confirmBtn.setSize(width, height);
-        confirmBtn.setInteractive({ useHandCursor: true });
+        confirmBtn.setInteractive({
+            useHandCursor: true
+        });
 
         let promptCompleted = false;
         let cleanupConfirmKeyboard = null;
@@ -260,7 +266,15 @@ export class StartScene extends Phaser.Scene {
 
     create() {
         UIHelpers.setGameCursor(this);
-        this.popSound = this.sound.add('pop', { volume: 0.8 });
+
+        // Ensure Phaser gamepad plugin is active
+        if (!this.input.gamepad) {
+            this.input.gamepad = this.input.manager.gamepad;
+        }
+
+        this.popSound = this.sound.add('pop', {
+            volume: 0.8
+        });
         addFullScreenImage(this, 'gradient');
         this.gears = this.add.tileSprite(
             0, 0,
@@ -282,10 +296,18 @@ export class StartScene extends Phaser.Scene {
             fill: '#FCE1B4',
         }
 
-        this.add.text(66, 154, 'Miiruku',
-            { ...titleStyle, fontStyle: 'bold', fontSize: '300px', }).setOrigin(0, 0);
-        this.add.text(82, 464, 'Aprende jugando sobre el cuidado de los molinos',
-            { ...titleStyle, fontSize: '64px', wordWrap: { width: 831 } }).setOrigin(0, 0);
+        this.add.text(66, 154, 'Miiruku', {
+            ...titleStyle,
+            fontStyle: 'bold',
+            fontSize: '300px',
+        }).setOrigin(0, 0);
+        this.add.text(82, 464, 'Aprende jugando sobre el cuidado de los molinos', {
+            ...titleStyle,
+            fontSize: '64px',
+            wordWrap: {
+                width: 831
+            }
+        }).setOrigin(0, 0);
 
         const menuBaseX = 960;
         const buttonGap = 110;
@@ -337,11 +359,17 @@ export class StartScene extends Phaser.Scene {
 
         this.createFullscreenButton(1648, 980);
         this.createMusicToggle(1760, 980);
+        this.createGamepadIndicator(96, 984);
+        GamepadCursor.attach(this);
     }
 
-    update() {
+    update(time, delta) {
+
         this.gears.tilePositionY += 0.3;
         this.gears.tilePositionX += 0.1;
+
+        GamepadCursor.update(this, delta);
+
     }
 
     startChapterSelection() {
@@ -389,9 +417,13 @@ export class StartScene extends Phaser.Scene {
         button.setSize(width, height);
 
         if (!disabled) {
-            button.setInteractive({ useHandCursor: true });
+            button.setInteractive({
+                useHandCursor: true
+            });
             button.on('pointerdown', () => {
-                this.sound.play('pop', { volume: 0.8 });
+                this.sound.play('pop', {
+                    volume: 0.8
+                });
                 onClick();
             });
             button.on('pointerover', () => {
@@ -442,7 +474,9 @@ export class StartScene extends Phaser.Scene {
 
         container.add([bg, inner, icon, muteLine]);
         container.setSize(size, size);
-        container.setInteractive({ useHandCursor: true });
+        container.setInteractive({
+            useHandCursor: true
+        });
 
         const render = () => {
             const enabled = GameStorage.getMusicEnabled();
@@ -508,7 +542,9 @@ export class StartScene extends Phaser.Scene {
 
         container.add([bg, inner, icon]);
         container.setSize(size, size);
-        container.setInteractive({ useHandCursor: true });
+        container.setInteractive({
+            useHandCursor: true
+        });
 
         const lockLandscape = async () => {
             const orientation = globalThis.screen?.orientation;
@@ -535,7 +571,9 @@ export class StartScene extends Phaser.Scene {
         const exitFullscreen = async () => {
             const orientation = globalThis.screen?.orientation;
             if (orientation?.unlock) {
-                try { orientation.unlock(); } catch (error) {}
+                try {
+                    orientation.unlock();
+                } catch (error) { }
             }
             if (document.exitFullscreen && document.fullscreenElement) {
                 await document.exitFullscreen();
@@ -547,7 +585,9 @@ export class StartScene extends Phaser.Scene {
         };
 
         container.on('pointerdown', async () => {
-            this.sound.play('pop', { volume: 0.8 });
+            this.sound.play('pop', {
+                volume: 0.8
+            });
             try {
                 if (document.fullscreenElement || this.scale.isFullscreen) {
                     await exitFullscreen();
@@ -579,4 +619,68 @@ export class StartScene extends Phaser.Scene {
 
         return container;
     }
+
+    createGamepadIndicator(x, y) {
+        const container = this.add.container(x, y);
+        container.setDepth(20);
+        container.setVisible(false);
+
+        const halo = this.add.circle(0, 0, 58, 0xfce1b4, 0.18);
+        halo.setStrokeStyle(4, 0xfce1b4, 0.45);
+
+        const icon = this.add.graphics();
+        icon.fillStyle(0xf0c18a, 1);
+        icon.lineStyle(5, 0x8b4c1d, 1);
+        icon.fillRoundedRect(-50, -26, 100, 56, 22);
+        icon.strokeRoundedRect(-50, -26, 100, 56, 22);
+        icon.fillStyle(0x6a3a1b, 1);
+        icon.fillRoundedRect(-36, -3, 22, 8, 3);
+        icon.fillRoundedRect(-29, -10, 8, 22, 3);
+        icon.fillCircle(25, -10, 5);
+        icon.fillCircle(37, 2, 5);
+        icon.fillCircle(13, 2, 5);
+        icon.fillCircle(25, 14, 5);
+
+        container.add([halo, icon]);
+
+        const refresh = () => {
+
+        };
+
+        this.gamepadStatusHandler = refresh;
+        window.addEventListener('gamepadconnected', this.gamepadStatusHandler);
+        window.addEventListener('gamepaddisconnected', this.gamepadStatusHandler);
+        this.gamepadPollEvent = this.time.addEvent({
+            delay: 1000,
+            loop: true,
+            callback: refresh,
+        });
+
+        this.tweens.add({
+            targets: halo,
+            alpha: 0.35,
+            scaleX: 1.08,
+            scaleY: 1.08,
+            yoyo: true,
+            repeat: -1,
+            duration: 900,
+            ease: 'Sine.inOut',
+        });
+
+        this.events.once('shutdown', () => {
+            if (this.gamepadStatusHandler) {
+                window.removeEventListener('gamepadconnected', this.gamepadStatusHandler);
+                window.removeEventListener('gamepaddisconnected', this.gamepadStatusHandler);
+                this.gamepadStatusHandler = null;
+            }
+            if (this.gamepadPollEvent) {
+                this.gamepadPollEvent.remove(false);
+                this.gamepadPollEvent = null;
+            }
+        });
+
+        refresh();
+        return container;
+    }
+
 }
