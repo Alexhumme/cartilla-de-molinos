@@ -2,6 +2,7 @@ import { normalizeKeyword, parseScript } from './parser.js';
 import { GameStorage } from '../utils/storage.js';
 import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
+import { bindKeyboardCommand, KeyboardCommands } from '../utils/keyboardControls.js';
 import {
     runBlowMillMinigame,
     runConnectConceptsMinigame,
@@ -10,6 +11,7 @@ import {
     runLocateIssuesMinigame,
     runSeparateUnionsMinigame,
     runOrdenarProcesoMinigame,
+    runInsertRodMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -111,15 +113,18 @@ export class StoryRunner {
         this.gameBlurHandler = null;
         this.gameFocusHandler = null;
         this.visibilityHandler = null;
+        this.pauseKeyboardCleanup = null;
 
         // Blindaje: si la escena se cierra abruptamente, no dejamos pasos sonando.
         this.scene.events.once('shutdown', () => {
             this.detachFocusPauseHandlers();
+            this.detachPauseKeyboardShortcut();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
         this.scene.events.once('destroy', () => {
             this.detachFocusPauseHandlers();
+            this.detachPauseKeyboardShortcut();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
@@ -155,6 +160,20 @@ export class StoryRunner {
         this.createPauseButton();
         this.ensureMusic();
         this.attachFocusPauseHandlers();
+        this.attachPauseKeyboardShortcut();
+    }
+
+    attachPauseKeyboardShortcut() {
+        if (this.pauseKeyboardCleanup) return;
+        this.pauseKeyboardCleanup = bindKeyboardCommand(this.scene, KeyboardCommands.pause, () => {
+            this.togglePause();
+        });
+    }
+
+    detachPauseKeyboardShortcut() {
+        if (!this.pauseKeyboardCleanup) return;
+        this.pauseKeyboardCleanup();
+        this.pauseKeyboardCleanup = null;
     }
 
     attachFocusPauseHandlers() {
@@ -473,7 +492,8 @@ export class StoryRunner {
     async waitForClick() {
         const scene = this.scene;
         return new Promise((resolve) => {
-            const handler = () => {
+            let cleanupKeyboard = null;
+            const complete = () => {
                 if (this.isPaused) return;
                 if (this.ignoreNextDialogClick) {
                     this.ignoreNextDialogClick = false;
@@ -482,10 +502,12 @@ export class StoryRunner {
                 if (scene.cache.audio?.exists('dialog-pop')) {
                     scene.sound.play('dialog-pop', { volume: 0.6 });
                 }
-                scene.input.off('pointerdown', handler);
+                scene.input.off('pointerdown', complete);
+                if (cleanupKeyboard) cleanupKeyboard();
                 resolve();
             };
-            scene.input.on('pointerdown', handler);
+            scene.input.on('pointerdown', complete);
+            cleanupKeyboard = bindKeyboardCommand(scene, KeyboardCommands.advance, complete);
         });
     }
 
@@ -527,6 +549,9 @@ export class StoryRunner {
         }
         if (id === 'ubicar_problemas') {
             return this.handleLocateIssuesMinigame(id, resolvedOptions);
+        }
+        if (id === 'meter_varilla') {
+            return this.handleInsertRodMinigame(id, resolvedOptions);
         }
         if (id === 'ordenar_proceso') {
             return this.handleOrdenarProcesoMinigame(id, resolvedOptions);
@@ -620,6 +645,16 @@ export class StoryRunner {
     // Minijuego: ubicar problemas visibles del molino.
     async handleLocateIssuesMinigame(id, options) {
         return runLocateIssuesMinigame.call(this, id, options);
+    }
+    
+    // Minijuego: Ordenar el proceso del molino arrastrando piezas.
+    async handleOrdenarProcesoMinigame(id, options) {
+        return runOrdenarProcesoMinigame.call(this, id, options);
+    }
+
+    // Minijuego: insertar varilla en la bomba.
+    async handleInsertRodMinigame(id, options) {
+        return runInsertRodMinigame.call(this, id, options);
     }
     
     // Minijuego: Ordenar el proceso del molino arrastrando piezas.

@@ -1693,3 +1693,172 @@ export async function runOrdenarProcesoMinigame(id, options) {
 
     return donePromise;
 }
+
+export async function runInsertRodMinigame(id, options = []) {
+    const scene = this.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    let pauseWasInteractive = false;
+    if (this.pauseButton) {
+        pauseWasInteractive = this.pauseButton.input?.enabled ?? false;
+        this.pauseButton.disableInteractive();
+        this.pauseButton.setVisible(false);
+    }
+
+    const root = scene.add.container(0, 0);
+    root.setDepth(1050); // Debajo del overlay de pausa (1100+), encima de la escena.
+    root.setScrollFactor(0);
+
+    const backdrop = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.62).setScrollFactor(0);
+    root.add(backdrop);
+
+    const title = scene.add.text(960, 132, 'Arrastra la varilla hasta la entrada', {
+        fontFamily: 'fredoka',
+        fontSize: '38px',
+        color: '#fce1b4',
+        fontStyle: '700',
+    }).setOrigin(0.5);
+    title.setScrollFactor(0);
+    root.add(title);
+
+    const instruction = scene.add.text(960, 182, 'Solo entra por arriba de la bomba', {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#ffffff',
+    }).setOrigin(0.5);
+    instruction.setScrollFactor(0);
+    root.add(instruction);
+
+    const pump = scene.add.image(960, scene.scale.height - 28, 'entrada_bomba').setOrigin(0.5, 1);
+    const rod = scene.add.image(pump.x + 250, pump.y - 80, 'varilla_nueva').setOrigin(0.5, 1);
+    rod.setScrollFactor(0);
+    pump.setScrollFactor(0);
+    // Orden de dibujo en container: la varilla debe quedar detrás de la bomba.
+    root.add([rod, pump]);
+
+    const pumpWidth = pump.displayWidth || 240;
+    const pumpHeight = pump.displayHeight || 240;
+    const pumpLeft = pump.x - pumpWidth / 2;
+    const pumpRight = pump.x + pumpWidth / 2;
+    const openingInset = 150;
+    const openingLeft = pumpLeft + openingInset;
+    const openingRight = pumpRight - openingInset;
+    const entryTopY = pump.y - pumpHeight - 28;
+    const clampTopY = 210;
+    const completeY = pump.y;
+
+    const arrow = scene.add.text(pump.x, entryTopY - 38, '↓', {
+        fontFamily: 'fredoka',
+        fontSize: '62px',
+        color: '#fce94f',
+    }).setOrigin(0.5).setScrollFactor(0);
+    root.add(arrow);
+
+    const arrowPulse = scene.tweens.add({
+        targets: arrow,
+        y: arrow.y + 14,
+        duration: 520,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+    });
+
+    rod.setInteractive({ useHandCursor: true });
+    scene.input.setDraggable(rod, true);
+    UIHelpers.attachHoverPop(scene, rod, 0.35);
+
+    let pressed = false;
+    let completed = false;
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+
+    const rodHalfWidth = () => (rod.displayWidth * rod.scaleX) / 2;
+    const rodLeftAt = (x) => x - rodHalfWidth();
+    const rodRightAt = (x) => x + rodHalfWidth();
+    const isFullyInsideOpeningAt = (x) =>
+        rodLeftAt(x) > openingLeft && rodRightAt(x) < openingRight;
+    const overlapsPumpWidthAt = (x) =>
+        rodRightAt(x) > pumpLeft && rodLeftAt(x) < pumpRight;
+
+    const finish = async () => {
+        if (completed) return;
+        completed = true;
+        if (scene.cache.audio?.exists('success-bell')) {
+            scene.sound.play('success-bell', { volume: 0.7 });
+        }
+        arrowPulse.stop();
+        arrow.destroy();
+        rod.disableInteractive();
+
+        scene.tweens.add({
+            targets: rod,
+            x: pump.x,
+            y: completeY,
+            duration: 120,
+            ease: 'Sine.out',
+            onComplete: () => {
+                scene.time.delayedCall(220, () => resolveDone());
+            },
+        });
+    };
+
+    rod.on('pointerdown', () => {
+        pressed = true;
+        rod.setScale(0.97);
+    });
+    rod.on('pointerup', () => {
+        pressed = false;
+        rod.setScale(1);
+    });
+    rod.on('pointerout', () => {
+        if (!pressed) return;
+        pressed = false;
+        rod.setScale(1);
+    });
+
+    rod.on('drag', (pointer, dragX, dragY) => {
+        if (completed) return;
+        const currentlyInsideEntry = rod.y >= entryTopY && isFullyInsideOpeningAt(rod.x);
+        let nextX = Phaser.Math.Clamp(dragX, 120, scene.scale.width - 120);
+        let nextY = Phaser.Math.Clamp(dragY, clampTopY, completeY);
+
+        // Colision con "paredes internas" (gaps de 100 px por lado):
+        // si intenta entrar por arriba sin estar alineada, se bloquea en el borde superior.
+        const enteringByTop = nextY >= entryTopY;
+        const insideOpeningAtNextX = isFullyInsideOpeningAt(nextX);
+        const overPumpWidth = overlapsPumpWidthAt(nextX);
+        if (enteringByTop && overPumpWidth && !insideOpeningAtNextX) {
+            if (currentlyInsideEntry) {
+                // Ya estaba adentro: no permitir salida lateral.
+                nextX = rod.x;
+            } else {
+                const crossedTopThisFrame = rod.y < entryTopY && nextY >= entryTopY;
+                if (crossedTopThisFrame) {
+                    // Choque desde arriba (ya estaba correcto): no dejar bajar.
+                    nextY = Math.min(nextY, entryTopY - 1);
+                } else {
+                    // Choque lateral exterior: comportamiento de muro (sin salto).
+                    nextX = rod.x;
+                }
+            }
+        }
+        rod.setPosition(nextX, nextY);
+
+        // Completa solo si llegó al fondo y la varilla está totalmente dentro del canal.
+        if (isFullyInsideOpeningAt(nextX) && nextY >= completeY - 3) {
+            finish();
+        }
+    });
+
+    await donePromise;
+
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    root.destroy(true);
+    scene.input.setTopOnly(prevTopOnly);
+    if (this.pauseButton) {
+        this.pauseButton.setVisible(true);
+        if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
+    }
+}
