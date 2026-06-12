@@ -21,6 +21,8 @@ export class StartScene extends Phaser.Scene {
         this.load.image('illustration', 'assets/background_start_illustration.png');
         this.load.image('gamepad-cursor', 'assets/ui/cursor-arrow.png');
         this.load.image('gamepad-cursor-active', 'assets/ui/cursor-pointer.png');
+        this.load.image('gamepad-cursor', 'assets/ui/cursor-arrow.png');
+        this.load.image('gamepad-cursor-active', 'assets/ui/cursor-pointer.png');
 
         // Desierto
         this.load.image('sky', 'assets/desert/sky.png');
@@ -102,11 +104,11 @@ export class StartScene extends Phaser.Scene {
         const promptText = this.add.text(
             960, 800,
             UIHelpers.getText('whats_name'), {
-                fontSize: '46px',
-                fontFamily: 'fredoka',
-                fill: '#521461',
-                fontStyle: '800'
-            }
+            fontSize: '46px',
+            fontFamily: 'fredoka',
+            fill: '#521461',
+            fontStyle: '800'
+        }
         ).setOrigin(0.5);
 
         const inputContainer = this.add.container(960, 885);
@@ -573,7 +575,7 @@ export class StartScene extends Phaser.Scene {
             if (orientation?.unlock) {
                 try {
                     orientation.unlock();
-                } catch (error) {}
+                } catch (error) { }
             }
             if (document.exitFullscreen && document.fullscreenElement) {
                 await document.exitFullscreen();
