@@ -2,6 +2,7 @@ import { normalizeKeyword, parseScript } from './parser.js';
 import { GameStorage } from '../utils/storage.js';
 import { AudioManager } from '../utils/audio.js';
 import { UIHelpers } from '../utils/ui.js';
+import { bindKeyboardCommand, KeyboardCommands } from '../utils/keyboardControls.js';
 import {
     runBlowMillMinigame,
     runConnectConceptsMinigame,
@@ -9,6 +10,7 @@ import {
     runFaucetMinigame,
     runLocateIssuesMinigame,
     runSeparateUnionsMinigame,
+    runOrdenarProcesoMinigame,
     runInsertRodMinigame,
 } from './runner/minigameHandlers.js';
 import {
@@ -111,15 +113,18 @@ export class StoryRunner {
         this.gameBlurHandler = null;
         this.gameFocusHandler = null;
         this.visibilityHandler = null;
+        this.pauseKeyboardCleanup = null;
 
         // Blindaje: si la escena se cierra abruptamente, no dejamos pasos sonando.
         this.scene.events.once('shutdown', () => {
             this.detachFocusPauseHandlers();
+            this.detachPauseKeyboardShortcut();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
         this.scene.events.once('destroy', () => {
             this.detachFocusPauseHandlers();
+            this.detachPauseKeyboardShortcut();
             this.forceStopAllWalkSounds();
             this.destroyRecuadroInstant();
         });
@@ -155,6 +160,20 @@ export class StoryRunner {
         this.createPauseButton();
         this.ensureMusic();
         this.attachFocusPauseHandlers();
+        this.attachPauseKeyboardShortcut();
+    }
+
+    attachPauseKeyboardShortcut() {
+        if (this.pauseKeyboardCleanup) return;
+        this.pauseKeyboardCleanup = bindKeyboardCommand(this.scene, KeyboardCommands.pause, () => {
+            this.togglePause();
+        });
+    }
+
+    detachPauseKeyboardShortcut() {
+        if (!this.pauseKeyboardCleanup) return;
+        this.pauseKeyboardCleanup();
+        this.pauseKeyboardCleanup = null;
     }
 
     attachFocusPauseHandlers() {
@@ -233,6 +252,15 @@ export class StoryRunner {
         if (keyword === 'mostrar') return this.handleShow(tokens);
         if (keyword === 'pregunta' || keyword === 'quiz' || keyword === 'pregunta_escena' || keyword === 'pregunta_final') {
             return this.handleSceneQuestionCommand(tokens);
+        }
+        if (keyword === 'pregunta_rapida' || keyword === 'pregunta_ahora') {
+            this.handleSceneQuestionCommand(tokens);
+            if (this.pendingSceneQuestion) {
+                const question = this.pendingSceneQuestion;
+                this.pendingSceneQuestion = null;
+                return this.showSceneQuestion(question);
+            }
+            return;
         }
         if (keyword === 'minijuego') return this.handleMinigame(tokens);
         if (keyword === 'if') return this.handleIf(tokens, currentScene);
@@ -464,7 +492,8 @@ export class StoryRunner {
     async waitForClick() {
         const scene = this.scene;
         return new Promise((resolve) => {
-            const handler = () => {
+            let cleanupKeyboard = null;
+            const complete = () => {
                 if (this.isPaused) return;
                 if (this.ignoreNextDialogClick) {
                     this.ignoreNextDialogClick = false;
@@ -473,10 +502,12 @@ export class StoryRunner {
                 if (scene.cache.audio?.exists('dialog-pop')) {
                     scene.sound.play('dialog-pop', { volume: 0.6 });
                 }
-                scene.input.off('pointerdown', handler);
+                scene.input.off('pointerdown', complete);
+                if (cleanupKeyboard) cleanupKeyboard();
                 resolve();
             };
-            scene.input.once('pointerdown', handler);
+            scene.input.on('pointerdown', complete);
+            cleanupKeyboard = bindKeyboardCommand(scene, KeyboardCommands.advance, complete);
         });
     }
 
@@ -521,6 +552,9 @@ export class StoryRunner {
         }
         if (id === 'meter_varilla') {
             return this.handleInsertRodMinigame(id, resolvedOptions);
+        }
+        if (id === 'ordenar_proceso') {
+            return this.handleOrdenarProcesoMinigame(id, resolvedOptions);
         }
 
         const scene = this.scene;
@@ -616,6 +650,11 @@ export class StoryRunner {
     // Minijuego: insertar varilla en la bomba.
     async handleInsertRodMinigame(id, options) {
         return runInsertRodMinigame.call(this, id, options);
+    }
+    
+    // Minijuego: Ordenar el proceso del molino arrastrando piezas.
+    async handleOrdenarProcesoMinigame(id, options) {
+        return runOrdenarProcesoMinigame.call(this, id, options);
     }
 
     // Ejecuta un evento solo si la respuesta del minijuego coincide.
@@ -1328,21 +1367,38 @@ export class StoryRunner {
             if (!sprite || sprite.visible === false || sprite.alpha <= 0.05) return;
             visible.push(sprite);
         });
-        if (visible.length >= 2) return 'center';
-        if (visible.length === 1) {
-            const screenX = this.getCharacterScreenX(visible[0]);
-            const centerX = this.scene.scale.width / 2;
-            return screenX < centerX ? 'right' : 'left';
-        }
+
+        if (visible.length === 0) return 'center';
+
+        const centerX = this.scene.scale.width / 2;
+        let allLeft = true;
+        let allRight = true;
+
+        visible.forEach((sprite) => {
+            const screenX = this.getCharacterScreenX(sprite);
+            if (screenX >= centerX) allLeft = false;
+            if (screenX <= centerX) allRight = false;
+        });
+
+        if (allLeft) return 'right';
+        if (allRight) return 'left';
+
         return 'center';
     }
 
     getRecuadroGeometry() {
         const sw = this.scene.scale.width || 1920;
         const sh = this.scene.scale.height || 1080;
-        const width = Math.round(sw * 0.5);
-        const height = Math.max(260, sh - 100);
         const side = this.getRecuadroSide();
+
+        let width = Math.round(sw * 0.5);
+        let height = Math.max(260, sh - 100);
+
+        if (side !== 'center') {
+            width = Math.round(sw * 0.42); // Un poco menos ancho cuando está a un lado
+            height = Math.max(260, sh - 220); // Un poco menos alto cuando está a un lado
+        }
+
         const x = side === 'left'
             ? (width / 2) + 100
             : side === 'right'

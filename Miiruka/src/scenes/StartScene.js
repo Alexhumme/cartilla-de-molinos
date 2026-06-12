@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import {
     GameStorage
 } from '../utils/storage.js'
@@ -16,6 +17,14 @@ import {
 import {
     GamepadCursor
 } from '../utils/gamepad.js';
+=======
+import { GameStorage } from '../utils/storage.js'
+import { AudioManager } from '../utils/audio.js';
+import { UIHelpers } from '../utils/ui.js';
+import { addFullScreenImage } from '../utils/backgrounds.js';
+import { attachLoadingOverlay } from '../utils/loadingOverlay.js';
+import { bindDomKeyboardCommand, KeyboardCommands } from '../utils/keyboardControls.js';
+>>>>>>> master
 
 export class StartScene extends Phaser.Scene {
     constructor() {
@@ -230,19 +239,33 @@ export class StartScene extends Phaser.Scene {
             useHandCursor: true
         });
 
-        confirmBtn.on('pointerdown', () => {
+        let promptCompleted = false;
+        let cleanupConfirmKeyboard = null;
+        const confirmName = () => {
+            if (promptCompleted) return;
             const name = currentName.trim();
 
             if (name.length > 0) {
+                promptCompleted = true;
                 GameStorage.startNewGame(name);
                 hiddenInput.removeEventListener('input', syncName);
                 hiddenInput.remove();
+                if (cleanupConfirmKeyboard) cleanupConfirmKeyboard();
                 promptText.destroy();
                 inputContainer.destroy();
                 confirmBtn.destroy();
                 this.namePromptActive = false;
                 if (onComplete) onComplete();
             }
+        };
+
+        confirmBtn.on('pointerdown', confirmName);
+        cleanupConfirmKeyboard = bindDomKeyboardCommand(KeyboardCommands.confirm, confirmName, {
+            allowWhenTyping: true,
+        });
+        this.events.once('shutdown', () => {
+            if (cleanupConfirmKeyboard) cleanupConfirmKeyboard();
+            if (hiddenInput.parentElement) hiddenInput.remove();
         });
 
         confirmBtn.on('pointerover', () => {

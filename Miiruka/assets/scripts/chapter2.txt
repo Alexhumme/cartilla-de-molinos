@@ -81,9 +81,7 @@
 [personaje][Jouktai][entra][izquierda]
 [personaje][Jouktai][mira][jugador]
 [personaje][Jouktai][habla][es:Me ayudas a poner la varilla en la bomba]
-
 [minijuego][meter_varilla][respuesta1]
-
 [personaje][Jouktai][mira][lado]
 [personaje][Kamanewaa][entra][derecha]
 [personaje][Kamanewaa][habla][es:Ahi lo tienes. Solo necesitaba que sus piezas volvieran a su lugar.]
@@ -93,6 +91,7 @@
     [op1es:Por un lado, empujándola con fuerza][op1way:Supula wanee apuna, jime'era saa'in]
     [op2es:Por arriba, alineándola con la entrada][op2way:Suupuna, otta aliniajatüin sümaa tü atpanaakat]
     [op3es:Desde abajo, moviéndola en diagonal][op3way:Suutpa, alinjana akatüin]
+# pregunta aqui
 [cambiar_escena][Chp2_scn5]
 
 [escena][Despedida]

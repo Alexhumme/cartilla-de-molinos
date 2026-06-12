@@ -13,7 +13,8 @@ export function createPauseToggleButton() {
     this.pauseButton.setScrollFactor(0);
     this.pauseButton.setDepth(1000);
     this.pauseButton.setInteractive({ useHandCursor: true });
-    this.pauseButton.on('pointerdown', () => {
+    this.pauseButton.on('pointerdown', (pointer) => {
+        if (pointer?.event?.stopPropagation) pointer.event.stopPropagation();
         if (scene.cache.audio?.exists('pop')) {
             scene.sound.play('pop', { volume: 0.8 });
         }
