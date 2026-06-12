@@ -19,6 +19,8 @@ export class StartScene extends Phaser.Scene {
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
         this.load.image('illustration', 'assets/background_start_illustration.png');
+        this.load.image('gamepad-cursor', 'assets/ui/cursor-arrow.png');
+        this.load.image('gamepad-cursor-active', 'assets/ui/cursor-pointer.png');
 
         // Desierto
         this.load.image('sky', 'assets/desert/sky.png');
