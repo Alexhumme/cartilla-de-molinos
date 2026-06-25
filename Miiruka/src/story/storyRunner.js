@@ -12,6 +12,10 @@ import {
     runSeparateUnionsMinigame,
     runOrdenarProcesoMinigame,
     runInsertRodMinigame,
+    runClassifyToolsMinigame,
+    runCleanMillMinigame,
+    runPaintMillMinigame,
+    runLubricateMillMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -143,6 +147,7 @@ export class StoryRunner {
             jouktai: 'Jouktai',
             joktai: 'Jouktai',
             kamanewaa: 'Kamanewaa',
+            martin: 'Martin',
         };
 
         for (const existingName of this.characters.keys()) {
@@ -485,6 +490,7 @@ export class StoryRunner {
         const key = (name || '').trim().toLowerCase();
         if (key === 'jouktai') return '#FCB4B5';
         if (key === 'kai' || key === 'kái') return '#FCE1B4';
+        if (key === 'martin') return '#8FC9FF';
         return '#fce1b4';
     }
 
@@ -555,6 +561,18 @@ export class StoryRunner {
         }
         if (id === 'ordenar_proceso') {
             return this.handleOrdenarProcesoMinigame(id, resolvedOptions);
+        }
+        if (id === 'clasificar_herramientas') {
+            return runClassifyToolsMinigame.call(this, id, resolvedOptions);
+        }
+        if (id === 'limpiar_molino') {
+            return runCleanMillMinigame.call(this, id, resolvedOptions);
+        }
+        if (id === 'pintar_molino') {
+            return runPaintMillMinigame.call(this, id, resolvedOptions);
+        }
+        if (id === 'engrasar_molino') {
+            return runLubricateMillMinigame.call(this, id, resolvedOptions);
         }
 
         const scene = this.scene;

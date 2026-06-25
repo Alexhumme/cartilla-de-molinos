@@ -362,13 +362,13 @@ export async function runBlowMillMinigame(id, options) {
 
     if (rafId) cancelAnimationFrame(rafId);
     if (sourceNode) {
-        try { sourceNode.disconnect(); } catch {}
+        try { sourceNode.disconnect(); } catch { }
     }
     if (analyser) {
-        try { analyser.disconnect(); } catch {}
+        try { analyser.disconnect(); } catch { }
     }
     if (audioCtx) {
-        try { await audioCtx.close(); } catch {}
+        try { await audioCtx.close(); } catch { }
     }
     if (mediaStream) {
         mediaStream.getTracks().forEach((track) => track.stop());
@@ -1399,70 +1399,6 @@ export async function runSeparateUnionsMinigame(id, options = []) {
     return donePromise;
 }
 
-export async function runEngrasarMinigame(id, options) {
-    const scene = this.scene;
-    // 1. Congelamos los controles de atrás y mostramos UI (mismo patrón que ya usas)
-    scene.input.enabled = true;
-    const prevTopOnly = scene.input.topOnly;
-    scene.input.setTopOnly(true);
-    
-    const root = scene.add.container(0, 0).setDepth(2000);
-    root.setScrollFactor(0);
-    const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.7).setScrollFactor(0);
-    root.add(bg);
-
-    // 2. Título e instrucciones
-    const title = scene.add.text(960, 200, 'Toca los engranajes secos para lubricarlos', {
-        fontFamily: 'fredoka', fontSize: '42px', color: '#fce1b4'
-    }).setOrigin(0.5);
-    root.add(title);
-
-    // 3. Crear los engranajes (como Hotspots)
-    const engranajes = [
-        { x: 700, y: 500, engrasado: false },
-        { x: 1200, y: 450, engrasado: false },
-        { x: 950, y: 700, engrasado: false }
-    ];
-
-    let engrasados = 0;
-    let resolveDone;
-    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
-
-    engranajes.forEach((data) => {
-        // Imagina que cargas un asset llamado 'engranaje_seco'
-        const gear = scene.add.image(data.x, data.y, 'engranaje_seco').setInteractive();
-        root.add(gear);
-
-        gear.on('pointerdown', () => {
-            if (data.engrasado) return; // Si ya está, no hace nada
-            
-            data.engrasado = true;
-            engrasados++;
-            
-            // Cambiar la imagen a engranaje lubricado o añadir un efecto de brillo
-            gear.setTint(0x9df0a8); // Tinte verde como ejemplo de que está listo
-            
-            // Reproducir sonido de líquido
-            if (scene.cache.audio?.exists('squish')) {
-                scene.sound.play('squish', { volume: 0.8 });
-            }
-
-            // Verificar si el juego terminó
-            if (engrasados === engranajes.length) {
-                // Pequeño delay antes de salir
-                scene.time.delayedCall(1000, () => {
-                    root.destroy(true); // Destruye todo el minijuego
-                    scene.input.setTopOnly(prevTopOnly);
-                    this.minigames.set(id, 'respuesta1'); // Guarda el progreso
-                    resolveDone(); // Despausa el guion!
-                });
-            }
-        });
-    });
-
-    return donePromise;
-}
-
 export async function runOrdenarProcesoMinigame(id, options) {
     const scene = this.scene;
     scene.input.enabled = true;
@@ -1481,7 +1417,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
     root.setScrollFactor(0);
     const bg = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.8).setScrollFactor(0);
     root.add(bg);
-    
+
     const title = scene.add.text(960, 150, 'Ordena los pasos para sacar agua', {
         fontFamily: 'fredoka', fontSize: '46px', color: '#fce1b4', fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -1501,19 +1437,19 @@ export async function runOrdenarProcesoMinigame(id, options) {
     for (let i = 0; i < 5; i++) {
         const x = startX + (i * gapX);
         const y = dropY;
-        
+
         // Gráfico para que el jugador sepa dónde soltar
         const box = scene.add.graphics();
         box.lineStyle(4, 0x6f3515, 1);
         box.fillStyle(0x3f2f20, 0.6);
         box.fillRoundedRect(x - 100, y - 100, 200, 200, 16);
         box.strokeRoundedRect(x - 100, y - 100, 200, 200, 16);
-        
+
         // Número del paso
         const stepText = scene.add.text(x, y - 140, `Paso ${i + 1}`, {
             fontFamily: 'fredoka', fontSize: '28px', color: '#ffffff'
         }).setOrigin(0.5);
-        
+
         // La zona lógica de Phaser
         const dropZone = scene.add.zone(x, y, 200, 200).setRectangleDropZone(200, 200);
         dropZone.setScrollFactor(0);
@@ -1534,7 +1470,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
         // Contenedor visual del item
         const itemContainer = scene.add.container(startPosX, startPosY);
         itemContainer.setScrollFactor(0);
-        
+
         // Fondo del item
         const itemBg = scene.add.graphics();
         itemBg.fillStyle(0xf6eddc, 1);
@@ -1545,7 +1481,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
         // Imagen del item (Asegúrate de cargar: 'item-viento', 'item-aspas', etc.)
         const textureKey = scene.textures.exists(`item-${key}`) ? `item-${key}` : 'story-placeholder';
         const icon = scene.add.image(0, 0, textureKey).setOrigin(0.5);
-        
+
         // Ajustar tamaño del icono si es muy grande
         const fit = Math.min(120 / Math.max(1, icon.width), 120 / Math.max(1, icon.height));
         icon.setScale(fit);
@@ -1554,7 +1490,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
         itemContainer.setSize(160, 160); // Importante para que sea interactivo
         itemContainer.setInteractive({ useHandCursor: true });
         scene.input.setDraggable(itemContainer);
-        
+
         itemContainer.processKey = key;
         itemContainer.originalX = startPosX;
         itemContainer.originalY = startPosY;
@@ -1588,7 +1524,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
 
     const onDrop = (pointer, gameObject, dropZone) => {
         if (!draggables.includes(gameObject)) return;
-        
+
         // Si la zona ya tiene otra imagen, devolver la otra a su posición original superior
         draggables.forEach(other => {
             if (other !== gameObject && other.currentZone === dropZone) {
@@ -1606,7 +1542,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
 
     const onDragEnd = (pointer, gameObject, dropped) => {
         if (!draggables.includes(gameObject)) return;
-        
+
         if (!dropped) {
             // Volver a la posición inicial si no se soltó en una zona
             gameObject.x = gameObject.originalX;
@@ -1626,10 +1562,10 @@ export async function runOrdenarProcesoMinigame(id, options) {
 
         // Verificar si todas las zonas están ocupadas para proceder a validar
         const placedCount = draggables.filter(item => item.currentZone !== null).length;
-        
+
         if (placedCount === 5) {
             let isCorrect = true;
-            
+
             // Validar si el orden es el correcto
             draggables.forEach((item) => {
                 if (item.currentZone.expectedKey !== item.processKey) {
@@ -1641,21 +1577,21 @@ export async function runOrdenarProcesoMinigame(id, options) {
                 // Éxito: Todo verde
                 messageText.setText('¡Excelente! Has organizado correctamente el funcionamiento del molino.');
                 messageText.setColor('#9df0a8');
-                
+
                 draggables.forEach((item) => {
                     item.bgGraphics.clear();
-                item.bgGraphics.fillStyle(0xd9f4df, 1);
-                item.bgGraphics.fillRoundedRect(-80, -80, 160, 160, 16);
-                item.bgGraphics.lineStyle(6, 0x2b9348, 1);
-                item.bgGraphics.strokeRoundedRect(-80, -80, 160, 160, 16);
+                    item.bgGraphics.fillStyle(0xd9f4df, 1);
+                    item.bgGraphics.fillRoundedRect(-80, -80, 160, 160, 16);
+                    item.bgGraphics.lineStyle(6, 0x2b9348, 1);
+                    item.bgGraphics.strokeRoundedRect(-80, -80, 160, 160, 16);
                     item.disableInteractive(); // Bloquear movimiento
                 });
-                
+
                 scene.input.off('dragstart', onDragStart);
                 scene.input.off('drag', onDrag);
                 scene.input.off('drop', onDrop);
                 scene.input.off('dragend', onDragEnd);
-                
+
                 playUiSound(scene, 'success-bell', 0.8);
                 scene.time.delayedCall(2500, () => {
                     root.destroy(true);
@@ -1670,7 +1606,7 @@ export async function runOrdenarProcesoMinigame(id, options) {
                 // Error: Todo rojo
                 messageText.setText('El orden no es correcto. Inténtalo nuevamente.');
                 messageText.setColor('#ffb3b3');
-                
+
                 if (scene.cache.audio?.exists('wrong-option')) {
                     scene.sound.play('wrong-option', { volume: 0.7 });
                 }
@@ -1861,4 +1797,703 @@ export async function runInsertRodMinigame(id, options = []) {
         this.pauseButton.setVisible(true);
         if (pauseWasInteractive) this.pauseButton.setInteractive({ useHandCursor: true });
     }
+}
+
+const getSafeTexture = (scene, key) => {
+    if (key && scene.textures.exists(key)) return key;
+    if (scene.textures.exists('story-placeholder')) return 'story-placeholder';
+    return null;
+};
+
+const restoreMinigameUi = (runner, prevTopOnly, root, pauseWasInteractive) => {
+    const scene = runner.scene;
+    root?.destroy(true);
+    scene.input.setTopOnly(prevTopOnly);
+    if (runner.pauseButton) {
+        runner.pauseButton.setVisible(true);
+        if (pauseWasInteractive) runner.pauseButton.setInteractive({ useHandCursor: true });
+    }
+};
+
+const createChapter3Shell = async (runner, titleText, hintText) => {
+    const scene = runner.scene;
+    scene.input.enabled = true;
+    const prevTopOnly = scene.input.topOnly;
+    scene.input.setTopOnly(true);
+
+    let pauseWasInteractive = false;
+    if (runner.pauseButton) {
+        pauseWasInteractive = runner.pauseButton.input?.enabled ?? false;
+        runner.pauseButton.disableInteractive();
+        runner.pauseButton.setVisible(false);
+    }
+
+    const root = scene.add.container(0, 0).setDepth(2200).setScrollFactor(0);
+    const backdrop = scene.add.rectangle(960, 540, 1920, 1080, 0x000000, 0.76).setScrollFactor(0);
+    const panel = scene.add.graphics();
+    panel.fillStyle(0x1f1a16, 0.96);
+    panel.fillRoundedRect(170, 74, 1580, 900, 24);
+    panel.lineStyle(5, 0xfce1b4, 0.82);
+    panel.strokeRoundedRect(170, 74, 1580, 900, 24);
+
+    const title = scene.add.text(960, 126, titleText, {
+        fontFamily: 'fredoka',
+        fontSize: '42px',
+        color: '#fce1b4',
+        align: 'center',
+    }).setOrigin(0.5);
+    const hint = scene.add.text(960, 178, hintText, {
+        fontFamily: 'fredoka',
+        fontSize: '25px',
+        color: '#ffffff',
+        align: 'center',
+        wordWrap: { width: 1320 },
+    }).setOrigin(0.5);
+
+    root.add([backdrop, panel, title, hint]);
+    await runner.animateContainerIn(root);
+    return { scene, root, prevTopOnly, pauseWasInteractive };
+};
+
+export async function runClassifyToolsMinigame(id, options = []) {
+    const shell = await createChapter3Shell(
+        this,
+        'Clasifica herramientas y proteccion',
+        'Arrastra cada elemento a su grupo correcto.'
+    );
+    const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
+
+    const groups = {
+        tools: { label: 'Herramientas', x: 590, color: 0x4ea1ff },
+        safety: { label: 'Protección', x: 1330, color: 0x2b9348 },
+    };
+    const items = [
+        { key: 'item-pintura', label: 'Pintura', group: 'tools' },
+        { key: 'item-brocha', label: 'Brocha', group: 'tools' },
+        { key: 'item-aceite', label: 'Aceite', group: 'tools' },
+        { key: 'item-llave', label: 'Llave', group: 'tools' },
+        { key: 'item-cortatubos', label: 'Cortatubos', group: 'tools' },
+        { key: 'item-trapo', label: 'Trapo', group: 'tools' },
+        { key: 'item-cepillo', label: 'Cepillo', group: 'tools' },
+        { key: 'item-guantes', label: 'Guantes', group: 'safety' },
+        { key: 'item-gafas', label: 'Gafas', group: 'safety' },
+        { key: 'item-casco', label: 'Casco', group: 'safety' },
+        { key: 'item-botas', label: 'Botas', group: 'safety' },
+        { key: 'item-tapabocas', label: 'Tapabocas', group: 'safety' },
+    ];
+    const itemsStartX = 300;
+    const itemsSpacingX = 270;
+    const itemsRow1Y = 835;
+    const itemsRow2Y = 923;
+
+    const zoneGraphics = {};
+    const drawZone = (groupKey) => {
+        const group = groups[groupKey];
+        group.bounds = {
+            left: group.x - 310,
+            right: group.x + 310,
+            top: 255,
+            bottom: 775,
+        };
+        const frame = scene.add.graphics();
+        frame.fillStyle(0xfaf4e8, 1);
+        frame.fillRoundedRect(group.x - 310, 255, 620, 520, 18);
+        frame.lineStyle(5, group.color, 0.95);
+        frame.strokeRoundedRect(group.x - 310, 255, 620, 520, 18);
+
+        const label = scene.add.text(group.x, 230, group.label, {
+            fontFamily: 'fredoka',
+            fontSize: '34px',
+            color: '#ffffff',
+        }).setOrigin(0.5);
+        root.add([frame, label]);
+        zoneGraphics[groupKey] = { frame, label };
+        return group;
+    };
+
+    drawZone('tools');
+    drawZone('safety');
+    const zoneEntries = Object.entries(groups);
+    const cards = [];
+    items.forEach((item, index) => {
+        const x = itemsStartX + (index % 6) * itemsSpacingX;
+        const y = index < 6 ? itemsRow1Y : itemsRow2Y;
+        const card = scene.add.container(x, y).setSize(104, 78).setScrollFactor(0);
+        const bg = scene.add.graphics();
+        const render = (color = 0xf6eddc, stroke = 0x8a4b25) => {
+            bg.clear();
+            bg.fillStyle(color, 1);
+            bg.fillRoundedRect(-52, -39, 104, 78, 12);
+            bg.lineStyle(3, stroke, 0.95);
+            bg.strokeRoundedRect(-52, -39, 104, 78, 12);
+        };
+        render();
+        const textureKey = getSafeTexture(scene, item.key);
+        const icon = textureKey ? scene.add.image(0, -8, textureKey).setOrigin(0.5) : null;
+        if (icon) icon.setScale(Math.min(42 / Math.max(1, icon.width), 34 / Math.max(1, icon.height)));
+        const label = scene.add.text(0, 23, item.label, {
+            fontFamily: 'fredoka',
+            fontSize: '17px',
+            color: '#2f241e',
+            align: 'center',
+            wordWrap: { width: 92 },
+        }).setOrigin(0.5);
+        card.add([bg, ...(icon ? [icon] : []), label]);
+        card.expectedGroup = item.group;
+        card.originalX = x;
+        card.originalY = y;
+        card.render = render;
+        card.setInteractive({ useHandCursor: true });
+        scene.input.setDraggable(card);
+        root.add(card);
+        cards.push(card);
+    });
+
+    let correctCount = 0;
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+    const off = [];
+
+    let highlightedZone = null;
+    const clearZoneHighlight = () => {
+        if (highlightedZone) {
+            const g = groups[highlightedZone];
+            zoneGraphics[highlightedZone].frame.clear();
+            zoneGraphics[highlightedZone].frame.fillStyle(0xfaf4e8, 1);
+            zoneGraphics[highlightedZone].frame.fillRoundedRect(g.x - 310, 255, 620, 520, 18);
+            zoneGraphics[highlightedZone].frame.lineStyle(5, g.color, 0.95);
+            zoneGraphics[highlightedZone].frame.strokeRoundedRect(g.x - 310, 255, 620, 520, 18);
+            highlightedZone = null;
+        }
+    };
+
+    const onDrag = (pointer, gameObject, dragX, dragY) => {
+        if (!cards.includes(gameObject) || gameObject.locked) return;
+        gameObject.setPosition(dragX, dragY);
+        const over = getDropGroupKey(dragX, dragY);
+        if (over !== highlightedZone) {
+            clearZoneHighlight();
+            if (over) {
+                highlightedZone = over;
+                const g = groups[over];
+                zoneGraphics[over].frame.clear();
+                zoneGraphics[over].frame.fillStyle(0xe8f5e9, 1);
+                zoneGraphics[over].frame.fillRoundedRect(g.x - 310, 255, 620, 520, 18);
+                zoneGraphics[over].frame.lineStyle(6, 0x2b9348, 1);
+                zoneGraphics[over].frame.strokeRoundedRect(g.x - 310, 255, 620, 520, 18);
+            }
+        }
+    };
+    const getDropGroupKey = (x, y) => {
+        const entry = zoneEntries.find(([, group]) => (
+            x >= group.bounds.left &&
+            x <= group.bounds.right &&
+            y >= group.bounds.top &&
+            y <= group.bounds.bottom
+        ));
+        return entry?.[0] ?? null;
+    };
+    const getStoredPosition = (groupKey, placedIndex) => {
+        const group = groups[groupKey];
+        const col = placedIndex % 4;
+        const row = Math.floor(placedIndex / 4);
+        return {
+            x: group.bounds.left + 92 + col * 145,
+            y: group.bounds.top + 76 + row * 104,
+        };
+    };
+    const onDragEnd = (pointer, gameObject) => {
+        clearZoneHighlight();
+        if (!cards.includes(gameObject) || gameObject.locked) return;
+        const groupKey = getDropGroupKey(gameObject.x, gameObject.y);
+        if (!groupKey) {
+            gameObject.setPosition(gameObject.originalX, gameObject.originalY);
+            return;
+        }
+
+        if (gameObject.expectedGroup === groupKey) {
+            gameObject.locked = true;
+            gameObject.disableInteractive();
+            gameObject.render(0xd9f4df, 0x2b9348);
+            const placedIndex = cards.filter((card) => card.locked && card.expectedGroup === groupKey).length - 1;
+            const storedPosition = getStoredPosition(groupKey, placedIndex);
+            gameObject.setPosition(storedPosition.x, storedPosition.y);
+            correctCount += 1;
+            playUiSound(scene, 'success-bell', 0.35);
+            if (correctCount >= cards.length) scene.time.delayedCall(650, resolveDone);
+            return;
+        }
+        gameObject.render(0xffd9d9, 0xff4d4d);
+        playUiSound(scene, 'wrong-option', 0.65);
+        scene.time.delayedCall(400, () => {
+            if (!gameObject.destroyed) gameObject.render();
+        });
+        gameObject.setPosition(gameObject.originalX, gameObject.originalY);
+    };
+    scene.input.on('drag', onDrag);
+    scene.input.on('dragend', onDragEnd);
+    off.push(() => scene.input.off('drag', onDrag), () => scene.input.off('dragend', onDragEnd));
+
+    await donePromise;
+    off.forEach((fn) => fn());
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
+}
+
+export async function runCleanMillMinigame(id, options = []) {
+    const shell = await createChapter3Shell(
+        this,
+        'Limpia el molino',
+        'Toma el cepillo de la derecha y pasalo sobre la suciedad para limpiar el molino.'
+    );
+    const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
+
+    const dirtyKey = getSafeTexture(scene, 'molino-base');
+    const cleanKey = getSafeTexture(scene, 'molino_medio');
+    const brushKey = getSafeTexture(scene, 'cepillo');
+
+    if (!dirtyKey) {
+        restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
+        this.minigames.set(id, options[0] ?? 'respuesta1');
+        return;
+    }
+
+    const dirtyTex = scene.textures.get(dirtyKey);
+    const imgW = dirtyTex.getSourceImage().width;
+    const imgH = dirtyTex.getSourceImage().height;
+    const scale = Math.min(840 / Math.max(1, imgW), 630 / Math.max(1, imgH));
+    const dispW = Math.round(imgW * scale);
+    const dispH = Math.round(imgH * scale);
+
+    const millCenterX = 960;
+    const millCenterY = 520;
+
+    const cleanMill = scene.add.image(millCenterX, millCenterY, cleanKey || dirtyKey)
+        .setOrigin(0.5)
+        .setScale(scale);
+    root.add(cleanMill);
+
+    const overlayRt = scene.add.renderTexture(millCenterX, millCenterY, dispW, dispH);
+    overlayRt.setOrigin(0.5);
+    const tmp = scene.make.image({ key: dirtyKey, add: false });
+    tmp.setOrigin(0.5).setScale(scale);
+    overlayRt.draw(tmp, dispW / 2, dispH / 2);
+    tmp.destroy();
+    root.add(overlayRt);
+
+    const brushSize = 40;
+    const gridCellSize = 30;
+    const gridCols = Math.max(1, Math.ceil(dispW / gridCellSize));
+    const gridRows = Math.max(1, Math.ceil(dispH / gridCellSize));
+    const gridCleaned = new Array(gridCols * gridRows).fill(false);
+    let totalCleaned = 0;
+
+    const brushCursor = brushKey
+        ? scene.add.image(0, 0, brushKey).setOrigin(0.5).setScrollFactor(0).setDepth(2350).setScale(0.25)
+        : scene.add.text(0, 0, '🧹', { fontSize: '36px' }).setOrigin(0.5).setScrollFactor(0).setDepth(2350);
+    brushCursor.setAlpha(0);
+
+    const sideBrushX = millCenterX + dispW / 2 + 100;
+    const sideBrushY = millCenterY + 20;
+    const sideBrushScale = 0.35;
+    const sideBrush = scene.add.image(sideBrushX, sideBrushY, brushKey || 'cepillo')
+        .setOrigin(0.5)
+        .setScale(0)
+        .setDepth(2350)
+        .setInteractive({ useHandCursor: true });
+    scene.tweens.add({
+        targets: sideBrush,
+        scale: sideBrushScale,
+        duration: 550,
+        ease: 'Back.easeOut',
+    });
+    scene.tweens.add({
+        targets: sideBrush,
+        y: sideBrushY - 8,
+        duration: 1200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+    });
+
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+    let finished = false;
+    let painting = false;
+    let brushGrabbed = false;
+    let lastEraseX = -9999;
+    let lastEraseY = -9999;
+
+    const progress = scene.add.text(960, 870, 'Limpieza: 0%', {
+        fontFamily: 'fredoka', fontSize: '28px', color: '#ffffff',
+    }).setOrigin(0.5);
+    root.add(progress);
+
+    const eraseShape = scene.make.graphics({ add: false });
+    eraseShape.fillStyle(0x000000, 1);
+
+    const updateProgress = () => {
+        if (finished) return;
+        const pct = Math.min(100, Math.round((totalCleaned / (gridCols * gridRows)) * 100));
+        progress.setText(`Limpieza: ${pct}%`);
+        if (pct >= 85) {
+            finished = true;
+            brushCursor.destroy();
+            if (sideBrush && !sideBrush.destroyed) sideBrush.destroy();
+            scene.input.setDefaultCursor('default');
+            progress.setColor('#9df0a8');
+            progress.setText('¡Molino limpio!');
+            playUiSound(scene, 'success-bell', 0.65);
+            scene.time.delayedCall(700, resolveDone);
+        }
+    };
+
+    const eraseAt = (px, py) => {
+        if (finished) return;
+        const dist = Phaser.Math.Distance.Between(px, py, lastEraseX, lastEraseY);
+        if (dist < 8) return;
+        lastEraseX = px;
+        lastEraseY = py;
+
+        const localX = Math.round(px - (millCenterX - dispW / 2));
+        const localY = Math.round(py - (millCenterY - dispH / 2));
+        if (localX < -brushSize || localY < -brushSize || localX > dispW + brushSize || localY > dispH + brushSize) return;
+
+        eraseShape.clear();
+        eraseShape.fillCircle(0, 0, brushSize);
+        overlayRt.erase(eraseShape, localX, localY);
+
+        const minC = Math.max(0, Math.floor((localX - brushSize) / gridCellSize));
+        const maxC = Math.min(gridCols - 1, Math.floor((localX + brushSize) / gridCellSize));
+        const minR = Math.max(0, Math.floor((localY - brushSize) / gridCellSize));
+        const maxR = Math.min(gridRows - 1, Math.floor((localY + brushSize) / gridCellSize));
+        let newCells = 0;
+        for (let c = minC; c <= maxC; c++) {
+            for (let r = minR; r <= maxR; r++) {
+                const idx = r * gridCols + c;
+                if (!gridCleaned[idx]) {
+                    gridCleaned[idx] = true;
+                    newCells++;
+                }
+            }
+        }
+        if (newCells > 0) {
+            totalCleaned += newCells;
+            updateProgress();
+        }
+    };
+
+    const onDown = (pointer) => {
+        if (finished || !brushGrabbed) return;
+        painting = true;
+        brushCursor.setPosition(pointer.x, pointer.y);
+        eraseAt(pointer.x, pointer.y);
+    };
+    const onMove = (pointer) => {
+        if (finished || !brushGrabbed) return;
+        brushCursor.setPosition(pointer.x, pointer.y);
+        if (painting) eraseAt(pointer.x, pointer.y);
+    };
+    const onUp = () => {
+        painting = false;
+    };
+
+    sideBrush.on('pointerdown', (pointer) => {
+        if (finished) return;
+        brushGrabbed = true;
+        scene.tweens.killTweensOf(sideBrush);
+        sideBrush.destroy();
+        brushCursor.setAlpha(1).setPosition(pointer.x, pointer.y);
+        scene.input.setDefaultCursor('none');
+    });
+
+    scene.input.on('pointerdown', onDown);
+    scene.input.on('pointermove', onMove);
+    scene.input.on('pointerup', onUp);
+
+    scene.events.on('shutdown', () => {
+        scene.input.off('pointerdown', onDown);
+        scene.input.off('pointermove', onMove);
+        scene.input.off('pointerup', onUp);
+        scene.input.setDefaultCursor('default');
+        if (overlayRt && !overlayRt.destroyed) overlayRt.destroy();
+        if (eraseShape && !eraseShape.destroyed) eraseShape.destroy();
+    });
+
+    await donePromise;
+    if (scene.molinoBase && !scene.molinoBase.destroyed) {
+        const mx = scene.molinoBase.x;
+        const my = scene.molinoBase.y;
+        const ms = scene.molinoBase.scaleX;
+        scene.molinoBase.destroy();
+        const medioKey = getSafeTexture(scene, 'molino_medio');
+        scene.molinoBase = scene.add.image(mx, my, medioKey || 'molino-base').setOrigin(0, 0).setScale(ms);
+        scene.molinoBase.setDepth(120);
+    }
+    scene.input.off('pointerdown', onDown);
+    scene.input.off('pointermove', onMove);
+    scene.input.off('pointerup', onUp);
+    scene.input.setDefaultCursor('default');
+    if (overlayRt && !overlayRt.destroyed) overlayRt.destroy();
+    if (eraseShape && !eraseShape.destroyed) eraseShape.destroy();
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
+}
+
+export async function runPaintMillMinigame(id, options = []) {
+    const shell = await createChapter3Shell(
+        this,
+        'Pinta las zonas oxidadas',
+        'Arrastra la brocha sobre las areas con oxido para proteger el metal.'
+    );
+    const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
+
+    const textureKey = getSafeTexture(scene, 'molinoDanado');
+    const mill = textureKey ? scene.add.image(960, 520, textureKey).setOrigin(0.5) : scene.add.graphics();
+    if (textureKey) {
+        mill.setScale(Math.min(920 / Math.max(1, mill.width), 713 / Math.max(1, mill.height)));
+    } else {
+        mill.lineStyle(10, 0xcbd5e1, 1);
+        mill.lineBetween(860, 760, 960, 335);
+        mill.lineBetween(1060, 760, 960, 335);
+        mill.strokeCircle(960, 335, 58);
+        mill.lineBetween(960, 335, 960, 215);
+        mill.lineBetween(960, 335, 1080, 335);
+        mill.lineBetween(960, 335, 960, 455);
+        mill.lineBetween(960, 335, 840, 335);
+    }
+    root.add(mill);
+
+    const rustZones = [
+        { x: 830, y: 620, color: 0x8B3A0A, size: 42 },
+        { x: 960, y: 640, color: 0xA0522D, size: 38 },
+        { x: 1070, y: 610, color: 0x8B4513, size: 40 },
+        { x: 890, y: 400, color: 0xCD5C2A, size: 35 },
+        { x: 1030, y: 395, color: 0x8B3A0A, size: 36 },
+        { x: 870, y: 290, color: 0xA0522D, size: 30 },
+        { x: 990, y: 285, color: 0x8B4513, size: 32 },
+    ];
+    const targets = rustZones.map((zone) => {
+        const con = scene.add.container(zone.x, zone.y);
+        const rustColor = zone.color;
+        const main = scene.add.circle(0, 0, zone.size, rustColor, 0.85)
+            .setStrokeStyle(3, Phaser.Display.Color.ValueToColor(rustColor).darken(25).color, 0.6);
+        const flakes = [];
+        const flakeCount = Phaser.Math.Between(2, 4);
+        for (let i = 0; i < flakeCount; i++) {
+            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            const dist = Phaser.Math.Between(6, zone.size * 0.5);
+            const fs = Phaser.Math.Between(5, zone.size * 0.3);
+            const fc = Phaser.Display.Color.ObjectToColor({
+                r: Phaser.Math.Between(180, 220),
+                g: Phaser.Math.Between(60, 100),
+                b: Phaser.Math.Between(10, 40),
+            }).color;
+            flakes.push(scene.add.circle(
+                Math.cos(angle) * dist, Math.sin(angle) * dist, fs, fc, 0.7
+            ));
+        }
+        con.add([main, ...flakes]);
+        root.add(con);
+        return { con, painted: false, x: zone.x, y: zone.y, radius: zone.size + 16 };
+    });
+
+    const brushIcon = scene.add.text(0, 0, '🖌️', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(2300);
+    const paintSplash = scene.add.circle(0, 0, 20, 0x4ea1ff, 0.9).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(2300);
+
+    const progress = scene.add.text(960, 870, `Zonas con oxido: ${targets.length}`, {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#ffffff',
+    }).setOrigin(0.5);
+    root.add(progress);
+
+    let painted = 0;
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+
+    let pressing = false;
+    const onDown = (pointer) => {
+        pressing = true;
+        brushIcon.setPosition(pointer.x, pointer.y);
+        brushIcon.setAlpha(0.9);
+        paintTarget(pointer.x, pointer.y);
+    };
+    const onMove = (pointer) => {
+        brushIcon.setPosition(pointer.x, pointer.y);
+        if (pressing) paintTarget(pointer.x, pointer.y);
+    };
+    const onUp = () => {
+        pressing = false;
+        brushIcon.setAlpha(0);
+    };
+
+    const paintTarget = (x, y) => {
+        targets.forEach((target) => {
+            if (target.painted) return;
+            const dist = Phaser.Math.Distance.Between(x, y, target.x, target.y);
+            if (dist > target.radius) return;
+            target.painted = true;
+            painted += 1;
+            target.con.destroy();
+            paintSplash.setPosition(x, y);
+            paintSplash.setAlpha(1).setScale(0.5);
+            scene.tweens.add({
+                targets: paintSplash,
+                scale: 2,
+                alpha: 0,
+                duration: 400,
+                ease: 'Sine.out',
+            });
+            progress.setText(`Zonas con oxido: ${targets.length - painted}`);
+            playUiSound(scene, 'pop', 0.35);
+            if (painted >= targets.length) {
+                progress.setColor('#9df0a8');
+                progress.setText('¡Molino protegido!');
+                brushIcon.destroy();
+                playUiSound(scene, 'success-bell', 0.65);
+                scene.time.delayedCall(750, resolveDone);
+            }
+        });
+    };
+
+    scene.input.on('pointerdown', onDown);
+    scene.input.on('pointermove', onMove);
+    scene.input.on('pointerup', onUp);
+
+    await donePromise;
+    scene.input.off('pointerdown', onDown);
+    scene.input.off('pointermove', onMove);
+    scene.input.off('pointerup', onUp);
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
+}
+
+export async function runLubricateMillMinigame(id, options = []) {
+    const shell = await createChapter3Shell(
+        this,
+        'Lubrica ejes y engranajes',
+        'Toca cada punto seco (amarillo) para aplicar aceite lubricante.'
+    );
+    const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
+
+    const textureKey = getSafeTexture(scene, 'molinoDanado');
+    const mill = textureKey
+        ? scene.add.image(960, 520, textureKey).setOrigin(0.5)
+        : scene.add.graphics();
+    if (textureKey) {
+        mill.setScale(Math.min(920 / Math.max(1, mill.width), 713 / Math.max(1, mill.height)));
+    } else {
+        const frame = scene.add.graphics();
+        frame.lineStyle(10, 0xcbd5e1, 1);
+        frame.lineBetween(860, 760, 960, 335);
+        frame.lineBetween(1060, 760, 960, 335);
+        frame.strokeCircle(960, 335, 60);
+        frame.lineBetween(960, 335, 840, 455);
+        frame.lineBetween(960, 335, 1080, 455);
+        frame.strokeRect(900, 610, 120, 120);
+        root.add(frame);
+    }
+    root.add(mill);
+
+    const points = [
+        { x: 820, y: 450, label: 'Eje izquierdo' },
+        { x: 960, y: 340, label: 'Engranaje central' },
+        { x: 1090, y: 450, label: 'Eje derecho' },
+        { x: 960, y: 620, label: 'Bomba' },
+    ];
+
+    let completed = 0;
+    let resolveDone;
+    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+
+    const progress = scene.add.text(960, 880, `Puntos por lubricar: ${points.length}`, {
+        fontFamily: 'fredoka',
+        fontSize: '28px',
+        color: '#ffffff',
+    }).setOrigin(0.5);
+    root.add(progress);
+
+    points.forEach((point) => {
+        const oilPoint = scene.add.container(point.x, point.y).setSize(116, 116);
+
+        const outerRing = scene.add.circle(0, 0, 52, 0xf6da3f, 0.4).setStrokeStyle(3, 0x8a4b25, 0.8);
+        const innerCircle = scene.add.circle(0, 0, 36, 0xf6da3f, 0.85).setStrokeStyle(3, 0xd97706, 1);
+
+        const dryIcon = scene.add.text(0, -2, '⚙️', {
+            fontSize: '32px',
+        }).setOrigin(0.5);
+
+        const label = scene.add.text(0, 72, point.label, {
+            fontFamily: 'fredoka',
+            fontSize: '20px',
+            color: '#ffffff',
+            align: 'center',
+            wordWrap: { width: 170 },
+        }).setOrigin(0.5);
+
+        oilPoint.add([outerRing, innerCircle, dryIcon, label]);
+        oilPoint.setInteractive({ useHandCursor: true });
+        UIHelpers.attachHoverPop(scene, oilPoint, 0.25);
+
+        const pulseTween = scene.tweens.add({
+            targets: outerRing,
+            scale: 1.12,
+            alpha: 0.6,
+            duration: 700,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+        });
+
+        oilPoint.on('pointerdown', function () {
+            if (this.done) return;
+            this.done = true;
+            completed += 1;
+            pulseTween.stop();
+            outerRing.setScale(1).setAlpha(0);
+
+            const oilDrop = scene.add.text(point.x, point.y - 30, '💧', {
+                fontSize: '40px',
+            }).setOrigin(0.5);
+            root.add(oilDrop);
+            scene.tweens.add({
+                targets: oilDrop,
+                y: point.y + 30,
+                alpha: 0,
+                scale: 0.3,
+                duration: 500,
+                ease: 'Sine.in',
+                onComplete: () => oilDrop.destroy(),
+            });
+
+            scene.tweens.add({
+                targets: innerCircle,
+                scale: 1.25,
+                duration: 150,
+                ease: 'Back.Out',
+                onComplete: () => {
+                    innerCircle.setFillStyle(0x9df0a8, 0.9);
+                    innerCircle.setStrokeStyle(3, 0x2b9348, 1);
+                    dryIcon.setText('✅');
+                },
+            });
+
+            playUiSound(scene, 'success-bell', 0.35);
+            progress.setText(`Puntos por lubricar: ${points.length - completed}`);
+
+            if (completed >= points.length) {
+                progress.setColor('#9df0a8');
+                progress.setText('¡Todo lubricado!');
+                playUiSound(scene, 'success-bell', 0.65);
+                scene.time.delayedCall(700, resolveDone);
+            }
+        });
+
+        root.add(oilPoint);
+    });
+
+    await donePromise;
+    this.minigames.set(id, options[0] ?? 'respuesta1');
+    restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
 }
