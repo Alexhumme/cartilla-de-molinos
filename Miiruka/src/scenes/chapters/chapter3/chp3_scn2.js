@@ -31,18 +31,18 @@ export class Chp3_scn2 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
 
-        this.load.image('item-pintura', 'assets/items/pintura.png');
-        this.load.image('item-brocha', 'assets/items/brocha.png');
-        this.load.image('item-aceite', 'assets/items/aceite.png');
-        this.load.image('item-llave', 'assets/items/llave.png');
-        this.load.image('item-cortatubos', 'assets/items/cortatubos.png');
-        this.load.image('item-trapo', 'assets/items/trapo.png');
-        this.load.image('item-cepillo', 'assets/items/cepillo.png');
-        this.load.image('item-guantes', 'assets/items/guantes.png');
-        this.load.image('item-gafas', 'assets/items/gafas.png');
-        this.load.image('item-casco', 'assets/items/casco.png');
-        this.load.image('item-botas', 'assets/items/botas.png');
-        this.load.image('item-tapabocas', 'assets/items/tapabocas.png');
+        this.load.image('item-pintura', 'assets/juegos/clasificar_tools/Pintura.png');
+        this.load.image('item-brocha', 'assets/juegos/clasificar_tools/brocha.png');
+        this.load.image('item-aceite', 'assets/juegos/clasificar_tools/aceite.png');
+        this.load.image('item-llave', 'assets/juegos/clasificar_tools/llave.png');
+        this.load.image('item-cortatubos', 'assets/juegos/clasificar_tools/cortatubos.png');
+        this.load.image('item-trapo', 'assets/juegos/clasificar_tools/trapo.png');
+        this.load.image('item-cepillo', 'assets/juegos/clasificar_tools/cepillo.png');
+        this.load.image('item-guantes', 'assets/juegos/clasificar_tools/guantes.png');
+        this.load.image('item-gafas', 'assets/juegos/clasificar_tools/gafas.png');
+        this.load.image('item-casco', 'assets/juegos/clasificar_tools/casco.png');
+        this.load.image('item-botas', 'assets/juegos/clasificar_tools/botas.png');
+        this.load.image('item-tapabocas', 'assets/juegos/clasificar_tools/tapabocas.png');
 
         this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);

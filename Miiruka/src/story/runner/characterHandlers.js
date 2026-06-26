@@ -108,6 +108,9 @@ export function getCharacterTarget(name, direction) {
     if (normalized === 'kai') {
         return { x: 480, y: 180 };
     }
+    if (normalized === 'martin') {
+        return { x: 600, y: 180 };
+    }
     return { x: 30, y: 180 };
 }
 

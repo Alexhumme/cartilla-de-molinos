@@ -31,9 +31,9 @@ export class Chp3_scn3 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
 
-        this.load.image('item-polvo-engranes', 'assets/items/item-polvo-engranes.png');
-        this.load.image('item-sol-metal', 'assets/items/item-sol-metal.png');
-        this.load.image('item-aspas-viento', 'assets/items/item-aspas-viento.png');
+        this.load.image('item-polvo-engranes', 'assets/items/cepillo_limpiando.png');
+        this.load.image('item-sol-metal', 'assets/items/llave_ajustando.png');
+        this.load.image('item-aspas-viento', 'assets/items/pintando.png');
 
         this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
