@@ -2048,7 +2048,7 @@ export async function runCleanMillMinigame(id, options = []) {
     );
     const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
 
-    const dirtyKey = getSafeTexture(scene, 'molino-base');
+    const dirtyKey = getSafeTexture(scene, 'molino-danado');
     const cleanKey = getSafeTexture(scene, 'molino_medio');
     const brushKey = getSafeTexture(scene, 'cepillo');
 
@@ -2227,8 +2227,17 @@ export async function runCleanMillMinigame(id, options = []) {
         const ms = scene.molinoBase.scaleX;
         scene.molinoBase.destroy();
         const medioKey = getSafeTexture(scene, 'molino_medio');
-        scene.molinoBase = scene.add.image(mx, my, medioKey || 'molino-base').setOrigin(0, 0).setScale(ms);
+        scene.molinoBase = scene.add.image(mx, my, medioKey || 'molino_medio').setOrigin(0, 0).setScale(ms);
         scene.molinoBase.setDepth(120);
+    }
+    if (scene.molinoDanado && !scene.molinoDanado.destroyed) {
+        const mx = scene.molinoDanado.x;
+        const my = scene.molinoDanado.y;
+        const ms = scene.molinoDanado.scaleX;
+        scene.molinoDanado.destroy();
+        const medioKey = getSafeTexture(scene, 'molino_medio');
+        scene.molinoDanado = scene.add.image(mx, my, medioKey || 'molino_medio').setOrigin(0, 0).setScale(ms);
+        scene.molinoDanado.setDepth(120);
     }
     scene.input.off('pointerdown', onDown);
     scene.input.off('pointermove', onMove);
@@ -2241,130 +2250,615 @@ export async function runCleanMillMinigame(id, options = []) {
 }
 
 export async function runPaintMillMinigame(id, options = []) {
+    // ─── Shell ───────────────────────────────────────────────────────────────
     const shell = await createChapter3Shell(
         this,
-        'Pinta las zonas oxidadas',
-        'Arrastra la brocha sobre las areas con oxido para proteger el metal.'
+        'Restaura las partes del molino',
+        'Elige un color y pinta cada pieza con la brocha.'
     );
     const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
+    const wait = (ms) => new Promise(r => scene.time.delayedCall(ms, r));
 
-    const textureKey = getSafeTexture(scene, 'molinoDanado');
-    const mill = textureKey ? scene.add.image(960, 520, textureKey).setOrigin(0.5) : scene.add.graphics();
-    if (textureKey) {
-        mill.setScale(Math.min(920 / Math.max(1, mill.width), 713 / Math.max(1, mill.height)));
-    } else {
-        mill.lineStyle(10, 0xcbd5e1, 1);
-        mill.lineBetween(860, 760, 960, 335);
-        mill.lineBetween(1060, 760, 960, 335);
-        mill.strokeCircle(960, 335, 58);
-        mill.lineBetween(960, 335, 960, 215);
-        mill.lineBetween(960, 335, 1080, 335);
-        mill.lineBetween(960, 335, 960, 455);
-        mill.lineBetween(960, 335, 840, 335);
-    }
-    root.add(mill);
-
-    const rustZones = [
-        { x: 830, y: 620, color: 0x8B3A0A, size: 42 },
-        { x: 960, y: 640, color: 0xA0522D, size: 38 },
-        { x: 1070, y: 610, color: 0x8B4513, size: 40 },
-        { x: 890, y: 400, color: 0xCD5C2A, size: 35 },
-        { x: 1030, y: 395, color: 0x8B3A0A, size: 36 },
-        { x: 870, y: 290, color: 0xA0522D, size: 30 },
-        { x: 990, y: 285, color: 0x8B4513, size: 32 },
+    // ─── Palette colors ───────────────────────────────────────────────────────
+    const COLORS = [
+        { key: 'naranja', label: 'Naranja', fill: 0xFF8C42, stroke: 0xD4762D },
+        { key: 'marron',  label: 'Marrón',  fill: 0x7D4E2D, stroke: 0x4A2A12 },
+        { key: 'beige',   label: 'Beige',   fill: 0xD9BA96, stroke: 0xB08060 },
     ];
-    const targets = rustZones.map((zone) => {
-        const con = scene.add.container(zone.x, zone.y);
-        const rustColor = zone.color;
-        const main = scene.add.circle(0, 0, zone.size, rustColor, 0.85)
-            .setStrokeStyle(3, Phaser.Display.Color.ValueToColor(rustColor).darken(25).color, 0.6);
-        const flakes = [];
-        const flakeCount = Phaser.Math.Between(2, 4);
-        for (let i = 0; i < flakeCount; i++) {
+
+    // ─── Layout & erase constants ─────────────────────────────────────────────
+    const BRUSH_SIZE = 30;
+    const GRID_CELL  = 16;
+    const SINGLE_CX  = 845;   // center X of the single-part display area
+    const SINGLE_CY  = 490;   // center Y
+    const MAX_PART_W = 680;   // max display width for a part
+    const MAX_PART_H = 500;   // max display height for a part
+    const NAV_Y      = SINGLE_CY;
+    const NAV_L_X    = 210;   // left arrow button center X
+    const NAV_R_X    = 1480;  // right arrow button center X
+    const NAV_R      = 40;    // click hit radius for nav buttons
+    // aspas & rotor display size: same fixed diameter so they look identical in size
+    const ASPAS_DIAM  = Math.round(Math.min(MAX_PART_W, MAX_PART_H) * 0.90);
+
+    // ─── Parts definition ─────────────────────────────────────────────────────
+    const PARTS_DEF = [
+        { id:'torre',  label:'Torre',  damageKey:'parte_Torre_medio',  cleanKey:'parte_Torre',  correctColor:'naranja', coverageThreshold:0.32 },
+        { id:'aspas',  label:'Aspas',  damageKey:'parte_Aspas_medio',  cleanKey:'parte_Aspas',  correctColor:'beige',   coverageThreshold:0.55 },
+        { id:'rotor',  label:'Rotor',  damageKey:'parte_Rotor_medio',  cleanKey:'parte_Rotor',  correctColor:'marron',  coverageThreshold:0.61 },
+        { id:'veleta', label:'Veleta', damageKey:'parte_Veleta_medio', cleanKey:'parte_Veleta', correctColor:'beige',   coverageThreshold:0.30 },
+        { id:'bomba',  label:'Bomba',  damageKey:'parte_bomba_medio',  cleanKey:'parte_bomba',  correctColor:'beige',   coverageThreshold:0.15 },
+    ];
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let selectedColor  = null;
+    let painting       = false;
+    let completedCount = 0;
+    let currentPartIdx = 0;
+    let brushGrabbed   = false;
+    let resolveDone;
+    const donePromise = new Promise(r => { resolveDone = r; });
+    const eraseShape  = scene.make.graphics({ add: false });
+
+    // ─── Brush cursor (brocha → cepillo → círculo) ────────────────────────────
+    const brushKey = scene.textures.exists('brocha')  ? 'brocha'
+                   : scene.textures.exists('cepillo') ? 'cepillo'
+                   : null;
+    const brushDot = brushKey
+        ? scene.add.image(0, 0, brushKey)
+            .setOrigin(0.2, 0.9).setScale(0.28)   // origin near bristle tip
+            .setScrollFactor(0).setDepth(2350).setAlpha(0)
+        : scene.add.circle(0, 0, BRUSH_SIZE * 0.5, 0xffffff, 0.55)
+            .setScrollFactor(0).setDepth(2350).setAlpha(0);
+    // brushDot is added to root AFTER all other children so it renders on top
+
+    // ─── Feedback objects ─────────────────────────────────────────────────────
+    const wrongMsg = scene.add.text(SINGLE_CX, 290, '', {
+        fontFamily: 'fredoka', fontSize: '26px', color: '#ff7b7b',
+        stroke: '#1a1208', strokeThickness: 4,
+    }).setOrigin(0.5).setAlpha(0).setDepth(2365);
+    root.add(wrongMsg);
+
+    const POOL_SIZE = 28;
+    const splashPool = Array.from({ length: POOL_SIZE }, () =>
+        scene.add.circle(0, 0, Phaser.Math.Between(3, 8), 0xffffff, 0.85)
+            .setAlpha(0).setDepth(2355)
+    );
+    splashPool.forEach(d => root.add(d));
+    let splashIdx = 0;
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    function srcSize(key) {
+        const s = scene.textures.get(key).getSourceImage();
+        return { w: s.width, h: s.height };
+    }
+
+    function hitTestPart(p, wx, wy) {
+        // Full bounding box for all parts — allows painting the entire image
+        return wx >= p.overlayLeft - 4 && wx <= p.overlayLeft + p.dispW + 4 &&
+               wy >= p.overlayTop  - 4 && wy <= p.overlayTop  + p.dispH + 4;
+    }
+
+    function getPartAt(wx, wy) {
+        const p = parts[currentPartIdx];
+        if (!p || p.completed) return null;
+        return hitTestPart(p, wx, wy) ? p : null;
+    }
+
+    function spawnSplash(wx, wy, fill) {
+        for (let i = 0; i < 5; i++) {
+            const dot   = splashPool[splashIdx++ % POOL_SIZE];
             const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-            const dist = Phaser.Math.Between(6, zone.size * 0.5);
-            const fs = Phaser.Math.Between(5, zone.size * 0.3);
-            const fc = Phaser.Display.Color.ObjectToColor({
-                r: Phaser.Math.Between(180, 220),
-                g: Phaser.Math.Between(60, 100),
-                b: Phaser.Math.Between(10, 40),
-            }).color;
-            flakes.push(scene.add.circle(
-                Math.cos(angle) * dist, Math.sin(angle) * dist, fs, fc, 0.7
-            ));
+            const dist  = Phaser.Math.Between(6, 28);
+            dot.setPosition(wx + Math.cos(angle) * dist, wy + Math.sin(angle) * dist)
+               .setFillStyle(fill, 0.85).setScale(Phaser.Math.FloatBetween(0.5, 1.4)).setAlpha(1);
+            scene.tweens.add({
+                targets: dot, alpha: 0, duration: 400,
+                delay: Phaser.Math.Between(0, 60), ease: 'Sine.out',
+            });
         }
-        con.add([main, ...flakes]);
-        root.add(con);
-        return { con, painted: false, x: zone.x, y: zone.y, radius: zone.size + 16 };
+    }
+
+    function eraseAt(p, wx, wy) {
+        const lx = wx - p.overlayLeft;
+        const ly = wy - p.overlayTop;
+        if (lx < -BRUSH_SIZE || ly < -BRUSH_SIZE || lx > p.dispW + BRUSH_SIZE || ly > p.dispH + BRUSH_SIZE) return;
+        eraseShape.clear();
+        eraseShape.fillCircle(0, 0, BRUSH_SIZE);
+        p.overlay.erase(eraseShape, lx, ly);
+        const minC = Math.max(0, Math.floor((lx - BRUSH_SIZE) / GRID_CELL));
+        const maxC = Math.min(p.gCols - 1, Math.floor((lx + BRUSH_SIZE) / GRID_CELL));
+        const minR = Math.max(0, Math.floor((ly - BRUSH_SIZE) / GRID_CELL));
+        const maxR = Math.min(p.gRows - 1, Math.floor((ly + BRUSH_SIZE) / GRID_CELL));
+        let newCells = 0;
+        for (let c = minC; c <= maxC; c++) {
+            for (let r = minR; r <= maxR; r++) {
+                const idx = r * p.gCols + c;
+                if (!p.gridCleaned[idx]) { p.gridCleaned[idx] = true; newCells++; }
+            }
+        }
+        if (newCells > 0) {
+            p.cleanedCells += newCells;
+            updateProgress(p);
+        }
+    }
+
+    function updateProgress(p) {
+        const denom = Math.max(1, (p.totalOpaqueCells || p.totalCells || 1) * (p.coverageThreshold || 1));
+        const displayPct = Math.min(100, Math.round((p.cleanedCells / denom) * 100));
+        if (parts[currentPartIdx] === p) updatePartInfoText();
+        if (displayPct >= 100 && !p.completed) completePart(p);
+    }
+
+    function shakePart(p) {
+        if (p._shaking) return;
+        p._shaking = true;
+        const ox = p.restored.x, oox = p.overlay.x;
+        scene.tweens.add({
+            targets: p.restored, x: ox + 7, yoyo: true, repeat: 4, duration: 38,
+            onComplete: () => { p.restored.setX(ox); p._shaking = false; },
+        });
+        scene.tweens.add({
+            targets: p.overlay, x: oox + 7, yoyo: true, repeat: 4, duration: 38,
+            onComplete: () => p.overlay.setX(oox),
+        });
+    }
+
+    function showWrongMsg(msg, wx, wy) {
+        const baseY = Math.max(130, wy - 45);
+        wrongMsg.setText(msg).setPosition(wx, baseY).setAlpha(1);
+        scene.tweens.killTweensOf(wrongMsg);
+        scene.tweens.add({
+            targets: wrongMsg, alpha: 0, y: baseY - 55, duration: 1200, ease: 'Sine.out',
+            onComplete: () => wrongMsg.setY(baseY),
+        });
+    }
+
+    function selectColor(c) {
+        selectedColor = c.key;
+        COLORS.forEach(cc => { if (cc._swatch) cc._swatch.setStrokeStyle(3, cc.stroke); });
+        c._swatch.setStrokeStyle(5, 0xffffff);
+    }
+
+    function paintPart(wx, wy) {
+        const p = getPartAt(wx, wy);
+        if (!p) return;
+        if (!selectedColor) {
+            showWrongMsg('Primero elige un color', SINGLE_CX, SINGLE_CY - 80);
+            return;
+        }
+        if (!brushGrabbed) {
+            showWrongMsg('Toma la brocha para pintar', SINGLE_CX, SINGLE_CY - 80);
+            return;
+        }
+        if (selectedColor !== p.correctColor) {
+            showWrongMsg('Ese no es el color correcto', wx, wy);
+            shakePart(p);
+            return;
+        }
+        const fill = COLORS.find(c => c.key === selectedColor)?.fill ?? 0xffffff;
+        eraseAt(p, wx, wy);
+        if (painting) spawnSplash(wx, wy, fill);
+    }
+
+    // ─── Navigation helpers ───────────────────────────────────────────────────
+
+    function updatePartInfoText() {
+        if (!partInfoText || partInfoText.destroyed) return;
+        const p = parts[currentPartIdx];
+        if (!p) return;
+        const denom = Math.max(1, (p.totalOpaqueCells || p.totalCells || 1) * (p.coverageThreshold || 1));
+        const pct = Math.min(100, Math.round((p.cleanedCells / denom) * 100));
+        const status = p.completed ? '✓ Listo' : `${pct}%`;
+        partInfoText.setText(`${p.label}  ·  ${currentPartIdx + 1} de ${parts.length}  ·  ${status}`);
+    }
+
+    function updateDots() {
+        if (!dots || dots.length === 0) return;
+        dots.forEach((d, i) => {
+            const p = parts[i];
+            if (p.completed)            d.setFillStyle(0x9df0a8, 1).setAlpha(1);
+            else if (i === currentPartIdx) d.setFillStyle(0xfce1b4, 1).setAlpha(1);
+            else                        d.setFillStyle(0x5a4535, 1).setAlpha(0.6);
+        });
+    }
+
+    function showPart(idx) {
+        parts.forEach((p, i) => {
+            const v = (i === idx);
+            if (p.restored && !p.restored.destroyed) p.restored.setVisible(v);
+            if (p.overlay  && !p.overlay.destroyed)  p.overlay.setVisible(v);
+        });
+        currentPartIdx = idx;
+        updatePartInfoText();
+        updateDots();
+        updateNavState();
+    }
+
+    function navigate(dir) {
+        const cur = parts[currentPartIdx];
+        if (cur && !cur.completed) { showWrongMsg('Termina de pintar la pieza antes de avanzar', SINGLE_CX, SINGLE_CY - 80); playUiSound(scene, 'wrong', 0.25); return; }
+        const idx = (currentPartIdx + dir + parts.length) % parts.length;
+        showPart(idx);
+        playUiSound(scene, 'pop', 0.3);
+        const btn = dir < 0 ? navLeft : navRight;
+        if (btn && !btn.destroyed) {
+            scene.tweens.add({ targets: btn, scaleX: 1.25, scaleY: 1.25, duration: 80, yoyo: true });
+        }
+    }
+
+    function updateNavState() {
+        const cur = parts[currentPartIdx];
+        const locked = cur && !cur.completed;
+        const a = locked ? 0.32 : 1;
+        if (navLeft && !navLeft.destroyed) navLeft.setAlpha(a);
+        if (navRight && !navRight.destroyed) navRight.setAlpha(a);
+    }
+
+    function completePart(p) {
+        p.completed = true;
+        completedCount++;
+        if (p.overlay && !p.overlay.destroyed) p.overlay.destroy();
+
+        playUiSound(scene, 'pop', 0.6);
+        scene.time.delayedCall(85, () => playUiSound(scene, 'success-bell', 0.32));
+
+        const colorFill = COLORS.find(c => c.key === p.correctColor)?.fill ?? 0xffffff;
+        const flash = scene.add.rectangle(SINGLE_CX, SINGLE_CY, p.dispW + 10, p.dispH + 10, 0xffffff, 0.5);
+        root.add(flash);
+        scene.tweens.add({
+            targets: flash, alpha: 0, scaleX: 1.2, scaleY: 1.2, duration: 550, ease: 'Sine.out',
+            onComplete: () => { if (!flash.destroyed) flash.destroy(); },
+        });
+        for (let i = 0; i < 10; i++) spawnSplash(SINGLE_CX, SINGLE_CY, colorFill);
+
+        // pop animation for the restored piece
+        if (p.restored && !p.restored.destroyed) {
+            p.restored.setScale(p.scale * 0.92);
+            scene.tweens.add({ targets: p.restored, scale: p.scale * 1.06, duration: 420, ease: 'Back.out' });
+        }
+
+        progressText.setText(`Partes restauradas: ${completedCount} / ${parts.length}`);
+        updatePartInfoText();
+        updateDots();
+        updateNavState();
+
+        if (completedCount >= parts.length) {
+            finishGame();
+        } else {
+            // Auto-avanzar a la siguiente pieza (la siguiente no completada)
+            let nextIdx = -1;
+            for (let i = 1; i < parts.length; i++) {
+                const idx = (currentPartIdx + i) % parts.length;
+                if (!parts[idx].completed) { nextIdx = idx; break; }
+            }
+            if (nextIdx !== -1) scene.time.delayedCall(700, () => showPart(nextIdx));
+        }
+    }
+
+    async function finishGame() {
+        scene.input.setDefaultCursor('default');
+        brushDot.setAlpha(0);
+
+        const allRestored = parts.map(p => p.restored).filter(s => s && !s.destroyed);
+        const toFade = [
+            ...allRestored, progressText, partInfoText,
+            ...dots, navLeft, navRight,
+            ...COLORS.flatMap(c => [c._swatch, c._label]),
+            palBg, palLabel,
+        ].filter(s => s && !s.destroyed);
+        await new Promise(r => scene.tweens.add({
+            targets: toFade, alpha: 0, duration: 600, ease: 'Sine.in', onComplete: r,
+        }));
+
+        await buildRestoredMill();
+
+        const finalMsg = scene.add.text(960, 212, '¡Molino restaurado!', {
+            fontFamily: 'fredoka', fontSize: '52px', color: '#fce1b4',
+            stroke: '#1a1208', strokeThickness: 5,
+        }).setOrigin(0.5).setAlpha(0);
+        root.add(finalMsg);
+        scene.tweens.add({ targets: finalMsg, alpha: 1, y: 196, duration: 700, ease: 'Back.out' });
+        playUiSound(scene, 'success-bell', 0.85);
+
+        await wait(2800);
+        resolveDone();
+    }
+
+    async function buildRestoredMill() {
+        if (!scene.textures.exists('molino-base') || !scene.textures.exists('molino-aspas')) {
+            const fb = scene.add.image(960, 530, 'molino_medio').setOrigin(0.5).setScale(0.60).setAlpha(0);
+            root.add(fb);
+            await new Promise(r => scene.tweens.add({ targets: fb, alpha: 1, duration: 700, ease: 'Sine.in', onComplete: r }));
+            return;
+        }
+        const baseSrc   = scene.textures.get('molino-base').getSourceImage();
+        const baseScale = Math.min(520 / baseSrc.width, 610 / baseSrc.height);
+        const baseX     = Math.round(960 - baseSrc.width  * baseScale / 2);
+        const baseY     = Math.round(830 - baseSrc.height * baseScale);
+
+        const millBase = scene.add.image(baseX, baseY, 'molino-base')
+            .setOrigin(0, 0).setScale(baseScale).setAlpha(0);
+        root.add(millBase);
+
+        const aspasX    = baseX + Math.round(705 * baseScale);
+        const aspasY    = baseY + Math.round(175 * baseScale);
+        const millAspas = scene.add.image(aspasX, aspasY, 'molino-aspas')
+            .setOrigin(0.5).setScale(baseScale).setAlpha(0);
+        root.add(millAspas);
+
+        const toShow = [millBase, millAspas];
+        if (scene.textures.exists('moving-piece')) {
+            const mpX     = baseX + Math.round(703  * baseScale);
+            const mpBaseY = baseY + Math.round(1736 * baseScale);
+            const mpTopY  = baseY + Math.round(984  * baseScale);
+            const mp = scene.add.image(mpX, mpBaseY, 'moving-piece')
+                .setOrigin(0.5, 1).setScale(baseScale).setAlpha(0);
+            root.add(mp);
+            toShow.push(mp);
+            scene.tweens.add({
+                targets: mp, y: mpTopY,
+                duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut', delay: 400,
+            });
+        }
+
+        await new Promise(r => scene.tweens.add({
+            targets: toShow, alpha: 1, duration: 800, ease: 'Sine.in', onComplete: r,
+        }));
+        scene.tweens.add({ targets: millAspas, angle: 360, duration: 3000, ease: 'Linear', repeat: -1 });
+    }
+
+    // ─── createParts: each part centered at (SINGLE_CX, SINGLE_CY) with per-pixel mask ─
+    function createParts() {
+        const built = [];
+        for (const def of PARTS_DEF) {
+            const dKey = getSafeTexture(scene, def.damageKey);
+            const cKey = getSafeTexture(scene, def.cleanKey);
+            if (!dKey || !cKey) continue;
+
+            const srcImg = scene.textures.get(dKey).getSourceImage();
+            const sz = { w: srcImg.width, h: srcImg.height };
+
+            // Force consistent size for aspas/rotor
+            let scale = Math.min(MAX_PART_W / sz.w, MAX_PART_H / sz.h);
+            if (def.id === 'aspas' || def.id === 'rotor') {
+                const target = ASPAS_DIAM;
+                scale = target / Math.max(sz.w, sz.h);
+            }
+            const dispW = Math.round(sz.w * scale);
+            const dispH = Math.round(sz.h * scale);
+            const overlayLeft = Math.round(SINGLE_CX - dispW / 2);
+            const overlayTop  = Math.round(SINGLE_CY - dispH / 2);
+
+            const restored = scene.add.image(SINGLE_CX, SINGLE_CY, cKey)
+                .setOrigin(0.5, 0.5).setScale(scale).setVisible(false);
+            root.add(restored);
+
+            const overlay = scene.add.renderTexture(SINGLE_CX, SINGLE_CY, dispW, dispH)
+                .setOrigin(0.5, 0.5).setVisible(false);
+            const tmp = scene.make.image({ key: dKey, add: false });
+            tmp.setOrigin(0.5, 0.5).setScale(scale);
+            overlay.draw(tmp, dispW / 2, dispH / 2);
+            // Build opaque-cell mask by sampling the scaled image on a canvas
+            const gCols = Math.max(1, Math.ceil(dispW / GRID_CELL));
+            const gRows = Math.max(1, Math.ceil(dispH / GRID_CELL));
+            const grid = new Array(gCols * gRows).fill(false);
+            let totalOpaque = 0;
+            try {
+                const cv = document.createElement('canvas');
+                cv.width = dispW; cv.height = dispH;
+                const cx = cv.getContext('2d');
+                cx.clearRect(0,0,dispW,dispH);
+                cx.drawImage(srcImg, 0, 0, dispW, dispH);
+                const imgd = cx.getImageData(0,0,dispW,dispH).data;
+                for (let r = 0; r < gRows; r++) {
+                    for (let c = 0; c < gCols; c++) {
+                        const sx = Math.min(dispW - 1, Math.floor((c + 0.5) * GRID_CELL));
+                        const sy = Math.min(dispH - 1, Math.floor((r + 0.5) * GRID_CELL));
+                        const idx = (sy * dispW + sx) * 4 + 3; // alpha channel
+                        const a = imgd[idx];
+                        const cellIdx = r * gCols + c;
+                        if (a > 16) { grid[cellIdx] = false; totalOpaque++; }
+                        else { grid[cellIdx] = true; /* already transparent */ }
+                    }
+                }
+            } catch (e) {
+                // Fallback: consider all cells opaque
+                for (let i = 0; i < grid.length; i++) { grid[i] = false; }
+                totalOpaque = grid.length;
+            }
+
+            tmp.destroy();
+            root.add(overlay);
+
+            built.push({
+                ...def, restored, overlay,
+                scale, dispW, dispH,
+                overlayLeft, overlayTop,
+                overlayCX: SINGLE_CX, overlayCY: SINGLE_CY,
+                gCols, gRows,
+                gridCleaned: grid,
+                cleanedCells: 0, totalOpaqueCells: totalOpaque,
+                coverageThreshold: 0.95, // ~95% of opaque pixels must be painted
+                completed: totalOpaque === 0, _shaking: false,
+            });
+        }
+        return built;
+    }
+
+    const parts = createParts();
+
+    if (parts.length === 0) {
+        restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
+        this.minigames.set(id, options[0] ?? 'respuesta1');
+        return;
+    }
+
+    // ─── Part info text ───────────────────────────────────────────────────────
+    const partInfoText = scene.add.text(SINGLE_CX, 838, '', {
+        fontFamily: 'fredoka', fontSize: '22px', color: '#fce1b4',
+    }).setOrigin(0.5);
+    root.add(partInfoText);
+
+    // ─── Dots progress indicator ──────────────────────────────────────────────
+    const DOT_GAP = 30;
+    const DOT_Y   = 872;
+    const dotsX0  = SINGLE_CX - ((parts.length - 1) / 2) * DOT_GAP;
+    const dots = parts.map((_, i) => {
+        const dot = scene.add.circle(dotsX0 + i * DOT_GAP, DOT_Y, 8, 0x5a4535, 1).setAlpha(0.6);
+        root.add(dot);
+        return dot;
     });
 
-    const brushIcon = scene.add.text(0, 0, '🖌️', { fontSize: '42px' }).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(2300);
-    const paintSplash = scene.add.circle(0, 0, 20, 0x4ea1ff, 0.9).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(2300);
-
-    const progress = scene.add.text(960, 870, `Zonas con oxido: ${targets.length}`, {
-        fontFamily: 'fredoka',
-        fontSize: '28px',
-        color: '#ffffff',
+    // ─── Overall progress text ────────────────────────────────────────────────
+    const progressText = scene.add.text(SINGLE_CX, 906, `Partes restauradas: 0 / ${parts.length}`, {
+        fontFamily: 'fredoka', fontSize: '22px', color: '#ffffff',
     }).setOrigin(0.5);
-    root.add(progress);
+    root.add(progressText);
 
-    let painted = 0;
-    let resolveDone;
-    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+    // ─── Navigation arrows ────────────────────────────────────────────────────
+    const navStyle = {
+        fontFamily: 'fredoka', fontSize: '64px', color: '#fce1b4',
+        stroke: '#1a1208', strokeThickness: 4,
+    };
+    const navLeft  = scene.add.text(NAV_L_X, NAV_Y, '‹', navStyle).setOrigin(0.5);
+    const navRight = scene.add.text(NAV_R_X, NAV_Y, '›', navStyle).setOrigin(0.5);
+    root.add(navLeft);
+    root.add(navRight);
 
-    let pressing = false;
-    const onDown = (pointer) => {
-        pressing = true;
-        brushIcon.setPosition(pointer.x, pointer.y);
-        brushIcon.setAlpha(0.9);
-        paintTarget(pointer.x, pointer.y);
-    };
-    const onMove = (pointer) => {
-        brushIcon.setPosition(pointer.x, pointer.y);
-        if (pressing) paintTarget(pointer.x, pointer.y);
-    };
-    const onUp = () => {
-        pressing = false;
-        brushIcon.setAlpha(0);
-    };
+    // ─── Palette (right side) and brocha pickup ───────────────────────────────
+    const PAL_X  = 1600;
+    const PAL_Y0 = 360;
+    const SW_R   = 34;
+    const SW_GAP = 90;
 
-    const paintTarget = (x, y) => {
-        targets.forEach((target) => {
-            if (target.painted) return;
-            const dist = Phaser.Math.Distance.Between(x, y, target.x, target.y);
-            if (dist > target.radius) return;
-            target.painted = true;
-            painted += 1;
-            target.con.destroy();
-            paintSplash.setPosition(x, y);
-            paintSplash.setAlpha(1).setScale(0.5);
-            scene.tweens.add({
-                targets: paintSplash,
-                scale: 2,
-                alpha: 0,
-                duration: 400,
-                ease: 'Sine.out',
-            });
-            progress.setText(`Zonas con oxido: ${targets.length - painted}`);
-            playUiSound(scene, 'pop', 0.35);
-            if (painted >= targets.length) {
-                progress.setColor('#9df0a8');
-                progress.setText('¡Molino protegido!');
-                brushIcon.destroy();
-                playUiSound(scene, 'success-bell', 0.65);
-                scene.time.delayedCall(750, resolveDone);
+    const palBg = scene.add.graphics();
+    palBg.fillStyle(0x1a1208, 0.82);
+    const palHeight = 40 + COLORS.length * SW_GAP + 140;
+    const palTop = PAL_Y0 - 58;
+    palBg.fillRoundedRect(PAL_X - 64, palTop, 128, palHeight, 16);
+    root.add(palBg);
+
+    const palLabel = scene.add.text(PAL_X, PAL_Y0 - 36, 'PINTURA', {
+        fontFamily: 'fredoka', fontSize: '17px', color: '#fce1b4',
+    }).setOrigin(0.5);
+    root.add(palLabel);
+
+    COLORS.forEach((c, i) => {
+        const sy     = PAL_Y0 + i * SW_GAP;
+        const swatch = scene.add.circle(PAL_X, sy, SW_R, c.fill)
+            .setStrokeStyle(3, c.stroke).setInteractive({ useHandCursor: true });
+        root.add(swatch);
+        const lbl = scene.add.text(PAL_X, sy + SW_R + 9, c.label, {
+            fontFamily: 'fredoka', fontSize: '13px', color: '#fce1b4',
+        }).setOrigin(0.5);
+        root.add(lbl);
+        c._swatch = swatch;
+        c._label  = lbl;
+        swatch.on('pointerdown', () => selectColor(c));
+        UIHelpers.attachHoverPop(scene, swatch, 0.18);
+    });
+
+    // brocha pickup item (below color swatches)
+    const BROCHA_MARGIN_TOP = 18;
+    const brochaTop = palTop + palHeight + BROCHA_MARGIN_TOP;
+    const brochaY = brochaTop + 22; // account for icon half-height
+    const brochaIcon = brushKey
+        ? scene.add.image(PAL_X, brochaY, brushKey).setScale(0.65).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2360)
+        : scene.add.circle(PAL_X, brochaY, 22, 0xffffff, 1).setInteractive({ useHandCursor: true });
+    root.add(brochaIcon);
+    const brochaLabel = scene.add.text(PAL_X, brochaY + 44, 'BROCHA', { fontFamily: 'fredoka', fontSize: '13px', color: '#fce1b4' }).setOrigin(0.5);
+    root.add(brochaLabel);
+    const brochaArrow = scene.add.text(PAL_X, brochaY - 46, '⬇', { fontFamily: 'fredoka', fontSize: '28px', color: '#fce1b4' }).setOrigin(0.5);
+    root.add(brochaArrow);
+    function setBrochaGrabbed(v) {
+        brushGrabbed = !!v;
+        if (!brochaIcon || brochaIcon.destroyed) return;
+        scene.tweens.killTweensOf(brochaIcon);
+        if (brushGrabbed) {
+            brochaIcon.setVisible(false);          // hide item — it's now in the player's hand
+            brochaArrow.setVisible(false);
+            brochaLabel.setVisible(false);
+            brushDot.setAlpha(1);
+            scene.__defaultCursor = 'none';
+            scene.input.setDefaultCursor('none');
+        } else {
+            brochaIcon.setVisible(true).setScale(0.65);
+            brochaArrow.setVisible(true);
+            brochaLabel.setVisible(true);
+            brushDot.setAlpha(0);
+            scene.__defaultCursor = _prevDefaultCursor;
+            scene.input.setDefaultCursor(_prevDefaultCursor);
+        }
+    }
+    brochaIcon.on('pointerdown', () => { setBrochaGrabbed(!brushGrabbed); playUiSound(scene, 'pop', 0.3); });
+
+    // ─── Add brushDot last so it renders above all other container children ────
+    root.add(brushDot);
+
+    // ─── Show first part ──────────────────────────────────────────────────────
+    showPart(0);
+
+    // ─── Input handlers ───────────────────────────────────────────────────────
+    const _prevDefaultCursor = scene.__defaultCursor ?? 'default';
+
+    const onDown = (ptr) => {
+        brushDot.setPosition(ptr.x, ptr.y).setAlpha(brushGrabbed ? 1 : 0);
+        // Explicit brocha click fallback (only when icon is visible on screen)
+        try {
+            if (brochaIcon && !brochaIcon.destroyed && brochaIcon.visible) {
+                const r = Math.max(28, Math.min(brochaIcon.displayWidth, brochaIcon.displayHeight) / 2 + 12);
+                if (Phaser.Math.Distance.Between(ptr.x, ptr.y, brochaIcon.x, brochaIcon.y) <= r) {
+                    setBrochaGrabbed(true);
+                    playUiSound(scene, 'pop', 0.3);
+                    return;
+                }
             }
-        });
+        } catch (e) { /* ignore */ }
+        // Palette check (reliable bypass for container input offset)
+        for (let i = 0; i < COLORS.length; i++) {
+            const sy = PAL_Y0 + i * SW_GAP;
+            if (Phaser.Math.Distance.Between(ptr.x, ptr.y, PAL_X, sy) <= SW_R + 10) {
+                selectColor(COLORS[i]);
+                return;
+            }
+        }
+        // Navigation arrows check
+        if (Phaser.Math.Distance.Between(ptr.x, ptr.y, NAV_L_X, NAV_Y) <= NAV_R) { navigate(-1); return; }
+        if (Phaser.Math.Distance.Between(ptr.x, ptr.y, NAV_R_X, NAV_Y) <= NAV_R) { navigate(+1); return; }
+        // Paint (only if brocha grabbed)
+        painting = !!brushGrabbed;
+        paintPart(ptr.x, ptr.y);
     };
+    const onMove = (ptr) => {
+        brushDot.setPosition(ptr.x, ptr.y).setAlpha(brushGrabbed ? 1 : 0);
+        if (painting) paintPart(ptr.x, ptr.y);
+    };
+    const onUp = () => { painting = false; };
 
     scene.input.on('pointerdown', onDown);
     scene.input.on('pointermove', onMove);
-    scene.input.on('pointerup', onUp);
+    scene.input.on('pointerup',   onUp);
+
+    scene.events.on('shutdown', () => {
+        scene.input.off('pointerdown', onDown);
+        scene.input.off('pointermove', onMove);
+        scene.input.off('pointerup',   onUp);
+        scene.__defaultCursor = _prevDefaultCursor;
+        scene.input.setDefaultCursor(_prevDefaultCursor);
+        if (eraseShape && !eraseShape.destroyed) eraseShape.destroy();
+        if (brushDot   && !brushDot.destroyed)   brushDot.destroy();
+    });
 
     await donePromise;
+
     scene.input.off('pointerdown', onDown);
     scene.input.off('pointermove', onMove);
-    scene.input.off('pointerup', onUp);
+    scene.input.off('pointerup',   onUp);
+    scene.__defaultCursor = _prevDefaultCursor;
+    scene.input.setDefaultCursor(_prevDefaultCursor);
+    if (eraseShape && !eraseShape.destroyed) eraseShape.destroy();
+    if (brushDot   && !brushDot.destroyed)   brushDot.destroy();
     this.minigames.set(id, options[0] ?? 'respuesta1');
     restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
 }

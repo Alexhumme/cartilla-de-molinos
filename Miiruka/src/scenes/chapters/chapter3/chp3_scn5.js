@@ -33,6 +33,20 @@ export class Chp3_scn5 extends Phaser.Scene {
 
         this.load.image('molino_medio', 'assets/juegos/quitar_polvo/molino_medio.png');
         this.load.image('cepillo', 'assets/juegos/quitar_polvo/cepillo.png');
+        this.load.image('brocha', 'assets/juegos/pintar_partes/brocha.png');
+        this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
+        this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
+        this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
+        this.load.image('parte_Aspas', 'assets/juegos/pintar_partes/Aspas.png');
+        this.load.image('parte_Aspas_medio', 'assets/juegos/pintar_partes/aspas_medio.png');
+        this.load.image('parte_Torre', 'assets/juegos/pintar_partes/Torre.png');
+        this.load.image('parte_Torre_medio', 'assets/juegos/pintar_partes/torre_medio.png');
+        this.load.image('parte_Rotor', 'assets/juegos/pintar_partes/Rotor.png');
+        this.load.image('parte_Rotor_medio', 'assets/juegos/pintar_partes/buje_rotor_medio.png');
+        this.load.image('parte_Veleta', 'assets/juegos/pintar_partes/Veleta.png');
+        this.load.image('parte_Veleta_medio', 'assets/juegos/pintar_partes/veleta_medio.png');
+        this.load.image('parte_bomba', 'assets/juegos/pintar_partes/bomba.png');
+        this.load.image('parte_bomba_medio', 'assets/juegos/pintar_partes/bomba_medio.png');
 
         this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
@@ -96,38 +110,18 @@ export class Chp3_scn5 extends Phaser.Scene {
     }
 
     placeMill() {
-        const baseTexture = this.textures.get('molino-base')?.getSourceImage();
+        const baseTexture = this.textures.get('molino_medio')?.getSourceImage();
         const baseWidth = baseTexture?.width ?? 600;
         const baseHeight = baseTexture?.height ?? 900;
-        const baseScale = 1.15;
+        const baseScale = 1;
         const cam = this.cameras.main;
         const baseX = 800;
         const baseBottom = cam.scrollY + this.scale.height - 60;
-        const baseY = baseBottom - baseHeight * baseScale;
+        const baseY = baseBottom - baseHeight * baseScale + 25;
 
         this.molinoBase = this.add.image(baseX, baseY, 'molino_medio').setOrigin(0, 0).setScale(baseScale);
         this.molinoBase.setDepth(120);
 
-        const shadowWidth = baseWidth * baseScale * 0.6;
-        const shadowHeight = 46 * baseScale;
-        const shadowOffsetX = -127 * baseScale;
-        const shadowX = baseX + baseWidth * baseScale * 0.5 + shadowOffsetX;
-        const shadowY = baseY + baseHeight * baseScale - 20;
-        const shadow = this.add.ellipse(shadowX, shadowY, shadowWidth, shadowHeight, 0xF3CE9E, 0.8);
-        shadow.setDepth(110);
-        shadow.setBlendMode(Phaser.BlendModes.MULTIPLY);
-
-        const aspasX = baseX + 705 * baseScale;
-        const aspasY = baseY + 175 * baseScale;
-        this.molinoAspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5).setScale(baseScale);
-        this.molinoAspas.setDepth(130);
-
-        this.movingPiece = this.add.image(baseX + 703 * baseScale, baseY + 1736 * baseScale, 'moving-piece').setOrigin(0.5, 1).setScale(baseScale);
-        this.movingPiece.setDepth(119);
-
-        this.movingPieceBaseY = this.movingPiece.y;
-        this.movingPieceTopY = 1034 * baseScale;
-        this.movingPiecePhase = 0;
     }
 
     updateMovingPiece(delta) {

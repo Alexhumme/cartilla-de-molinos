@@ -31,7 +31,7 @@ export class Chp3_scn4 extends Phaser.Scene {
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
 
-        this.load.image('molino-base', 'assets/juegos/quitar_polvo/molinodanado.png');
+        this.load.image('molino-danado', 'assets/juegos/quitar_polvo/molinodanado.png');
         this.load.image('cepillo', 'assets/juegos/quitar_polvo/cepillo.png');
 
         this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
@@ -96,17 +96,17 @@ export class Chp3_scn4 extends Phaser.Scene {
     }
 
     placeMill() {
-        const baseTexture = this.textures.get('molino-base')?.getSourceImage();
+        const baseTexture = this.textures.get('molino-danado')?.getSourceImage();
         const baseWidth = baseTexture?.width ?? 600;
         const baseHeight = baseTexture?.height ?? 900;
-        const baseScale = 1.15;
+        const baseScale = 1;
         const cam = this.cameras.main;
         const baseX = 800;
         const baseBottom = cam.scrollY + this.scale.height - 60;
         const baseY = baseBottom - baseHeight * baseScale;
 
-        this.molinoBase = this.add.image(baseX, baseY, 'molino-base').setOrigin(0, 0).setScale(baseScale);
-        this.molinoBase.setDepth(120);
+        this.molinoDanado = this.add.image(baseX, baseY, 'molino-danado').setOrigin(0, 0).setScale(baseScale);
+        this.molinoDanado.setDepth(120);
     }
 
     update(time, delta) {

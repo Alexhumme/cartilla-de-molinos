@@ -36,7 +36,7 @@ export class Chp2_scn1 extends Phaser.Scene {
         // Molino y aspas.
         this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
-        this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
+        this.load.image('moving-piece', 'assets/juegos/moving_piece.png'); 
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch2_script', (key, type, data) => {

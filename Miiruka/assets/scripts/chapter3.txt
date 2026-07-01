@@ -134,7 +134,7 @@
 [way:...]
 
 [recuadro][abrir]
-[recuadro][imagenes][molinoDanado]
+[recuadro][imagenes][molino-danado]
 
 [personaje][Jouktai][habla]
 [es:Ayúdanos a quitar el polvo y la arena.]
@@ -171,7 +171,7 @@
 [way:...]
 
 [recuadro][abrir]
-[recuadro][imagenes][molinoDanado,molino_medio]
+[recuadro][imagenes][molino-danado,molino_medio]
 
 [personaje][Jouktai][habla]
 [es:La pintura ayuda a proteger el metal del sol y la lluvia.]
