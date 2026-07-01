@@ -34,6 +34,7 @@ export class Chp3_scn5 extends Phaser.Scene {
         this.load.image('molino_medio', 'assets/juegos/quitar_polvo/molino_medio.png');
         this.load.image('cepillo', 'assets/juegos/quitar_polvo/cepillo.png');
         this.load.image('brocha', 'assets/juegos/pintar_partes/brocha.png');
+        this.load.image('molino-limpio', 'assets/juegos/pintar_partes/molino_limpio.png');
         this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
         this.load.image('moving-piece', 'assets/juegos/moving_piece.png');

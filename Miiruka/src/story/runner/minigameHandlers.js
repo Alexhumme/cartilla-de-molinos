@@ -2262,47 +2262,47 @@ export async function runPaintMillMinigame(id, options = []) {
     // ─── Palette colors ───────────────────────────────────────────────────────
     const COLORS = [
         { key: 'naranja', label: 'Naranja', fill: 0xFF8C42, stroke: 0xD4762D },
-        { key: 'marron',  label: 'Marrón',  fill: 0x7D4E2D, stroke: 0x4A2A12 },
-        { key: 'beige',   label: 'Beige',   fill: 0xD9BA96, stroke: 0xB08060 },
+        { key: 'marron', label: 'Marrón', fill: 0x7D4E2D, stroke: 0x4A2A12 },
+        { key: 'beige', label: 'Beige', fill: 0xD9BA96, stroke: 0xB08060 },
     ];
 
     // ─── Layout & erase constants ─────────────────────────────────────────────
     const BRUSH_SIZE = 30;
-    const GRID_CELL  = 16;
-    const SINGLE_CX  = 845;   // center X of the single-part display area
-    const SINGLE_CY  = 490;   // center Y
+    const GRID_CELL = 16;
+    const SINGLE_CX = 845;   // center X of the single-part display area
+    const SINGLE_CY = 490;   // center Y
     const MAX_PART_W = 680;   // max display width for a part
     const MAX_PART_H = 500;   // max display height for a part
-    const NAV_Y      = SINGLE_CY;
-    const NAV_L_X    = 210;   // left arrow button center X
-    const NAV_R_X    = 1480;  // right arrow button center X
-    const NAV_R      = 40;    // click hit radius for nav buttons
+    const NAV_Y = SINGLE_CY;
+    const NAV_L_X = 210;   // left arrow button center X
+    const NAV_R_X = 1480;  // right arrow button center X
+    const NAV_R = 40;    // click hit radius for nav buttons
     // aspas & rotor display size: same fixed diameter so they look identical in size
-    const ASPAS_DIAM  = Math.round(Math.min(MAX_PART_W, MAX_PART_H) * 0.90);
+    const ASPAS_DIAM = Math.round(Math.min(MAX_PART_W, MAX_PART_H) * 0.75);
 
     // ─── Parts definition ─────────────────────────────────────────────────────
     const PARTS_DEF = [
-        { id:'torre',  label:'Torre',  damageKey:'parte_Torre_medio',  cleanKey:'parte_Torre',  correctColor:'naranja', coverageThreshold:0.32 },
-        { id:'aspas',  label:'Aspas',  damageKey:'parte_Aspas_medio',  cleanKey:'parte_Aspas',  correctColor:'beige',   coverageThreshold:0.55 },
-        { id:'rotor',  label:'Rotor',  damageKey:'parte_Rotor_medio',  cleanKey:'parte_Rotor',  correctColor:'marron',  coverageThreshold:0.61 },
-        { id:'veleta', label:'Veleta', damageKey:'parte_Veleta_medio', cleanKey:'parte_Veleta', correctColor:'beige',   coverageThreshold:0.30 },
-        { id:'bomba',  label:'Bomba',  damageKey:'parte_bomba_medio',  cleanKey:'parte_bomba',  correctColor:'beige',   coverageThreshold:0.15 },
+        { id: 'torre', label: 'Torre', damageKey: 'parte_Torre_medio', cleanKey: 'parte_Torre', correctColor: 'naranja', coverageThreshold: 0.32 },
+        { id: 'aspas', label: 'Aspas', damageKey: 'parte_Aspas_medio', cleanKey: 'parte_Aspas', correctColor: 'beige', coverageThreshold: 0.55 },
+        { id: 'rotor', label: 'Rotor', damageKey: 'parte_Rotor_medio', cleanKey: 'parte_Rotor', correctColor: 'marron', coverageThreshold: 0.61 },
+        { id: 'veleta', label: 'Veleta', damageKey: 'parte_Veleta_medio', cleanKey: 'parte_Veleta', correctColor: 'beige', coverageThreshold: 0.30 },
+        { id: 'bomba', label: 'Bomba', damageKey: 'parte_bomba_medio', cleanKey: 'parte_bomba', correctColor: 'beige', coverageThreshold: 0.15 },
     ];
 
     // ─── State ────────────────────────────────────────────────────────────────
-    let selectedColor  = null;
-    let painting       = false;
+    let selectedColor = null;
+    let painting = false;
     let completedCount = 0;
     let currentPartIdx = 0;
-    let brushGrabbed   = false;
+    let brushGrabbed = false;
     let resolveDone;
     const donePromise = new Promise(r => { resolveDone = r; });
-    const eraseShape  = scene.make.graphics({ add: false });
+    const eraseShape = scene.make.graphics({ add: false });
 
     // ─── Brush cursor (brocha → cepillo → círculo) ────────────────────────────
-    const brushKey = scene.textures.exists('brocha')  ? 'brocha'
-                   : scene.textures.exists('cepillo') ? 'cepillo'
-                   : null;
+    const brushKey = scene.textures.exists('brocha') ? 'brocha'
+        : scene.textures.exists('cepillo') ? 'cepillo'
+            : null;
     const brushDot = brushKey
         ? scene.add.image(0, 0, brushKey)
             .setOrigin(0.2, 0.9).setScale(0.28)   // origin near bristle tip
@@ -2336,7 +2336,7 @@ export async function runPaintMillMinigame(id, options = []) {
     function hitTestPart(p, wx, wy) {
         // Full bounding box for all parts — allows painting the entire image
         return wx >= p.overlayLeft - 4 && wx <= p.overlayLeft + p.dispW + 4 &&
-               wy >= p.overlayTop  - 4 && wy <= p.overlayTop  + p.dispH + 4;
+            wy >= p.overlayTop - 4 && wy <= p.overlayTop + p.dispH + 4;
     }
 
     function getPartAt(wx, wy) {
@@ -2347,11 +2347,11 @@ export async function runPaintMillMinigame(id, options = []) {
 
     function spawnSplash(wx, wy, fill) {
         for (let i = 0; i < 5; i++) {
-            const dot   = splashPool[splashIdx++ % POOL_SIZE];
+            const dot = splashPool[splashIdx++ % POOL_SIZE];
             const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-            const dist  = Phaser.Math.Between(6, 28);
+            const dist = Phaser.Math.Between(6, 28);
             dot.setPosition(wx + Math.cos(angle) * dist, wy + Math.sin(angle) * dist)
-               .setFillStyle(fill, 0.85).setScale(Phaser.Math.FloatBetween(0.5, 1.4)).setAlpha(1);
+                .setFillStyle(fill, 0.85).setScale(Phaser.Math.FloatBetween(0.5, 1.4)).setAlpha(1);
             scene.tweens.add({
                 targets: dot, alpha: 0, duration: 400,
                 delay: Phaser.Math.Between(0, 60), ease: 'Sine.out',
@@ -2457,9 +2457,9 @@ export async function runPaintMillMinigame(id, options = []) {
         if (!dots || dots.length === 0) return;
         dots.forEach((d, i) => {
             const p = parts[i];
-            if (p.completed)            d.setFillStyle(0x9df0a8, 1).setAlpha(1);
+            if (p.completed) d.setFillStyle(0x9df0a8, 1).setAlpha(1);
             else if (i === currentPartIdx) d.setFillStyle(0xfce1b4, 1).setAlpha(1);
-            else                        d.setFillStyle(0x5a4535, 1).setAlpha(0.6);
+            else d.setFillStyle(0x5a4535, 1).setAlpha(0.6);
         });
     }
 
@@ -2467,7 +2467,7 @@ export async function runPaintMillMinigame(id, options = []) {
         parts.forEach((p, i) => {
             const v = (i === idx);
             if (p.restored && !p.restored.destroyed) p.restored.setVisible(v);
-            if (p.overlay  && !p.overlay.destroyed)  p.overlay.setVisible(v);
+            if (p.overlay && !p.overlay.destroyed) p.overlay.setVisible(v);
         });
         currentPartIdx = idx;
         updatePartInfoText();
@@ -2553,12 +2553,12 @@ export async function runPaintMillMinigame(id, options = []) {
 
         await buildRestoredMill();
 
-        const finalMsg = scene.add.text(960, 212, '¡Molino restaurado!', {
+        const finalMsg = scene.add.text(960, 420, '¡Molino restaurado!', {
             fontFamily: 'fredoka', fontSize: '52px', color: '#fce1b4',
             stroke: '#1a1208', strokeThickness: 5,
         }).setOrigin(0.5).setAlpha(0);
         root.add(finalMsg);
-        scene.tweens.add({ targets: finalMsg, alpha: 1, y: 196, duration: 700, ease: 'Back.out' });
+        scene.tweens.add({ targets: finalMsg, alpha: 1, y: 320, duration: 700, ease: 'Back.out' });
         playUiSound(scene, 'success-bell', 0.85);
 
         await wait(2800);
@@ -2567,31 +2567,31 @@ export async function runPaintMillMinigame(id, options = []) {
 
     async function buildRestoredMill() {
         if (!scene.textures.exists('molino-base') || !scene.textures.exists('molino-aspas')) {
-            const fb = scene.add.image(960, 530, 'molino_medio').setOrigin(0.5).setScale(0.60).setAlpha(0);
+            const fb = scene.add.image(960, 530, 'molino_medio').setOrigin(0.5).setScale(0.38).setAlpha(0);
             root.add(fb);
             await new Promise(r => scene.tweens.add({ targets: fb, alpha: 1, duration: 700, ease: 'Sine.in', onComplete: r }));
             return;
         }
-        const baseSrc   = scene.textures.get('molino-base').getSourceImage();
-        const baseScale = Math.min(520 / baseSrc.width, 610 / baseSrc.height);
-        const baseX     = Math.round(960 - baseSrc.width  * baseScale / 2);
-        const baseY     = Math.round(830 - baseSrc.height * baseScale);
+        const baseSrc = scene.textures.get('molino-base').getSourceImage();
+        const baseScale = Math.min(340 / baseSrc.width, 400 / baseSrc.height);
+        const baseX = Math.round(960 - baseSrc.width * baseScale / 2);
+        const baseY = Math.round(830 - baseSrc.height * baseScale);
 
         const millBase = scene.add.image(baseX, baseY, 'molino-base')
             .setOrigin(0, 0).setScale(baseScale).setAlpha(0);
         root.add(millBase);
 
-        const aspasX    = baseX + Math.round(705 * baseScale);
-        const aspasY    = baseY + Math.round(175 * baseScale);
+        const aspasX = baseX + Math.round(705 * baseScale);
+        const aspasY = baseY + Math.round(175 * baseScale);
         const millAspas = scene.add.image(aspasX, aspasY, 'molino-aspas')
             .setOrigin(0.5).setScale(baseScale).setAlpha(0);
         root.add(millAspas);
 
         const toShow = [millBase, millAspas];
         if (scene.textures.exists('moving-piece')) {
-            const mpX     = baseX + Math.round(703  * baseScale);
+            const mpX = baseX + Math.round(703 * baseScale);
             const mpBaseY = baseY + Math.round(1736 * baseScale);
-            const mpTopY  = baseY + Math.round(984  * baseScale);
+            const mpTopY = baseY + Math.round(984 * baseScale);
             const mp = scene.add.image(mpX, mpBaseY, 'moving-piece')
                 .setOrigin(0.5, 1).setScale(baseScale).setAlpha(0);
             root.add(mp);
@@ -2618,20 +2618,25 @@ export async function runPaintMillMinigame(id, options = []) {
 
             const srcImg = scene.textures.get(dKey).getSourceImage();
             const sz = { w: srcImg.width, h: srcImg.height };
+            const cleanSrcImg = scene.textures.get(cKey).getSourceImage();
+            const cleanSz = { w: cleanSrcImg.width, h: cleanSrcImg.height };
 
-            // Force consistent size for aspas/rotor
+            // Force consistent size for aspas/rotor; compute separate scale per image
+            // so overlay (dKey) and restored (cKey) always display at the same visual size.
             let scale = Math.min(MAX_PART_W / sz.w, MAX_PART_H / sz.h);
+            let cleanScale = Math.min(MAX_PART_W / cleanSz.w, MAX_PART_H / cleanSz.h);
             if (def.id === 'aspas' || def.id === 'rotor') {
                 const target = ASPAS_DIAM;
                 scale = target / Math.max(sz.w, sz.h);
+                cleanScale = target / Math.max(cleanSz.w, cleanSz.h);
             }
             const dispW = Math.round(sz.w * scale);
             const dispH = Math.round(sz.h * scale);
             const overlayLeft = Math.round(SINGLE_CX - dispW / 2);
-            const overlayTop  = Math.round(SINGLE_CY - dispH / 2);
+            const overlayTop = Math.round(SINGLE_CY - dispH / 2);
 
             const restored = scene.add.image(SINGLE_CX, SINGLE_CY, cKey)
-                .setOrigin(0.5, 0.5).setScale(scale).setVisible(false);
+                .setOrigin(0.5, 0.5).setScale(cleanScale).setVisible(false);
             root.add(restored);
 
             const overlay = scene.add.renderTexture(SINGLE_CX, SINGLE_CY, dispW, dispH)
@@ -2648,9 +2653,9 @@ export async function runPaintMillMinigame(id, options = []) {
                 const cv = document.createElement('canvas');
                 cv.width = dispW; cv.height = dispH;
                 const cx = cv.getContext('2d');
-                cx.clearRect(0,0,dispW,dispH);
+                cx.clearRect(0, 0, dispW, dispH);
                 cx.drawImage(srcImg, 0, 0, dispW, dispH);
-                const imgd = cx.getImageData(0,0,dispW,dispH).data;
+                const imgd = cx.getImageData(0, 0, dispW, dispH).data;
                 for (let r = 0; r < gRows; r++) {
                     for (let c = 0; c < gCols; c++) {
                         const sx = Math.min(dispW - 1, Math.floor((c + 0.5) * GRID_CELL));
@@ -2673,13 +2678,13 @@ export async function runPaintMillMinigame(id, options = []) {
 
             built.push({
                 ...def, restored, overlay,
-                scale, dispW, dispH,
+                scale: cleanScale, dispW, dispH,
                 overlayLeft, overlayTop,
                 overlayCX: SINGLE_CX, overlayCY: SINGLE_CY,
                 gCols, gRows,
                 gridCleaned: grid,
                 cleanedCells: 0, totalOpaqueCells: totalOpaque,
-                coverageThreshold: 0.95, // ~95% of opaque pixels must be painted
+                coverageThreshold: 0.99, // ~95% of opaque pixels must be painted
                 completed: totalOpaque === 0, _shaking: false,
             });
         }
@@ -2702,8 +2707,8 @@ export async function runPaintMillMinigame(id, options = []) {
 
     // ─── Dots progress indicator ──────────────────────────────────────────────
     const DOT_GAP = 30;
-    const DOT_Y   = 872;
-    const dotsX0  = SINGLE_CX - ((parts.length - 1) / 2) * DOT_GAP;
+    const DOT_Y = 872;
+    const dotsX0 = SINGLE_CX - ((parts.length - 1) / 2) * DOT_GAP;
     const dots = parts.map((_, i) => {
         const dot = scene.add.circle(dotsX0 + i * DOT_GAP, DOT_Y, 8, 0x5a4535, 1).setAlpha(0.6);
         root.add(dot);
@@ -2721,31 +2726,31 @@ export async function runPaintMillMinigame(id, options = []) {
         fontFamily: 'fredoka', fontSize: '64px', color: '#fce1b4',
         stroke: '#1a1208', strokeThickness: 4,
     };
-    const navLeft  = scene.add.text(NAV_L_X, NAV_Y, '‹', navStyle).setOrigin(0.5);
+    const navLeft = scene.add.text(NAV_L_X, NAV_Y, '‹', navStyle).setOrigin(0.5);
     const navRight = scene.add.text(NAV_R_X, NAV_Y, '›', navStyle).setOrigin(0.5);
     root.add(navLeft);
     root.add(navRight);
 
     // ─── Palette (right side) and brocha pickup ───────────────────────────────
-    const PAL_X  = 1600;
+    const PAL_X = 1600;
     const PAL_Y0 = 360;
-    const SW_R   = 34;
+    const SW_R = 34;
     const SW_GAP = 90;
 
     const palBg = scene.add.graphics();
     palBg.fillStyle(0x1a1208, 0.82);
-    const palHeight = 40 + COLORS.length * SW_GAP + 140;
-    const palTop = PAL_Y0 - 58;
+    const palHeight = 40 + COLORS.length * SW_GAP + 20;
+    const palTop = PAL_Y0 - 80;
     palBg.fillRoundedRect(PAL_X - 64, palTop, 128, palHeight, 16);
     root.add(palBg);
 
-    const palLabel = scene.add.text(PAL_X, PAL_Y0 - 36, 'PINTURA', {
+    const palLabel = scene.add.text(PAL_X, PAL_Y0 - 58, 'PINTURA', {
         fontFamily: 'fredoka', fontSize: '17px', color: '#fce1b4',
     }).setOrigin(0.5);
     root.add(palLabel);
 
     COLORS.forEach((c, i) => {
-        const sy     = PAL_Y0 + i * SW_GAP;
+        const sy = PAL_Y0 + i * SW_GAP;
         const swatch = scene.add.circle(PAL_X, sy, SW_R, c.fill)
             .setStrokeStyle(3, c.stroke).setInteractive({ useHandCursor: true });
         root.add(swatch);
@@ -2754,47 +2759,49 @@ export async function runPaintMillMinigame(id, options = []) {
         }).setOrigin(0.5);
         root.add(lbl);
         c._swatch = swatch;
-        c._label  = lbl;
+        c._label = lbl;
         swatch.on('pointerdown', () => selectColor(c));
         UIHelpers.attachHoverPop(scene, swatch, 0.18);
     });
 
-    // brocha pickup item (below color swatches)
-    const BROCHA_MARGIN_TOP = 18;
+    // brocha pickup item (below color swatches, fully outside the palette rect)
+    const BROCHA_MARGIN_TOP = 80;
     const brochaTop = palTop + palHeight + BROCHA_MARGIN_TOP;
-    const brochaY = brochaTop + 22; // account for icon half-height
+    const brochaY = brochaTop + 50; // account for icon half-height
     const brochaIcon = brushKey
-        ? scene.add.image(PAL_X, brochaY, brushKey).setScale(0.65).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2360)
+        ? scene.add.image(PAL_X, brochaY, brushKey).setScale(0).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2360)
         : scene.add.circle(PAL_X, brochaY, 22, 0xffffff, 1).setInteractive({ useHandCursor: true });
     root.add(brochaIcon);
-    const brochaLabel = scene.add.text(PAL_X, brochaY + 44, 'BROCHA', { fontFamily: 'fredoka', fontSize: '13px', color: '#fce1b4' }).setOrigin(0.5);
-    root.add(brochaLabel);
-    const brochaArrow = scene.add.text(PAL_X, brochaY - 46, '⬇', { fontFamily: 'fredoka', fontSize: '28px', color: '#fce1b4' }).setOrigin(0.5);
+    // pop-in + idle float animation (same pattern as sideBrush in clean-mill minigame)
+    scene.tweens.add({ targets: brochaIcon, scale: 0.65, duration: 550, ease: 'Back.easeOut' });
+    scene.tweens.add({ targets: brochaIcon, y: brochaY - 8, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    const brochaArrow = scene.add.text(PAL_X, brochaY - 100, '⬇', { fontFamily: 'fredoka', fontSize: '28px', color: '#fce1b4' }).setOrigin(0.5);
     root.add(brochaArrow);
+
     function setBrochaGrabbed(v) {
         brushGrabbed = !!v;
         if (!brochaIcon || brochaIcon.destroyed) return;
         scene.tweens.killTweensOf(brochaIcon);
         if (brushGrabbed) {
-            brochaIcon.setVisible(false);          // hide item — it's now in the player's hand
+            brochaIcon.setVisible(false);
             brochaArrow.setVisible(false);
-            brochaLabel.setVisible(false);
             brushDot.setAlpha(1);
             scene.__defaultCursor = 'none';
             scene.input.setDefaultCursor('none');
         } else {
             brochaIcon.setVisible(true).setScale(0.65);
             brochaArrow.setVisible(true);
-            brochaLabel.setVisible(true);
             brushDot.setAlpha(0);
             scene.__defaultCursor = _prevDefaultCursor;
             scene.input.setDefaultCursor(_prevDefaultCursor);
         }
     }
-    brochaIcon.on('pointerdown', () => { setBrochaGrabbed(!brushGrabbed); playUiSound(scene, 'pop', 0.3); });
-
-    // ─── Add brushDot last so it renders above all other container children ────
-    root.add(brushDot);
+    brochaIcon.on('pointerdown', (pointer, localX, localY, event) => {
+        event.stopPropagation();
+        setBrochaGrabbed(!brushGrabbed);
+        playUiSound(scene, 'pop', 0.3);
+    });
 
     // ─── Show first part ──────────────────────────────────────────────────────
     showPart(0);
@@ -2838,156 +2845,46 @@ export async function runPaintMillMinigame(id, options = []) {
 
     scene.input.on('pointerdown', onDown);
     scene.input.on('pointermove', onMove);
-    scene.input.on('pointerup',   onUp);
+    scene.input.on('pointerup', onUp);
 
     scene.events.on('shutdown', () => {
         scene.input.off('pointerdown', onDown);
         scene.input.off('pointermove', onMove);
-        scene.input.off('pointerup',   onUp);
+        scene.input.off('pointerup', onUp);
         scene.__defaultCursor = _prevDefaultCursor;
         scene.input.setDefaultCursor(_prevDefaultCursor);
         if (eraseShape && !eraseShape.destroyed) eraseShape.destroy();
-        if (brushDot   && !brushDot.destroyed)   brushDot.destroy();
+        if (brushDot && !brushDot.destroyed) brushDot.destroy();
     });
 
     await donePromise;
+
+    // Replace background mill with the clean painted version
+    if (scene.molinoBase && !scene.molinoBase.destroyed) {
+        const mx = scene.molinoBase.x;
+        const my = scene.molinoBase.y;
+        const ms = scene.molinoBase.scaleX;
+        const mo = { x: scene.molinoBase.originX, y: scene.molinoBase.originY };
+        const md = scene.molinoBase.depth;
+        scene.molinoBase.destroy();
+        const limpio = getSafeTexture(scene, 'molino-limpio') ?? getSafeTexture(scene, 'molino_medio');
+        scene.molinoBase = scene.add.image(mx, my, limpio).setOrigin(mo.x, mo.y).setScale(ms).setDepth(md);
+    }
 
     scene.input.off('pointerdown', onDown);
     scene.input.off('pointermove', onMove);
-    scene.input.off('pointerup',   onUp);
+    scene.input.off('pointerup', onUp);
     scene.__defaultCursor = _prevDefaultCursor;
     scene.input.setDefaultCursor(_prevDefaultCursor);
     if (eraseShape && !eraseShape.destroyed) eraseShape.destroy();
-    if (brushDot   && !brushDot.destroyed)   brushDot.destroy();
+    if (brushDot && !brushDot.destroyed) brushDot.destroy();
     this.minigames.set(id, options[0] ?? 'respuesta1');
     restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
+
+
 }
 
 export async function runLubricateMillMinigame(id, options = []) {
-    const shell = await createChapter3Shell(
-        this,
-        'Lubrica ejes y engranajes',
-        'Toca cada punto seco (amarillo) para aplicar aceite lubricante.'
-    );
-    const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
-
-    const textureKey = getSafeTexture(scene, 'molinoDanado');
-    const mill = textureKey
-        ? scene.add.image(960, 520, textureKey).setOrigin(0.5)
-        : scene.add.graphics();
-    if (textureKey) {
-        mill.setScale(Math.min(920 / Math.max(1, mill.width), 713 / Math.max(1, mill.height)));
-    } else {
-        const frame = scene.add.graphics();
-        frame.lineStyle(10, 0xcbd5e1, 1);
-        frame.lineBetween(860, 760, 960, 335);
-        frame.lineBetween(1060, 760, 960, 335);
-        frame.strokeCircle(960, 335, 60);
-        frame.lineBetween(960, 335, 840, 455);
-        frame.lineBetween(960, 335, 1080, 455);
-        frame.strokeRect(900, 610, 120, 120);
-        root.add(frame);
-    }
-    root.add(mill);
-
-    const points = [
-        { x: 820, y: 450, label: 'Eje izquierdo' },
-        { x: 960, y: 340, label: 'Engranaje central' },
-        { x: 1090, y: 450, label: 'Eje derecho' },
-        { x: 960, y: 620, label: 'Bomba' },
-    ];
-
-    let completed = 0;
-    let resolveDone;
-    const donePromise = new Promise((resolve) => { resolveDone = resolve; });
-
-    const progress = scene.add.text(960, 880, `Puntos por lubricar: ${points.length}`, {
-        fontFamily: 'fredoka',
-        fontSize: '28px',
-        color: '#ffffff',
-    }).setOrigin(0.5);
-    root.add(progress);
-
-    points.forEach((point) => {
-        const oilPoint = scene.add.container(point.x, point.y).setSize(116, 116);
-
-        const outerRing = scene.add.circle(0, 0, 52, 0xf6da3f, 0.4).setStrokeStyle(3, 0x8a4b25, 0.8);
-        const innerCircle = scene.add.circle(0, 0, 36, 0xf6da3f, 0.85).setStrokeStyle(3, 0xd97706, 1);
-
-        const dryIcon = scene.add.text(0, -2, '⚙️', {
-            fontSize: '32px',
-        }).setOrigin(0.5);
-
-        const label = scene.add.text(0, 72, point.label, {
-            fontFamily: 'fredoka',
-            fontSize: '20px',
-            color: '#ffffff',
-            align: 'center',
-            wordWrap: { width: 170 },
-        }).setOrigin(0.5);
-
-        oilPoint.add([outerRing, innerCircle, dryIcon, label]);
-        oilPoint.setInteractive({ useHandCursor: true });
-        UIHelpers.attachHoverPop(scene, oilPoint, 0.25);
-
-        const pulseTween = scene.tweens.add({
-            targets: outerRing,
-            scale: 1.12,
-            alpha: 0.6,
-            duration: 700,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.inOut',
-        });
-
-        oilPoint.on('pointerdown', function () {
-            if (this.done) return;
-            this.done = true;
-            completed += 1;
-            pulseTween.stop();
-            outerRing.setScale(1).setAlpha(0);
-
-            const oilDrop = scene.add.text(point.x, point.y - 30, '💧', {
-                fontSize: '40px',
-            }).setOrigin(0.5);
-            root.add(oilDrop);
-            scene.tweens.add({
-                targets: oilDrop,
-                y: point.y + 30,
-                alpha: 0,
-                scale: 0.3,
-                duration: 500,
-                ease: 'Sine.in',
-                onComplete: () => oilDrop.destroy(),
-            });
-
-            scene.tweens.add({
-                targets: innerCircle,
-                scale: 1.25,
-                duration: 150,
-                ease: 'Back.Out',
-                onComplete: () => {
-                    innerCircle.setFillStyle(0x9df0a8, 0.9);
-                    innerCircle.setStrokeStyle(3, 0x2b9348, 1);
-                    dryIcon.setText('✅');
-                },
-            });
-
-            playUiSound(scene, 'success-bell', 0.35);
-            progress.setText(`Puntos por lubricar: ${points.length - completed}`);
-
-            if (completed >= points.length) {
-                progress.setColor('#9df0a8');
-                progress.setText('¡Todo lubricado!');
-                playUiSound(scene, 'success-bell', 0.65);
-                scene.time.delayedCall(700, resolveDone);
-            }
-        });
-
-        root.add(oilPoint);
-    });
-
-    await donePromise;
+    // TODO: implementar minijuego de lubricación
     this.minigames.set(id, options[0] ?? 'respuesta1');
-    restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
 }
