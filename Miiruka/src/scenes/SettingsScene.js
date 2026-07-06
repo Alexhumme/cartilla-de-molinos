@@ -13,7 +13,7 @@ export class SettingsScene extends Phaser.Scene {
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.image('gradient', 'assets/background_gradient.png');
         this.load.image('gears', 'assets/background_gears.svg');
-        this.load.svg('music-icon', 'assets/ui/music-note.svg');
+        this.load.image('music-icon', 'assets/ui/music-player.png');
     }
 
     create() {
@@ -62,8 +62,7 @@ export class SettingsScene extends Phaser.Scene {
         inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
 
         const icon = this.add.image(0, 0, 'music-icon').setOrigin(0.5);
-        icon.setScale(0.4);
-        icon.setTint(0x6a3a1b);
+        icon.setScale(0.2);
 
         const muteLine = this.add.graphics();
         muteLine.lineStyle(6, 0xc0392b, 1);
