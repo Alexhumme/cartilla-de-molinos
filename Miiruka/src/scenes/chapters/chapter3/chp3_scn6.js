@@ -42,10 +42,11 @@ export class Chp3_scn6 extends Phaser.Scene {
         this.load.image('eng-chasis', 'assets/juegos/engrasar_convertidor/partes/chasis.png');
         this.load.image('eng-biela', 'assets/juegos/engrasar_convertidor/partes/biela.png');
         this.load.image('eng-pinon-grande', 'assets/juegos/engrasar_convertidor/partes/pinon_grande.png');
-        this.load.image('eng-pinon-pequeño', 'assets/juegos/engrasar_convertidor/partes/pinos_peque%C3%B1o.png');
-        this.load.image('eng-anillo-piston', 'assets/juegos/engrasar_convertidor/partes/anillo%20de%20piston.png');
-        this.load.image('eng-anillo-lubricante', 'assets/juegos/engrasar_convertidor/partes/anillo%20lubricante.png');
+        this.load.image('eng-pinon-pequeno', 'assets/juegos/engrasar_convertidor/partes/pinos_pequeno.png');
+        this.load.image('eng-anillo-piston', 'assets/juegos/engrasar_convertidor/partes/anillo_de_piston.png');
+        this.load.image('eng-anillo-lubricante', 'assets/juegos/engrasar_convertidor/partes/anillo_lubricante.png');
         this.load.image('eng-contenedor', 'assets/juegos/engrasar_convertidor/partes/contenedor.png');
+        this.load.image('item-aceite', 'assets/juegos/clasificar_tools/aceite.png');
 
         this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);

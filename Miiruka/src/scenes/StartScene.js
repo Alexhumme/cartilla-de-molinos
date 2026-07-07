@@ -4,6 +4,7 @@ import { UIHelpers } from '../utils/ui.js';
 import { addFullScreenImage } from '../utils/backgrounds.js';
 import { attachLoadingOverlay } from '../utils/loadingOverlay.js';
 import { bindDomKeyboardCommand, KeyboardCommands } from '../utils/keyboardControls.js';
+import { GamepadCursor } from '../utils/gamepad.js';
 
 export class StartScene extends Phaser.Scene {
     constructor() {

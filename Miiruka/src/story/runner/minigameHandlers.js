@@ -2885,6 +2885,386 @@ export async function runPaintMillMinigame(id, options = []) {
 }
 
 export async function runLubricateMillMinigame(id, options = []) {
-    // TODO: implementar minijuego de lubricación
+    const shell = await createChapter3Shell(
+        this,
+        'Lubrica el convertidor',
+        'Arrastra cada pieza hasta su lugar en el convertidor.',
+    );
+    const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
+
+    const CX = 950;
+    const CY = 570;
+
+    // Tamaño real de la imagen compuesta original del convertidor
+    const MASTER_W = 1868;
+    const MASTER_H = 3788;
+
+    // Misma lógica de escala que usabas para la imagen compuesta
+    const maxDim = 640;
+    const compositeScale = Math.min(maxDim / MASTER_W, maxDim / MASTER_H, 1.2);
+
+    // Esquina superior-izquierda del lienzo maestro, en coordenadas de la escena
+    const originX = CX - (MASTER_W * compositeScale) / 2;
+    const originY = CY - (MASTER_H * compositeScale) / 2;
+
+    // ── PIEZAS, EN ORDEN DE PROFUNDIDAD (de atrás hacia adelante) ──────────
+    // Este orden corresponde al de las capas de Figma "Group 86" (imagen 2),
+    // leídas de abajo hacia arriba: chasis -> contenedor -> anillo lubricante
+    // -> anillo de pistón -> piñón pequeño -> piñón grande -> biela (frente).
+    // Los valores ox/oy siguen siendo PROVISIONALES: actívalos con precisión
+    // real usando CALIBRATION_MODE (ver abajo) y pega los valores impresos
+    // en consola aquí.
+    const PARTS = [
+        { key: 'eng-chasis',            w: 1722, h: 3788, ox: 83,  oy: 0    },
+        { key: 'eng-contenedor',        w: 1868, h: 1070, ox: 0,   oy: 2450 },
+        { key: 'eng-anillo-lubricante', w: 602,  h: 602,  ox: 420, oy: 1420  },
+        { key: 'eng-anillo-piston',     w: 632,  h: 632,  ox: 310, oy: 1220  },
+        { key: 'eng-pinon-pequeno',     w: 455,  h: 455,  ox: 60,  oy: 2600 },
+        { key: 'eng-pinon-grande',      w: 1335, h: 1335, ox: 420, oy: 2020 },
+        { key: 'eng-biela',             w: 1190, h: 1629, ox: 500, oy: 1400  },
+    ];
+    // ────────────────────────────────────────────────────────────────────
+
+    // true  -> modo calibración: cada pieza aparece sobre su lugar correcto,
+    //          la arrastras un poco para ajustar y lees ox/oy por consola.
+    // false -> modo juego: las piezas salen dispersas y hay que arrastrarlas
+    //          hasta encajarlas en su posición correcta.
+    const CALIBRATION_MODE = false;
+
+    // Distancia (en px de pantalla) a la que se considera "encajada" una pieza
+    const SNAP_TOLERANCE = 28;
+
+    const overlay = scene.add.rectangle(CX, CY, 1400, 780, 0x000000, 0);
+    root.add(overlay);
+
+    let guide = null;
+    if (scene.textures.exists('eng-convertidor')) {
+        guide = scene.add.image(CX, CY, 'eng-convertidor')
+            .setOrigin(0.5)
+            .setScale(compositeScale)
+            .setAlpha(CALIBRATION_MODE ? 0.3 : 0.15);
+        root.add(guide);
+    }
+
+    const instruc = scene.add.text(
+        CX,
+        220,
+        CALIBRATION_MODE
+            ? 'Modo calibración: arrastra y revisa la consola'
+            : 'Arrastra cada pieza a su lugar',
+        { fontFamily: 'fredoka', fontSize: '20px', color: '#fce1b4' },
+    ).setOrigin(0.5).setAlpha(0.85);
+    root.add(instruc);
+
+    // Posición correcta (destino) de cada pieza, ya en coordenadas de escena
+    const withTargets = PARTS
+        .filter((p) => scene.textures.exists(p.key))
+        .map((p) => ({
+            part: p,
+            targetX: originX + (p.ox + p.w / 2) * compositeScale,
+            targetY: originY + (p.oy + p.h / 2) * compositeScale,
+        }));
+
+    const totalParts = withTargets.length;
+    let placedCount = 0;
+
+    // Puntos de partida dispersos dentro del panel del minijuego, sin tapar título
+    const scatterSpots = [
+        { x: 400, y: 450 },
+        { x: 1500, y: 350 },
+        { x: 600, y: 570 },
+        { x: 1500, y: 570 },
+        { x: 600, y: 800 },
+        { x: 1500, y: 800 },
+        { x: 600, y: 300 },
+    ];
+
+    // ── Crear piezas arrastrables (misma técnica que classifyTools / ordenar_proceso) ──
+    // El orden del array PARTS define la profundidad: primera = abajo (menor depth),
+    // última = arriba (mayor depth).
+    const draggableItems = [];
+
+    withTargets.forEach(({ part, targetX, targetY }, i) => {
+        const startX = CALIBRATION_MODE ? targetX : scatterSpots[i % scatterSpots.length].x;
+        const startY = CALIBRATION_MODE ? targetY : scatterSpots[i % scatterSpots.length].y;
+
+        const tex = scene.textures.get(part.key).getSourceImage();
+        const w = Math.round(tex.width * compositeScale);
+        const h = Math.round(tex.height * compositeScale);
+
+        const depth = i; // primera en array = menor depth (abajo)
+
+        const wrapper = scene.add.container(startX, startY).setSize(w, h).setScrollFactor(0);
+        const img = scene.add.image(0, 0, part.key).setOrigin(0.5).setScale(compositeScale);
+        wrapper.add(img);
+        wrapper.setDepth(depth);
+        wrapper.setInteractive({ useHandCursor: true });
+        scene.input.setDraggable(wrapper);
+        root.add(wrapper);
+
+        draggableItems.push({
+            wrapper, img, part, targetX, targetY,
+            placed: false,
+            startX, startY, depth,
+        });
+    });
+
+    // ── Eventos de arrastre en scene.input (mismo patrón que ordenar_proceso) ──
+    let resolveDone;
+    const donePromise = new Promise((r) => { resolveDone = r; });
+
+    const onDragStart = (pointer, gameObject) => {
+        const item = draggableItems.find(d => d.wrapper === gameObject);
+        if (!item || item.placed) return;
+        scene.children.bringToTop(root);
+        root.bringToTop(gameObject);
+    };
+
+    const onDrag = (pointer, gameObject, dragX, dragY) => {
+        const item = draggableItems.find(d => d.wrapper === gameObject);
+        if (!item || item.placed) return;
+        gameObject.x = dragX;
+        gameObject.y = dragY;
+    };
+
+    const onDragEnd = (pointer, gameObject, dropped) => {
+        const item = draggableItems.find(d => d.wrapper === gameObject);
+        if (!item || item.placed) return;
+
+        if (CALIBRATION_MODE) {
+            const ox = Math.round((gameObject.x - originX) / compositeScale - item.part.w / 2);
+            const oy = Math.round((gameObject.y - originY) / compositeScale - item.part.h / 2);
+            console.log(`{ key: '${item.part.key}', w: ${item.part.w}, h: ${item.part.h}, ox: ${ox}, oy: ${oy} },`);
+            return;
+        }
+
+        const dist = Phaser.Math.Distance.Between(gameObject.x, gameObject.y, item.targetX, item.targetY);
+        if (dist <= SNAP_TOLERANCE) {
+            // Las piezas deben encajarse de abajo hacia arriba: no se puede colocar una
+            // pieza si las que están debajo (mayor índice en PARTS, menor depth) aún no
+            // se han colocado.
+            const belowNotPlaced = draggableItems.some(
+                d => !d.placed && d.depth < item.depth
+            );
+            if (belowNotPlaced) {
+                scene.tweens.add({
+                    targets: gameObject,
+                    x: item.startX,
+                    y: item.startY,
+                    duration: 300,
+                    ease: 'Back.easeOut',
+                });
+                return;
+            }
+
+            item.placed = true;
+            placedCount += 1;
+
+            // Restaurar profundidad correcta al encajar
+            gameObject.setDepth(item.depth);
+
+            scene.tweens.add({
+                targets: gameObject,
+                x: item.targetX,
+                y: item.targetY,
+                duration: 120,
+                ease: 'Quad.easeOut',
+                onComplete: () => {
+                    playUiSound(scene, 'success-bell', 0.6);
+                    scene.tweens.add({
+                        targets: gameObject,
+                        scaleX: 1.15,
+                        scaleY: 1.15,
+                        duration: 120,
+                        ease: 'Quad.easeOut',
+                        yoyo: true,
+                    });
+                },
+            });
+            gameObject.disableInteractive();
+
+            if (placedCount >= totalParts) {
+                instruc.setText('¡El convertidor rechina! Aplica aceite en los 3 puntos.');
+                scene.time.delayedCall(400, startOilingPhase);
+            }
+        } else if (!dropped) {
+            scene.tweens.add({
+                targets: gameObject,
+                x: item.startX,
+                y: item.startY,
+                duration: 200,
+                ease: 'Back.easeOut',
+            });
+        }
+    };
+
+    scene.input.on('dragstart', onDragStart);
+    scene.input.on('drag', onDrag);
+    scene.input.on('dragend', onDragEnd);
+
+    // ── Fase de aceite: después de armar el convertidor ──────────────────────────
+    let oilListeners = [];
+
+    function startOilingPhase() {
+        // Efecto de rechinar
+        playUiSound(scene, 'wrong-option', 0.25);
+        if (guide) {
+            scene.tweens.add({
+                targets: guide,
+                x: guide.x + 5,
+                duration: 40,
+                yoyo: true,
+                repeat: 6,
+                onComplete: () => { guide.x = CX; },
+            });
+        }
+
+        const oilKeys = ['eng-pinon-grande', 'eng-biela', 'eng-anillo-lubricante'];
+        const oilTargets = draggableItems.filter(d => oilKeys.includes(d.part.key));
+        let oiledCount = 0;
+
+        // Marcadores de puntos de aceite (círculos pulsantes)
+        const oilPoints = oilTargets.map((item) => {
+            const dot = scene.add.circle(item.targetX, item.targetY, 22, 0xff4444, 0.85)
+                .setDepth(300);
+            root.add(dot);
+            scene.tweens.add({
+                targets: dot,
+                scaleX: 1.4,
+                scaleY: 1.4,
+                alpha: 0.3,
+                duration: 600,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.inOut',
+            });
+            return { item, dot, oiled: false };
+        });
+
+        // Pote de aceite (envuelto en container con setSize, como el resto)
+        const oilScale = 0.4;
+        let oilTexW = 120, oilTexH = 120;
+        if (scene.textures.exists('item-aceite')) {
+            const src = scene.textures.get('item-aceite').getSourceImage();
+            oilTexW = Math.round(src.width * oilScale);
+            oilTexH = Math.round(src.height * oilScale);
+        }
+        const oilCanWrapper = scene.add.container(CX + 480, 300)
+            .setSize(oilTexW, oilTexH).setScrollFactor(0).setDepth(310).setScale(0);
+        const oilCanImg = scene.add.image(0, 0, 'item-aceite')
+            .setOrigin(0.5).setScale(oilScale);
+        oilCanWrapper.add(oilCanImg);
+        root.add(oilCanWrapper);
+
+        scene.tweens.add({
+            targets: oilCanWrapper,
+            scale: 1,
+            duration: 500,
+            ease: 'Back.easeOut',
+        });
+
+        scene.time.delayedCall(600, () => {
+            if (!oilCanWrapper.destroyed) {
+                oilCanWrapper.setInteractive({ useHandCursor: true });
+                scene.input.setDraggable(oilCanWrapper);
+            }
+        });
+
+        const onOilDragStart = (pointer, gameObject) => {
+            if (gameObject !== oilCanWrapper) return;
+            scene.children.bringToTop(root);
+            root.bringToTop(gameObject);
+        };
+
+        const onOilDrag = (pointer, gameObject, dragX, dragY) => {
+            if (gameObject !== oilCanWrapper) return;
+            gameObject.x = dragX;
+            gameObject.y = dragY;
+        };
+
+        const onOilDragEnd = (pointer, gameObject) => {
+            if (gameObject !== oilCanWrapper) return;
+
+            const hitPoint = oilPoints.find(p => {
+                if (p.oiled) return false;
+                const dist = Phaser.Math.Distance.Between(gameObject.x, gameObject.y, p.item.targetX, p.item.targetY);
+                return dist <= 55;
+            });
+            if (!hitPoint) {
+                scene.tweens.add({
+                    targets: gameObject,
+                    x: CX + 480,
+                    y: 300,
+                    duration: 250,
+                    ease: 'Back.easeOut',
+                });
+                return;
+            }
+
+            // Aceite aplicado
+            hitPoint.oiled = true;
+            oiledCount += 1;
+
+            scene.tweens.killTweensOf(hitPoint.dot);
+            hitPoint.dot.setFillStyle(0x44ff44, 0.9);
+            hitPoint.dot.setScale(1.2);
+            scene.tweens.add({
+                targets: hitPoint.dot,
+                scaleX: 0,
+                scaleY: 0,
+                alpha: 0,
+                duration: 350,
+                ease: 'Quad.easeIn',
+            });
+
+            playUiSound(scene, 'success-bell', 0.55);
+            scene.tweens.add({
+                targets: gameObject,
+                scaleX: 1.2,
+                scaleY: 1.2,
+                duration: 100,
+                yoyo: true,
+                onComplete: () => { if (!gameObject.destroyed) gameObject.setScale(1); },
+            });
+
+            if (oiledCount >= 3) {
+                instruc.setText('¡Convertidor lubricado!');
+                scene.tweens.add({
+                    targets: gameObject,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => gameObject.destroy(),
+                });
+                oilListeners.forEach(fn => fn());
+
+                playUiSound(scene, 'success-bell', 0.85);
+                scene.time.delayedCall(1500, resolveDone);
+            }
+        };
+
+        scene.input.on('dragstart', onOilDragStart);
+        scene.input.on('drag', onOilDrag);
+        scene.input.on('dragend', onOilDragEnd);
+        oilListeners = [
+            () => scene.input.off('dragstart', onOilDragStart),
+            () => scene.input.off('drag', onOilDrag),
+            () => scene.input.off('dragend', onOilDragEnd),
+        ];
+    }
+
+    if (CALIBRATION_MODE) {
+        overlay.setInteractive();
+        overlay.on('pointerdown', () => resolveDone());
+    }
+
+    await donePromise;
+
+    scene.input.off('dragstart', onDragStart);
+    scene.input.off('drag', onDrag);
+    scene.input.off('dragend', onDragEnd);
+    oilListeners.forEach(fn => fn());
+    overlay.destroy();
+
     this.minigames.set(id, options[0] ?? 'respuesta1');
+    restoreMinigameUi(this, prevTopOnly, root, pauseWasInteractive);
 }
