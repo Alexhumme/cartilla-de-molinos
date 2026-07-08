@@ -154,8 +154,8 @@ export class ChapterSelectorScene extends Phaser.Scene {
             UIHelpers.attachHoverPop(this, cardBody, 0.35);
         }
 
-        //const card = this.add.container(500 + (i - 1) * 420, 700, [
-        const card = this.add.container(710 + (i - 1) * 420, 700, [
+        const card = this.add.container(500 + (i - 1) * 420, 700, [
+        //const card = this.add.container(710 + (i - 1) * 420, 700, [
             border,
             cardBody,
         ])

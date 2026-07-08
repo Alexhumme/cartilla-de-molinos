@@ -4,7 +4,6 @@ import { UIHelpers } from '../utils/ui.js';
 import { addFullScreenImage } from '../utils/backgrounds.js';
 import { attachLoadingOverlay } from '../utils/loadingOverlay.js';
 import { bindDomKeyboardCommand, KeyboardCommands } from '../utils/keyboardControls.js';
-import { GamepadCursor } from '../utils/gamepad.js';
 
 export class StartScene extends Phaser.Scene {
     constructor() {
@@ -22,6 +21,7 @@ export class StartScene extends Phaser.Scene {
         this.load.image('illustration', 'assets/background_start_illustration.png');
         this.load.image('gamepad-cursor', 'assets/ui/cursor-arrow.png');
         this.load.image('gamepad-cursor-active', 'assets/ui/cursor-pointer.png');
+        this.load.image('music-icon', 'assets/ui/music-player.png');
 
         // Desierto
         this.load.image('sky', 'assets/desert/sky.png');
@@ -361,7 +361,7 @@ export class StartScene extends Phaser.Scene {
         this.createFullscreenButton(1648, 980);
         this.createMusicToggle(1760, 980);
         this.createGamepadIndicator(96, 984);
-        GamepadCursor.attach(this);
+        //GamepadCursor.attach(this);
     }
 
     update(time, delta) {
@@ -369,7 +369,7 @@ export class StartScene extends Phaser.Scene {
         this.gears.tilePositionY += 0.3;
         this.gears.tilePositionX += 0.1;
 
-        GamepadCursor.update(this, delta);
+        //GamepadCursor.update(this, delta);
 
     }
 
@@ -457,17 +457,8 @@ export class StartScene extends Phaser.Scene {
         inner.fillStyle(0xf0c18a, 1);
         inner.fillRoundedRect(-size / 2 + 6, -size / 2 + 6, size - 12, size - 12, 12);
 
-        const icon = this.add.graphics();
-        icon.lineStyle(5, 0x6a3a1b, 1);
-        icon.beginPath();
-        icon.moveTo(-8, 20);
-        icon.lineTo(-8, -16);
-        icon.lineTo(14, -22);
-        icon.lineTo(14, 12);
-        icon.strokePath();
-        icon.fillStyle(0x6a3a1b, 1);
-        icon.fillCircle(-8, 22, 7);
-        icon.fillCircle(14, 14, 7);
+        const icon = this.add.image(0, 0, 'music-icon').setOrigin(0.5);
+        icon.setScale(0.2);
 
         const muteLine = this.add.graphics();
         muteLine.lineStyle(5, 0xb25a48, 1);
