@@ -39,7 +39,7 @@ export class Chp1_scn4 extends Phaser.Scene {
 
         // Ilustraciones para juego de ordenar secuencia.
 
-        this.load.image('item-bomba', 'assets/items/bomba_ejemplo.png');
+        this.load.image('item-bomba', 'assets/items/seq-bomba-agua.png');
         this.load.image('item-aspas', 'assets/items/aspas_ejemplo.png');
         this.load.image('item-engranes', 'assets/items/engranes_ejemplo.png');
         this.load.image('item-viento', 'assets/items/viento.png');

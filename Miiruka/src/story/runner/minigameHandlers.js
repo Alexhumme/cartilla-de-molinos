@@ -418,8 +418,8 @@ export async function runLocateMillMinigame(id) {
     root.add([map, hint, errorText]);
     root.setDepth(880);
 
-    const target = { x: 200, y: 460 };
-    const tolerance = 70;
+    const target = { x: 632, y: 220 };
+    const tolerance = 100;
     let marker = null;
     let ring = null;
 
@@ -487,7 +487,10 @@ export async function runLocateMillMinigame(id) {
             scene.input.once('pointerdown', finishHandler);
             return;
         }
-
+        
+        if (scene.cache.audio?.exists('wrong-option')) {
+            scene.sound.play('wrong-option', { volume: 0.7 });
+        }
         placeMarker(world.x, world.y, false);
         errorText.setText('Ese no es el lugar correcto. Intenta de nuevo.');
     };
@@ -1310,6 +1313,9 @@ export async function runSeparateUnionsMinigame(id, options = []) {
     };
 
     const completePass = () => {
+
+        
+
         activePasses += 1;
         const targetOffset = activePasses >= passCountTarget
             ? 100

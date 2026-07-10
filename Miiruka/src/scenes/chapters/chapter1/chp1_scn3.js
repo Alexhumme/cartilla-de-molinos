@@ -42,8 +42,9 @@ export class Chp1_scn3 extends Phaser.Scene {
         this.load.image('item-tuberia', 'assets/items/tuberia.png');
         this.load.image('item-gota-vida', 'assets/items/gota-vida.png');
         // Minijuego ubicar molino (la escena debe ser autosuficiente al recargar).
-        this.load.image('mapa-molino', 'assets/juegos/ubicarMolino/mapa.png');
-        this.load.image('mini-molino', 'assets/juegos/ubicarMolino/minimolino.png');
+        this.load.image('mapa-molino', 'assets/juegos/ubicarMolino/mapa_isometrico.png');
+        this.load.image('mini-molino', 'assets/juegos/ubicarMolino/molino_isometrico.png');
+        this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
 
         // Carga dinámica de personajes y emociones usados en el guion.
         this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
