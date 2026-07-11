@@ -1731,7 +1731,7 @@ export async function runInsertRodMinigame(id, options = []) {
     instruction.setScrollFactor(0);
     root.add(instruction);
 
-    const pump = scene.add.image(960, scene.scale.height - 28, 'entrada_bomba').setOrigin(0.5, 1);
+    const pump = scene.add.image(960, scene.cameras.main.height - 28, 'entrada_bomba').setOrigin(0.5, 1);
     const rod = scene.add.image(pump.x + 250, pump.y - 80, 'varilla_nueva').setOrigin(0.5, 1);
     rod.setScrollFactor(0);
     pump.setScrollFactor(0);

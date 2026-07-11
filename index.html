@@ -2,7 +2,7 @@
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <title>Miiruku</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,10 +20,11 @@
             html, body {
                 width: 100%;
                 height: 100%;
-                overflow: scroll;
+                overflow: hidden;
             }
-    
+
             body {
+                min-height: 100%;
                 line-height: 1;
                 font-family: Arial, sans-serif;
                 background-color: #040218;
@@ -45,8 +46,8 @@
             }
 
             #game-container {
-                width: 100vw;
-                height: 100vh;
+                width: 100%;
+                height: 100%;
                 overflow: hidden;
             }
 
