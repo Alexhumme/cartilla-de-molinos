@@ -119,8 +119,9 @@ export class Chp2_scn3 extends Phaser.Scene {
         const baseScale = 1;
         const cam = this.cameras.main;
         const baseX = 800;
-        const baseBottom = cam.scrollY + this.scale.height - 60;
+        const baseBottom = (cam.scrollY || 0) + (cam.height || this.scale.height) - 60;
         const baseY = baseBottom - baseHeight * baseScale;
+        console.debug('placeMill chp2_scn3', { scrollY: cam.scrollY, camHeight: cam.height, worldBottom: cam.worldView?.bottom, baseBottom, baseY });
 
         const molinoBase = this.add.image(baseX, baseY, 'molino-base').setOrigin(0, 0).setScale(baseScale);
         molinoBase.setDepth(120);
@@ -152,7 +153,7 @@ export class Chp2_scn3 extends Phaser.Scene {
     getCameraPanDistance() {
         if (!this.molinoAspas) return 520;
         const cam = this.cameras.main;
-        const target = (cam.scrollY + this.scale.height / 2) - this.molinoAspas.y;
+        const target = (cam.scrollY || 0) + ((cam.height || this.scale.height) / 2) - this.molinoAspas.y;
         return Math.max(0, Math.round(target));
     }
 

@@ -530,6 +530,10 @@ export function ensureRunnerMusic() {
 
 export function setRunnerMusicVolume(volume, options = {}) {
     this.musicVolume = Phaser.Math.Clamp(volume, 0, 1);
+    // Persist the new volume so new scenes pick it up.
+    try {
+        GameStorage.setMusicVolume(this.musicVolume);
+    } catch (err) {}
     if (this.musicSound) {
         this.musicSound.setVolume(this.musicVolume);
     } else if (!options.silent) {

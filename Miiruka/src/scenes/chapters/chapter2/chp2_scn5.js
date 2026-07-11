@@ -91,8 +91,8 @@ export class Chp2_scn5 extends Phaser.Scene {
 
     getCameraPanDistance() {
         if (!this.molinoAspas) return 520;
-        const cam = this.cameras.main;
-        const target = (cam.scrollY + this.scale.height / 2) - this.molinoAspas.y;
+            const cam = this.cameras.main;
+            const target = (cam.scrollY || 0) + ((cam.height || this.scale.height) / 2) - this.molinoAspas.y;
         return Math.max(0, Math.round(target));
     }
  
