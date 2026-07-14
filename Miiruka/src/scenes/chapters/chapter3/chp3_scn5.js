@@ -20,6 +20,7 @@ export class Chp3_scn5 extends Phaser.Scene {
         this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
+        this.load.audio('splat-sound', 'assets/sounds/splat.mp3');
 
         this.load.image('sky', 'assets/desert/sky.png');
         this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');

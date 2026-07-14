@@ -20,6 +20,7 @@ export class Chp3_scn4 extends Phaser.Scene {
         this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
         this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
+        this.load.audio('brush-sound', 'assets/sounds/cepillo.mp3');
 
         this.load.image('sky', 'assets/desert/sky.png');
         this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');
@@ -32,6 +33,7 @@ export class Chp3_scn4 extends Phaser.Scene {
         this.load.image('pause-icon', 'assets/ui/settings.png');
 
         this.load.image('molino-danado', 'assets/juegos/quitar_polvo/molinodanado.png');
+        this.load.image('molino_medio', 'assets/juegos/quitar_polvo/molino_medio.png');
         this.load.image('cepillo', 'assets/juegos/quitar_polvo/cepillo.png');
 
         this.load.on('filecomplete-text-ch3_script', (key, type, data) => {

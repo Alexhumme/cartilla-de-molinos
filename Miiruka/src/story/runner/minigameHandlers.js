@@ -1314,7 +1314,9 @@ export async function runSeparateUnionsMinigame(id, options = []) {
 
     const completePass = () => {
 
-        
+        if (scene.cache.audio?.exists('squeak-separador')) {
+            scene.sound.play('squeak-separador', { volume: 0.7 });
+        }
 
         activePasses += 1;
         const targetOffset = activePasses >= passCountTarget
@@ -1805,8 +1807,11 @@ export async function runInsertRodMinigame(id, options = []) {
     }
 }
 
-const getSafeTexture = (scene, key) => {
-    if (key && scene.textures.exists(key)) return key;
+const getSafeTexture = (scene, key, alternatives = []) => {
+    const candidates = [key, ...(Array.isArray(alternatives) ? alternatives : [])].filter(Boolean);
+    for (const candidate of candidates) {
+        if (scene.textures.exists(candidate)) return candidate;
+    }
     if (scene.textures.exists('story-placeholder')) return 'story-placeholder';
     return null;
 };
@@ -2054,7 +2059,7 @@ export async function runCleanMillMinigame(id, options = []) {
     );
     const { scene, root, prevTopOnly, pauseWasInteractive } = shell;
 
-    const dirtyKey = getSafeTexture(scene, 'molino-danado');
+    const dirtyKey = getSafeTexture(scene, 'molino-danado', ['molinoDanado']);
     const cleanKey = getSafeTexture(scene, 'molino_medio');
     const brushKey = getSafeTexture(scene, 'cepillo');
 
@@ -2145,6 +2150,7 @@ export async function runCleanMillMinigame(id, options = []) {
         if (pct >= 85) {
             finished = true;
             brushCursor.destroy();
+            if (brushSound.isPlaying) brushSound.stop();
             if (sideBrush && !sideBrush.destroyed) sideBrush.destroy();
             scene.input.setDefaultCursor('default');
             progress.setColor('#9df0a8');
@@ -2189,6 +2195,8 @@ export async function runCleanMillMinigame(id, options = []) {
         }
     };
 
+    const brushSound = scene.sound.add('brush-sound', {volume: 0.7, loop: true})
+
     const onDown = (pointer) => {
         if (finished || !brushGrabbed) return;
         painting = true;
@@ -2198,9 +2206,13 @@ export async function runCleanMillMinigame(id, options = []) {
     const onMove = (pointer) => {
         if (finished || !brushGrabbed) return;
         brushCursor.setPosition(pointer.x, pointer.y);
-        if (painting) eraseAt(pointer.x, pointer.y);
+        if (painting) {
+            if (!brushSound.isPlaying) brushSound.play();
+            eraseAt(pointer.x, pointer.y);
+        }
     };
     const onUp = () => {
+        if (brushSound.isPlaying) brushSound.stop();
         painting = false;
     };
 
@@ -2843,11 +2855,20 @@ export async function runPaintMillMinigame(id, options = []) {
         painting = !!brushGrabbed;
         paintPart(ptr.x, ptr.y);
     };
+
+    const splatSound = scene.sound.add('splat-sound', {volume: 0.7, loop: true})
+
     const onMove = (ptr) => {
         brushDot.setPosition(ptr.x, ptr.y).setAlpha(brushGrabbed ? 1 : 0);
-        if (painting) paintPart(ptr.x, ptr.y);
+        if (painting) {
+            if (!splatSound.isPlaying) splatSound.play();
+            paintPart(ptr.x, ptr.y);
+        }
     };
-    const onUp = () => { painting = false; };
+    const onUp = () => { 
+        if (splatSound.isPlaying) splatSound.stop();
+        painting = false; 
+    };
 
     scene.input.on('pointerdown', onDown);
     scene.input.on('pointermove', onMove);
@@ -3223,7 +3244,7 @@ export async function runLubricateMillMinigame(id, options = []) {
                 ease: 'Quad.easeIn',
             });
 
-            playUiSound(scene, 'success-bell', 0.55);
+            playUiSound(scene, 'water-drop', 0.55);
             scene.tweens.add({
                 targets: gameObject,
                 scaleX: 1.2,
