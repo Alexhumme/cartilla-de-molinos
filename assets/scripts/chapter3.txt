@@ -1,0 +1,276 @@
+
+[escena][Preparativos]
+
+[plano][cielo_comunidad]
+
+[personaje][Jouktai][entra][izquierda]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:¡Hola! Qué bueno verte otra vez.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:Hoy tengo una misión muy importante.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:Kamanewaa me pidió que ayude a su sobrino Martín con el mantenimiento del molino.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:Martín es muy responsable. Dice que si uno no se ríe un poco, hasta el molino se oxida.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:Vamos a buscarlo. Seguro que juntos dejaremos el molino como nuevo.]
+[way:...]
+
+[cambiar_escena][Chp3_scn2]
+
+[escena][Encuentro]
+
+[personaje][Jouktai][entra][izquierda]
+
+[personaje][Martin][entra][derecha]
+
+[personaje][Martin][emocion][feliz][habla]
+[es:¡Jouktai! Llegaste justo a tiempo.]
+[way:...]
+
+[personaje][Martin][habla]
+[es:Hoy vamos a hacer mantenimiento al molino.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:¿Por dónde empezamos?]
+[way:...]
+
+[recuadro][abrir]
+[recuadro][imagenes][item-pintura,item-brocha,item-aceite,item-llave,item-cortatubos,item-trapo,item-cepillo,item-guantes,item-gafas,item-casco,item-botas,item-tapabocas]
+
+[personaje][Martin][habla]
+[es:Primero debemos separar las herramientas de mantenimiento y los elementos de protección.]
+[way:...]
+
+[recuadro][cerrar]
+
+[minijuego][clasificar_herramientas]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:¡Muy bien! Ya tenemos todo organizado.]
+[way:...]
+
+[pregunta_escena][es:¿Cuál de estos es un elemento de protección?][correcta:2]
+[op1es:Brocha]
+[op2es:Casco]
+[op3es:Aceite lubricante]
+
+[personaje][Martin][habla]
+[es:La seguridad siempre es el primer paso del mantenimiento.]
+[way:...]
+
+[cambiar_escena][Chp3_scn3]
+
+[escena][Camino]
+
+[personaje][Jouktai][entra][izquierda]
+[personaje][Martin][entra][izquierda]
+
+[bgscroll][start][Jouktai,Martin][izquierda][40]
+
+[personaje][Jouktai][habla]
+[es:Martín, ¿por qué debemos hacer mantenimiento si el molino todavía funciona?]
+[way:...]
+
+[personaje][Martin][habla]
+[es:Porque los molinos no se dañan de un día para otro.]
+[way:...]
+
+[personaje][Martin][habla]
+[es:El polvo entra en los engranajes, el sol calienta el metal y el viento mueve las aspas todos los días.]
+[way:...]
+
+[personaje][Martin][habla]
+[es:Si no revisamos el molino, las piezas pueden desgastarse o romperse.]
+[way:...]
+
+[recuadro][abrir]
+[recuadro][imagenes][item-polvo-engranes,item-sol-metal,item-aspas-viento]
+
+[personaje][Martin][habla]
+[es:Por eso limpiamos, ajustamos y protegemos cada parte del molino.]
+[way:...]
+
+[recuadro][cerrar]
+
+[pregunta_escena][es:¿Por qué se realiza mantenimiento al molino?][correcta:3]
+[op1es:Para cambiarlo por uno nuevo]
+[op2es:Para que deje de funcionar]
+[op3es:Para evitar daños y desgaste]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:Entonces el mantenimiento ayuda a que el molino dure muchos años.]
+[way:...]
+
+[bgscroll][stop]
+
+[cambiar_escena][Chp3_scn4]
+
+[escena][Limpieza]
+
+[personaje][Jouktai][entra][izquierda]
+[personaje][Martin][entra][derecha]
+
+[camara][subir][1200][6000]
+
+[personaje][Martin][habla]
+[es:Aquí estamos. Antes de pintar o engrasar, debemos limpiar el molino.]
+[way:...]
+
+[recuadro][abrir]
+[recuadro][imagenes][molino-danado]
+
+[personaje][Jouktai][habla]
+[es:Ayúdanos a quitar el polvo y la arena.]
+[way:...]
+
+[recuadro][cerrar]
+
+[minijuego][limpiar_molino]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:¡Excelente! El molino ya está limpio.]
+[way:...]
+
+[personaje][Martin][habla]
+[es:Cuando quitamos el polvo evitamos que las piezas se desgasten más rápido.]
+[way:...]
+
+[pregunta_escena][es:¿Cuál es el primer paso del mantenimiento realizado hoy?][correcta:1]
+[op1es:Limpiar]
+[op2es:Pintar]
+[op3es:Engrasar]
+
+[cambiar_escena][Chp3_scn5]
+
+[escena][Proteccion]
+
+[personaje][Jouktai][entra][izquierda]
+[personaje][Martin][entra][derecha]
+
+[personaje][Martin][habla]
+[es:Ahora vamos a proteger el molino con pintura.]
+[way:...]
+
+[recuadro][abrir]
+[recuadro][imagenes][molino-danado,molino_medio]
+
+[personaje][Jouktai][habla]
+[es:La pintura ayuda a proteger el metal del sol y la lluvia.]
+[way:...]
+
+[recuadro][cerrar]
+
+[minijuego][pintar_molino]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:¡Qué bien se ve! Parece nuevo.]
+[way:...]
+
+[personaje][Martin][habla]
+[es:La pintura funciona como un escudo para el molino.]
+[way:...]
+
+[pregunta_rapida][es:¿Para qué sirve la pintura en el molino?][correcta:2]
+[op1es:Para hacerlo más pesado]
+[op2es:Para proteger el metal]
+[op3es:Para detener el viento]
+
+[cambiar_escena][Chp3_scn6]
+
+[escena][Lubricacion]
+
+[personaje][Jouktai][entra][izquierda]
+[personaje][Martin][entra][derecha]
+
+[personaje][Martin][habla]
+[es:Solo nos falta el último paso: lubricar las partes móviles.]
+[way:...]
+
+[recuadro][abrir]
+[recuadro][imagenes][item-aceite,item-engranes,item-ejes]
+
+[personaje][Jouktai][habla]
+[es:Ayúdanos a colocar aceite en los ejes y engranajes.]
+[way:...]
+
+[recuadro][cerrar]
+
+[minijuego][engrasar_molino]
+
+[personaje][Martin][emocion][feliz][habla]
+[es:¡Perfecto! Ahora las piezas giran suavemente.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:El aceite reduce el desgaste y ayuda a que el molino funcione mejor.]
+[way:...]
+
+[pregunta_rapida][es:¿Para qué sirve el aceite lubricante?][correcta:3]
+[op1es:Para pintar el molino]
+[op2es:Para limpiar el polvo]
+[op3es:Para reducir el roce y el desgaste]
+
+[cambiar_escena][Chp3_scn7]
+
+[escena][Despedida]
+
+[personaje][Jouktai][entra][izquierda]
+[personaje][Martin][entra][derecha]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:¡Lo logramos! El molino quedó limpio, protegido y funcionando mejor.]
+[way:...]
+
+[personaje][Martin][habla]
+[es:Un buen mantenimiento ayuda a que el agua siga llegando a toda la comunidad.]
+[way:...]
+
+[personaje][Jouktai][mira][jugador]
+
+[personaje][Jouktai][habla]
+[es:Recuerda: limpiar, pintar y lubricar son acciones que ayudan a cuidar el molino.]
+[way:...]
+
+[pregunta_escena][es:¿Cuál es el orden correcto del mantenimiento realizado?][correcta:1]
+[op1es:Limpiar, pintar y lubricar]
+[op2es:Lubricar, limpiar y pintar]
+[op3es:Pintar, lubricar y limpiar]
+
+[personaje][Martin][habla]
+[es:Si todos ayudamos a cuidarlo, el molino seguirá funcionando durante muchos años.]
+[way:...]
+
+[personaje][Jouktai][emocion][feliz]
+[esperar][220]
+[personaje][Jouktai][emocion][idle][habla]
+[es:Cuidar el molino es cuidar el agua y la vida de nuestra comunidad.]
+[way:...]
+
+[personaje][Jouktai][habla]
+[es:¡Hasta pronto!]
+[way:...]
+
+[cambiar_escena][Chp3_end]

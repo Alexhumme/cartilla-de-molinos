@@ -4,6 +4,7 @@ import { InfoScene } from './scenes/InfoScene.js';
 import { SettingsScene } from './scenes/SettingsScene.js';
 import chapter1Scenes from './scenes/chapters/chapter1/index.js'
 import chapter2Scenes from './scenes/chapters/chapter2/index.js'
+import chapter3Scenes from './scenes/chapters/chapter3/index.js'
 
 const config = {
     type: Phaser.AUTO,
@@ -23,7 +24,8 @@ const config = {
         InfoScene,
         SettingsScene,
         ...chapter1Scenes,
-        ...chapter2Scenes
+        ...chapter2Scenes,
+        ...chapter3Scenes
     ],
     scale: {
         mode: Phaser.Scale.FIT,

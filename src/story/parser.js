@@ -13,6 +13,7 @@ const canonicalCharacterName = (name) => {
     if (key === 'kai') return 'Kai';
     if (key === 'kamanewaa') return 'Kamanewaa';
     if (key === 'jouktai' || key === 'joktai') return 'Jouktai';
+    if (key === 'martin') return 'Martin';
     return raw;
 };
 
