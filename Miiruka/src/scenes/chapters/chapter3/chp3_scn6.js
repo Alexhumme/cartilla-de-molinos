@@ -3,26 +3,25 @@ import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
 import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
-import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
+import { addSkyBackground, addDesertLayer } from '../../../utils/backgrounds.js';
 
-export class Chp2_scn3 extends Phaser.Scene {
+export class Chp3_scn6 extends Phaser.Scene {
     constructor() {
-        super('Chp2_scn3');
+        super('Chp3_scn6');
     }
 
     preload() {
         attachLoadingOverlay(this, 'Cargando capítulo...');
-        // Guion del capítulo (texto editable).
-        this.load.text('ch2_script', 'assets/scripts/chapter2.txt');
-        // Audio ambiente.
+        this.load.text('ch3_script', 'assets/scripts/chapter3.txt');
         this.load.audio('birds', 'assets/sounds/birds.mp3');
         this.load.audio('walk', 'assets/sounds/walk.mp3');
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
+        this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
+        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
         this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
-        this.load.audio('chirrido', 'assets/sounds/chirrido.mp3');
+        this.load.audio('water-drop', 'assets/sounds/water_drop.mp3');
 
-        // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
         this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');
         this.load.image('bg_layer2', 'assets/desert/bg_layer2.png');
@@ -32,24 +31,27 @@ export class Chp2_scn3 extends Phaser.Scene {
         this.load.image('sun2', 'assets/desert/sol2.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
-        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
 
-        // Molino y aspas.
-        this.load.image('molino-base', 'assets/juegos/molino/molino_con_bomba_sin_aspas.png');
+        this.load.image('molino-base', 'assets/juegos/molino/molino_sin_aspas.png');
+        this.load.image('molino_sin_aspas', 'assets/juegos/molino/molino_sin_aspas.png');
         this.load.image('molino-aspas', 'assets/juegos/molino/aspas.png');
         this.load.image('moving-piece', 'assets/juegos/moving_piece.png');
+        this.load.image('cepillo', 'assets/juegos/quitar_polvo/cepillo.png');
+        this.load.image('item-engranes', 'assets/items/item-engranes.png');
+        this.load.image('item-ejes', 'assets/items/item-ejes.png');
 
-        // Imágenes para minijuego separar uniones
-        this.load.image('su-varilla_arriba', 'assets/juegos/separar_union/varilla_arriba.png');
-        this.load.image('su-boca_abajo', 'assets/juegos/separar_union/boca_abajo.png');
-        this.load.image('su-rosca', 'assets/juegos/separar_union/rosca.png');
-        this.load.image('su-varilla_abajo', 'assets/juegos/separar_union/varilla_abajo.png');
-        this.load.image('su-boca_arriba', 'assets/juegos/separar_union/boca_arriba.png');
-        this.load.image('varilla-doblada', 'assets/juegos/meter_varilla/varilla_doblada.png');
-        this.load.audio('squeak-separador', 'assets/sounds/squeak.mp3');
+        // Engrasar convertidor
+        this.load.image('eng-convertidor', 'assets/juegos/engrasar_convertidor/convertidor.png');
+        this.load.image('eng-chasis', 'assets/juegos/engrasar_convertidor/partes/chasis.png');
+        this.load.image('eng-biela', 'assets/juegos/engrasar_convertidor/partes/biela.png');
+        this.load.image('eng-pinon-grande', 'assets/juegos/engrasar_convertidor/partes/pinon_grande.png');
+        this.load.image('eng-pinon-pequeno', 'assets/juegos/engrasar_convertidor/partes/pinos_pequeno.png');
+        this.load.image('eng-anillo-piston', 'assets/juegos/engrasar_convertidor/partes/anillo_de_piston.png');
+        this.load.image('eng-anillo-lubricante', 'assets/juegos/engrasar_convertidor/partes/anillo_lubricante.png');
+        this.load.image('eng-contenedor', 'assets/juegos/engrasar_convertidor/partes/contenedor.png');
+        this.load.image('item-aceite', 'assets/juegos/clasificar_tools/aceite.png');
 
-        // Carga dinámica de personajes y emociones usados en el guion.
-        this.load.on('filecomplete-text-ch2_script', (key, type, data) => {
+        this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
             characters.forEach((emotions, name) => {
                 const states = new Set(['idle', 'camina', ...Array.from(emotions)]);
@@ -70,18 +72,16 @@ export class Chp2_scn3 extends Phaser.Scene {
 
     create() {
         UIHelpers.setGameCursor(this);
-        GameStorage.setLastChapter(1);
+        GameStorage.setLastChapter(3);
         this.useWorldCharacters = true;
-        // Transición de entrada.
         this.cameras.main.fadeIn(600, 0, 0, 0);
 
-        // Audio de ambiente.
-        
+        this.birdsSounds = this.sound.add('birds', { volume: 1 });
+        this.birdsSounds.play();
 
-        // Fondo estático (sin paneo inicial).
         const worldTop = -2000;
         const worldHeight = 5000;
-        this.cameras.main.setBounds(0, worldTop, this.scale.width, worldHeight);
+        this.cameras.main.setBounds(0, worldTop, 1920, worldHeight);
         this.cameras.main.scrollY = 800;
         addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
@@ -100,16 +100,15 @@ export class Chp2_scn3 extends Phaser.Scene {
         this.bgScrollActive = false;
         this.bgScrollDirection = -1;
         this.bgScrollSpeed = 8;
-        this.faultyMillElapsed = 0;
 
-        // Inicializa el runner del guion.
-        const scriptText = this.cache.text.get('ch2_script');
+        const scriptText = this.cache.text.get('ch3_script');
         this.storyRunner = new StoryRunner(this, scriptText);
         this.storyRunner.initUI();
 
         this.time.delayedCall(0, async () => {
             this.placeMill();
-            await this.storyRunner.run('Uniones');
+            await this.storyRunner.run('Lubricacion');
+            this.storyRunner.resetWalkingSound();
         });
     }
 
@@ -117,87 +116,68 @@ export class Chp2_scn3 extends Phaser.Scene {
         const baseTexture = this.textures.get('molino-base')?.getSourceImage();
         const baseWidth = baseTexture?.width ?? 600;
         const baseHeight = baseTexture?.height ?? 900;
-        const baseScale = 1;
+        const baseScale = 1.15;
         const cam = this.cameras.main;
         const baseX = 800;
-        const baseBottom = (cam.scrollY || 0) + (cam.height || this.scale.height) - 60;
+        const baseBottom = cam.scrollY + this.scale.height - 60;
         const baseY = baseBottom - baseHeight * baseScale;
-        console.debug('placeMill chp2_scn3', { scrollY: cam.scrollY, camHeight: cam.height, worldBottom: cam.worldView?.bottom, baseBottom, baseY });
 
-        const molinoBase = this.add.image(baseX, baseY, 'molino-base').setOrigin(0, 0).setScale(baseScale);
-        molinoBase.setDepth(120);
+        this.molinoBase = this.add.image(baseX, baseY, 'molino-base').setOrigin(0, 0).setScale(baseScale);
+        this.molinoBase.setDepth(120);
 
         const shadowWidth = baseWidth * baseScale * 0.6;
-        const shadowHeight = 46;
-        const shadowOffsetX = -127;
+        const shadowHeight = 46 * baseScale;
+        const shadowOffsetX = -127 * baseScale;
         const shadowX = baseX + baseWidth * baseScale * 0.5 + shadowOffsetX;
         const shadowY = baseY + baseHeight * baseScale - 20;
         const shadow = this.add.ellipse(shadowX, shadowY, shadowWidth, shadowHeight, 0xF3CE9E, 0.8);
         shadow.setDepth(110);
         shadow.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-        const aspasX = baseX + 705;
-        const aspasY = baseY + 175;
-        const aspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5);
-        aspas.setDepth(130);
+        const aspasX = baseX + 705 * baseScale;
+        const aspasY = baseY + 175 * baseScale;
+        this.molinoAspas = this.add.image(aspasX, aspasY, 'molino-aspas').setOrigin(0.5, 0.5).setScale(baseScale);
+        this.molinoAspas.setDepth(130);
 
-        const movingPiece = this.add.image(baseX + 703, baseY + 1736, 'moving-piece').setOrigin(0.5, 1);
-        movingPiece.setDepth(119);
+        this.movingPiece = this.add.image(baseX + 703 * baseScale, baseY + 1736 * baseScale, 'moving-piece').setOrigin(0.5, 1).setScale(baseScale);
+        this.movingPiece.setDepth(119);
 
-        this.molinoAspas = aspas;
-        this.movingPiece = movingPiece;
-        this.movingPieceBaseY = movingPiece.y;
-        this.movingPieceTopY = 1034;
+        this.movingPieceBaseY = this.movingPiece.y;
+        this.movingPieceTopY = 1034 * baseScale;
         this.movingPiecePhase = 0;
+    }
+
+    updateMovingPiece(delta) {
+        if (!this.movingPiece) return;
+        const spinSpeed = Number(this.molinoAutoSpinSpeed ?? 0) * 0.2;
+        if (spinSpeed <= 0.01) {
+            this.movingPiece.y = this.movingPieceBaseY;
+            return;
+        }
+        const dt = delta / 1000;
+        this.movingPiecePhase += dt * Phaser.Math.Clamp(0.9 + spinSpeed * 0.25, 0.9, 2.8);
+        const cycle = (this.movingPiecePhase % 1 + 1) % 1;
+        const upDown = cycle < 0.5 ? (cycle / 0.5) : (1 - (cycle - 0.5) / 0.5);
+        const eased = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(upDown, 0, 1));
+        this.movingPiece.y = Phaser.Math.Linear(this.movingPieceBaseY, this.movingPieceTopY, eased);
     }
 
     getCameraPanDistance() {
         if (!this.molinoAspas) return 520;
         const cam = this.cameras.main;
-        const target = (cam.scrollY || 0) + ((cam.height || this.scale.height) / 2) - this.molinoAspas.y;
+        const target = (cam.scrollY + this.scale.height / 2) - this.molinoAspas.y;
         return Math.max(0, Math.round(target));
     }
 
-    updateMovingPieceFaulty(delta, spinSpeed) {
-        if (!this.movingPiece) return;
-        const dt = delta / 1000;
-        const speedAbs = Math.abs(Number(spinSpeed) || 0) * 0.2;
-        this.movingPiecePhase += dt * Phaser.Math.Clamp(1 + speedAbs * 0.45, 0.9, 3.2);
-        const cycle = (this.movingPiecePhase % 1 + 1) % 1;
-        const upDown = cycle < 0.5 ? (cycle / 0.5) : (1 - (cycle - 0.5) / 0.5);
-        const eased = Phaser.Math.Easing.Sine.InOut(Phaser.Math.Clamp(upDown, 0, 1));
-        const amplitude = Phaser.Math.Clamp(speedAbs / 1.6, 0.12, 1);
-        const lift = eased * amplitude;
-        this.movingPiece.y = Phaser.Math.Linear(this.movingPieceBaseY, this.movingPieceTopY, lift);
-    }
- 
     update(time, delta) {
-        // Detiene animaciones si está en pausa.
         if (this.storyRunner?.isPaused) return;
         const speed = 0.0001 * delta;
         if (this.sun1) this.sun1.rotation += speed;
         if (this.sun2) this.sun2.rotation -= speed * 0.6;
-        if (this.molinoAspas) {
-            this.faultyMillElapsed += delta / 1000;
-            const cycle = 1.45;
-            const t = (this.faultyMillElapsed % cycle) / cycle;
-            let speed = 0.18;
-            if (t < 0.34) {
-                speed = Phaser.Math.Linear(0.18, 1.55, t / 0.34);
-            } else if (t < 0.44) {
-                speed = Phaser.Math.Linear(1.55, -0.48, (t - 0.34) / 0.10);
-            } else if (t < 0.68) {
-                speed = Phaser.Math.Linear(-0.48, 1.35, (t - 0.44) / 0.24);
-            } else if (t < 0.78) {
-                speed = Phaser.Math.Linear(1.35, -0.42, (t - 0.68) / 0.10);
-            } else {
-                speed = Phaser.Math.Linear(-0.42, 1.2, (t - 0.78) / 0.22);
-            }
-            const wobble = Math.sin(this.faultyMillElapsed * 23) * 0.06;
-            const faultySpeed = speed + wobble;
-            this.molinoAspas.rotation += faultySpeed * (delta / 1000);
-            this.updateMovingPieceFaulty(delta, faultySpeed);
+        if (this.molinoAspas && (this.molinoAutoSpinSpeed ?? 0) > 0) {
+            this.molinoAspas.rotation += this.molinoAutoSpinSpeed * (delta / 1000);
         }
+        this.updateMovingPiece(delta);
 
         if (this.bgScrollActive && this.bgLayers) {
             const step = (this.bgScrollSpeed * delta) / 1000;

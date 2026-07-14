@@ -2,26 +2,25 @@ import { collectCharacterAssets } from '../../../story/parser.js';
 import { StoryRunner } from '../../../story/storyRunner.js';
 import { GameStorage } from '../../../utils/storage.js';
 import { UIHelpers } from '../../../utils/ui.js';
-import { addDesertLayer, addSkyBackground } from '../../../utils/backgrounds.js';
 import { attachLoadingOverlay } from '../../../utils/loadingOverlay.js';
+import { addSkyBackground, addDesertLayer } from '../../../utils/backgrounds.js';
 
-export class Chp1_scn3 extends Phaser.Scene {
+export class Chp3_scn2 extends Phaser.Scene {
     constructor() {
-        super('Chp1_scn3');
+        super('Chp3_scn2');
     }
 
     preload() {
         attachLoadingOverlay(this, 'Cargando capítulo...');
-        // Guion del capítulo (texto editable).
-        this.load.text('ch1_script', 'assets/scripts/chapter1.txt');
-        // Audio ambiente.
+        this.load.text('ch3_script', 'assets/scripts/chapter3.txt');
         this.load.audio('birds', 'assets/sounds/birds.mp3');
         this.load.audio('walk', 'assets/sounds/walk.mp3');
         this.load.audio('gametheme', 'assets/sounds/gametheme.mp3');
         this.load.audio('pop', 'assets/sounds/pop.mp3');
         this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
+        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
+        this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
 
-        // Assets del fondo desierto.
         this.load.image('sky', 'assets/desert/sky.png');
         this.load.image('bg_layer1', 'assets/desert/bg_layer1.png');
         this.load.image('bg_layer2', 'assets/desert/bg_layer2.png');
@@ -31,23 +30,21 @@ export class Chp1_scn3 extends Phaser.Scene {
         this.load.image('sun2', 'assets/desert/sol2.png');
         this.load.image('cap1f', 'assets/chapters/cap1f.png');
         this.load.image('pause-icon', 'assets/ui/settings.png');
-        this.load.audio('dialog-pop', 'assets/sounds/dialog-pop.m4a');
-        this.load.audio('success-bell', 'assets/sounds/success_bell.mp3');
-        // Ilustraciones de apoyo (pop).
-        this.load.image('item-sol-caliente', 'assets/items/sopa-caliente.png');
-        this.load.image('item-no-agua', 'assets/items/no-agua.png');
-        this.load.image('item-lavanderia', 'assets/items/lavanderia.png');
-        this.load.image('item-ducha', 'assets/items/ducha.png');
-        this.load.image('item-molino-danado', 'assets/items/molinoDanado.png');
-        this.load.image('item-tuberia', 'assets/items/tuberia.png');
-        this.load.image('item-gota-vida', 'assets/items/gota-vida.png');
-        // Minijuego ubicar molino (la escena debe ser autosuficiente al recargar).
-        this.load.image('mapa-molino', 'assets/juegos/ubicarMolino/mapa_isometrico.png');
-        this.load.image('mini-molino', 'assets/juegos/ubicarMolino/molino_isometrico.png');
-        this.load.audio('wrong-option', 'assets/sounds/wrong_option.mp3');
 
-        // Carga dinámica de personajes y emociones usados en el guion.
-        this.load.on('filecomplete-text-ch1_script', (key, type, data) => {
+        this.load.image('item-pintura', 'assets/juegos/clasificar_tools/Pintura.png');
+        this.load.image('item-brocha', 'assets/juegos/clasificar_tools/brocha.png');
+        this.load.image('item-aceite', 'assets/juegos/clasificar_tools/aceite.png');
+        this.load.image('item-llave', 'assets/juegos/clasificar_tools/llave.png');
+        this.load.image('item-cortatubos', 'assets/juegos/clasificar_tools/cortatubos.png');
+        this.load.image('item-trapo', 'assets/juegos/clasificar_tools/trapo.png');
+        this.load.image('item-cepillo', 'assets/juegos/clasificar_tools/cepillo.png');
+        this.load.image('item-guantes', 'assets/juegos/clasificar_tools/guantes.png');
+        this.load.image('item-gafas', 'assets/juegos/clasificar_tools/gafas.png');
+        this.load.image('item-casco', 'assets/juegos/clasificar_tools/casco.png');
+        this.load.image('item-botas', 'assets/juegos/clasificar_tools/botas.png');
+        this.load.image('item-tapabocas', 'assets/juegos/clasificar_tools/tapabocas.png');
+
+        this.load.on('filecomplete-text-ch3_script', (key, type, data) => {
             const characters = collectCharacterAssets(data);
             characters.forEach((emotions, name) => {
                 const states = new Set(['idle', 'camina', ...Array.from(emotions)]);
@@ -68,17 +65,13 @@ export class Chp1_scn3 extends Phaser.Scene {
 
     create() {
         UIHelpers.setGameCursor(this);
-        GameStorage.setLastChapter(1);
-        // Transición de entrada.
+        GameStorage.setLastChapter(3);
         this.cameras.main.fadeIn(600, 0, 0, 0);
 
-        // Audio de ambiente.
         this.birdsSounds = this.sound.add('birds', { volume: 1 });
         this.birdsSounds.play();
 
-        // Fondo estático (sin paneo inicial).
-        const worldHeight = 2000;
-        this.cameras.main.setBounds(0, 0, 1920, worldHeight);
+        this.cameras.main.setBounds(0, 0, 1920, 2000);
         this.cameras.main.scrollY = 800;
         addSkyBackground(this);
         this.sun1 = this.add.image(1440, 400, 'sun1').setScrollFactor(0.6);
@@ -98,18 +91,17 @@ export class Chp1_scn3 extends Phaser.Scene {
         this.bgScrollDirection = -1;
         this.bgScrollSpeed = 8;
 
-        // Inicializa el runner del guion.
-        const scriptText = this.cache.text.get('ch1_script');
+        const scriptText = this.cache.text.get('ch3_script');
         this.storyRunner = new StoryRunner(this, scriptText);
         this.storyRunner.initUI();
 
         this.time.delayedCall(0, async () => {
             await this.storyRunner.run('Encuentro');
+            this.storyRunner.resetWalkingSound();
         });
     }
 
     update(time, delta) {
-        // Detiene animaciones si está en pausa.
         if (this.storyRunner?.isPaused) return;
         const speed = 0.0001 * delta;
         if (this.sun1) this.sun1.rotation += speed;

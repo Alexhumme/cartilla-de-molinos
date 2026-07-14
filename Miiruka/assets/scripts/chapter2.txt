@@ -14,7 +14,7 @@
     [op1es: Montarse en el molino y ver que tiene][op1way: ]
     [op2es: Frenar el molino y buscar ayuda][op2way: ]
     [op3es: Quitar las aspas][op3way: ]
-[cambiar_escena][Chp2_scn2]
+[cambiar_escena][Chp2_scn2] 
 
 [escena][Desarrollo]
 [personaje][Kamanewaa][entra][Derecha]

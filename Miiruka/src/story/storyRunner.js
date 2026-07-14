@@ -12,6 +12,10 @@ import {
     runSeparateUnionsMinigame,
     runOrdenarProcesoMinigame,
     runInsertRodMinigame,
+    runClassifyToolsMinigame,
+    runCleanMillMinigame,
+    runPaintMillMinigame,
+    runLubricateMillMinigame,
 } from './runner/minigameHandlers.js';
 import {
     ensureCharacterSprite,
@@ -143,6 +147,7 @@ export class StoryRunner {
             jouktai: 'Jouktai',
             joktai: 'Jouktai',
             kamanewaa: 'Kamanewaa',
+            martin: 'Martin',
         };
 
         for (const existingName of this.characters.keys()) {
@@ -485,6 +490,7 @@ export class StoryRunner {
         const key = (name || '').trim().toLowerCase();
         if (key === 'jouktai') return '#FCB4B5';
         if (key === 'kai' || key === 'kái') return '#FCE1B4';
+        if (key === 'martin') return '#8FC9FF';
         return '#fce1b4';
     }
 
@@ -555,6 +561,18 @@ export class StoryRunner {
         }
         if (id === 'ordenar_proceso') {
             return this.handleOrdenarProcesoMinigame(id, resolvedOptions);
+        }
+        if (id === 'clasificar_herramientas') {
+            return runClassifyToolsMinigame.call(this, id, resolvedOptions);
+        }
+        if (id === 'limpiar_molino') {
+            return runCleanMillMinigame.call(this, id, resolvedOptions);
+        }
+        if (id === 'pintar_molino') {
+            return runPaintMillMinigame.call(this, id, resolvedOptions);
+        }
+        if (id === 'engrasar_molino') {
+            return runLubricateMillMinigame.call(this, id, resolvedOptions);
         }
 
         const scene = this.scene;
@@ -645,6 +663,11 @@ export class StoryRunner {
     // Minijuego: ubicar problemas visibles del molino.
     async handleLocateIssuesMinigame(id, options) {
         return runLocateIssuesMinigame.call(this, id, options);
+    }
+    
+    // Minijuego: Ordenar el proceso del molino arrastrando piezas.
+    async handleOrdenarProcesoMinigame(id, options) {
+        return runOrdenarProcesoMinigame.call(this, id, options);
     }
 
     // Minijuego: insertar varilla en la bomba.
@@ -1105,6 +1128,7 @@ export class StoryRunner {
         const activeWalkers = walkers.filter((walkerName) => this.characters.has(walkerName));
         const hasKai = activeWalkers.includes('Kai');
         const hasJouktai = activeWalkers.includes('Jouktai');
+        const hasMartin = activeWalkers.includes('Martin');
         if (hasKai && hasJouktai) {
             const kaiSprite = this.characters.get('Kai');
             const jouSprite = this.characters.get('Jouktai');
@@ -1118,6 +1142,23 @@ export class StoryRunner {
             kaiSprite.x = baseX + 450;
             if (kaiState) {
                 kaiState.baseY = kaiSprite.y;
+            }
+            if (jouState) {
+                jouState.baseY = jouSprite.y;
+            }
+        }
+        if (hasJouktai && hasMartin) {
+            const martinSprite = this.characters.get('Martin');
+            const jouSprite = this.characters.get('Jouktai');
+            const martinState = this.characterState.get('Martin');
+            const jouState = this.characterState.get('Jouktai');
+            const cam = this.scene.cameras.main;
+            const useWorld = !!this.scene?.useWorldCharacters;
+            const baseX = (useWorld ? cam.scrollX : 0) + 30;
+            jouSprite.x = baseX;
+            martinSprite.x = baseX + 600;
+            if (martinState) {
+                martinState.baseY = martinSprite.y;
             }
             if (jouState) {
                 jouState.baseY = jouSprite.y;

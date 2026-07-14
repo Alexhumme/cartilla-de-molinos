@@ -29,27 +29,37 @@ export function ensureCharacterSprite(name) {
     return sprite;
 }
 
+function textureIsValid(scene, key) {
+    if (!scene.textures.exists(key)) return false;
+    try {
+        const src = scene.textures.get(key).getSourceImage();
+        return src && (src.width > 1 || src.naturalWidth > 1);
+    } catch {
+        return false;
+    }
+}
+
 export function getCharacterTextureForState(name, state) {
     const emotion = state.emotion || 'idle';
     const facing = state.facing || 'mira_jugador';
     const mouth = state.mouth || 1;
     const key = `char-${name}-${facing}-${emotion}-${mouth}`;
-    if (this.scene.textures.exists(key)) return key;
+    if (textureIsValid(this.scene, key)) return key;
 
     const mouthClosed = `char-${name}-${facing}-${emotion}-1`;
-    if (this.scene.textures.exists(mouthClosed)) return mouthClosed;
+    if (textureIsValid(this.scene, mouthClosed)) return mouthClosed;
 
     const fallbackEmotionMouth = `char-${name}-${facing}-idle-${mouth}`;
-    if (this.scene.textures.exists(fallbackEmotionMouth)) return fallbackEmotionMouth;
+    if (textureIsValid(this.scene, fallbackEmotionMouth)) return fallbackEmotionMouth;
 
     const fallbackEmotion = `char-${name}-${facing}-idle-1`;
-    if (this.scene.textures.exists(fallbackEmotion)) return fallbackEmotion;
+    if (textureIsValid(this.scene, fallbackEmotion)) return fallbackEmotion;
 
     const fallbackFacing = `char-${name}-mira_jugador-idle-1`;
-    if (this.scene.textures.exists(fallbackFacing)) return fallbackFacing;
+    if (textureIsValid(this.scene, fallbackFacing)) return fallbackFacing;
 
     const legacyIdle = `char-${name}-idle`;
-    if (this.scene.textures.exists(legacyIdle)) return legacyIdle;
+    if (textureIsValid(this.scene, legacyIdle)) return legacyIdle;
 
     return this.placeholderTextureKey || 'story-placeholder';
 }
@@ -97,6 +107,9 @@ export function getCharacterTarget(name, direction) {
     }
     if (normalized === 'kai') {
         return { x: 480, y: 180 };
+    }
+    if (normalized === 'martin') {
+        return { x: 600, y: 180 };
     }
     return { x: 30, y: 180 };
 }

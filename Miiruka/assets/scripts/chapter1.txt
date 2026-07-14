@@ -56,7 +56,7 @@
 [personaje][Jouktai][habla]
     [es:La usamos para cocinar el maíz, para lavar la ropa, y para refrescarnos después del trabajo. Pero también debemos {{cuidarla}}, porque no siempre hay.]
     [way:Walakajaiyasu tü maikukat, supula ashijawaa waashein otta supula asontiawaiin tsuchikeje ayaanamaja. Aijeesü tü wiinka nojotsu wanepian.]
-[recuadro][imagenes][item-molino-danado,item-tuberia]
+[recuadro][imagenes][item-tuberia]
 [personaje][Jouktai][habla]
     [es:A veces, si en algún momento se daña el molino o el {{micro-acueducto}}, podríamos dejár de tener agua y conseguirla será muy difícil. Por eso nunca debemos desperdiciarla.]
     [way:Esu sou sumojujakalou tü moliinakat otta tü sajarratiakat, nojolerrut wüiin wamana nojolen wüiin wantüin anain. Weisattajen tü wüiinkat.]
