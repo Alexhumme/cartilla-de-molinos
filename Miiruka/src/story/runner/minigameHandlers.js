@@ -3067,22 +3067,7 @@ export async function runLubricateMillMinigame(id, options = []) {
 
         const dist = Phaser.Math.Distance.Between(gameObject.x, gameObject.y, item.targetX, item.targetY);
         if (dist <= SNAP_TOLERANCE) {
-            // Las piezas deben encajarse de abajo hacia arriba: no se puede colocar una
-            // pieza si las que están debajo (mayor índice en PARTS, menor depth) aún no
-            // se han colocado.
-            const belowNotPlaced = draggableItems.some(
-                d => !d.placed && d.depth < item.depth
-            );
-            if (belowNotPlaced) {
-                scene.tweens.add({
-                    targets: gameObject,
-                    x: item.startX,
-                    y: item.startY,
-                    duration: 300,
-                    ease: 'Back.easeOut',
-                });
-                return;
-            }
+            
 
             item.placed = true;
             placedCount += 1;
