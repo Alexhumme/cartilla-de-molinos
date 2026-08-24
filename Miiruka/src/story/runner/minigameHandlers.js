@@ -338,6 +338,7 @@ export async function runBlowMillMinigame(id, options) {
         if (!navigator.mediaDevices?.getUserMedia || !AudioContextCtor) {
             enableHoldFallback();
         } else {
+            status.setText('Permite el microfono para soplar');
             mediaStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: false,
@@ -354,6 +355,7 @@ export async function runBlowMillMinigame(id, options) {
             status.setText('Sopla para girar las aspas');
         }
     } catch (error) {
+        console.warn('No se pudo iniciar el microfono, usando modo alterno.', error);
         enableHoldFallback();
     }
 
