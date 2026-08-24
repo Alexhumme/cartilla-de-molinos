@@ -2,6 +2,20 @@
   "name": "sennova-guajira-site",
   "private": true,
   "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "cap:sync": "npm run build && npx cap sync android",
+    "android:open": "npm run cap:sync && npx cap open android",
+    "android:apk": "npm run cap:sync && cd android && ./gradlew assembleDebug",
     "upload": "bash scripts/upload.sh"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
   }
 }

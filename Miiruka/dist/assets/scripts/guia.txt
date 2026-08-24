@@ -1,0 +1,30 @@
+- ejemplo de guion por eventos
+# Dialogo bilingue:
+# [personaje][Jouktai][habla][es:Hola][way:Wanee]
+# Si solo hay un texto, se usa como fallback para ambos idiomas.
+#
+# Ordenes disponibles:
+# [escena][Nombre]
+# [label][Nombre] o [etiqueta][Nombre]
+# [goto][Nombre] o [ir_a][Nombre]
+# [cambiar_escena][NombreScene]
+# [plano][sol_hacia_abajo]
+# [personaje][Nombre][entra][izquierda|derecha]
+# [personaje][Nombre][emocion][feliz|triste|duda]
+# [personaje][Nombre][mira][jugador|lado|auto]
+# [personaje][Nombre][habla][es:...][way:...]
+# [caminar][Nombre][derecha|izquierda][distancia][duracion][scroll]
+# [bgscroll][start][Nombre o Nombre1,Nombre2][izquierda|derecha][velocidad]
+# [bgscroll][stop] o [bgscroll][stop][Nombre o Nombre1,Nombre2]
+# [minijuego][id][respuesta1][respuesta2]
+# [minijuego][soplar_molino]
+# [if][id][respuesta1][...accion...]
+# [mostrar][imagen][textureKey]
+# [imagen][key:AssetKey][x:..][y:..][scale:..][depth:..]
+# [imagen][key:AssetKey][follow:Personaje][offsetX:..][offsetY:..][scale:..][depth:..]
+# Nota: en escenas con paneo, la cámara puede estar desplazada (por ejemplo scrollY=800),
+# así que posiciones absolutas con y bajas (ej. y:200) pueden quedar fuera de la vista.
+# [camara][subir|bajar][distancia][duracion]
+# [esperar][ms]
+# [pregunta_escena][es:Pregunta][correcta:2][op1:..][op2:..][op3:..]
+# [fin_escena]
