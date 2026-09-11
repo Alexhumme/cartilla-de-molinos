@@ -1,0 +1,586 @@
+const CHAPTER_SCENE_COUNT = {
+    1: 6,
+    2: 5,
+    3: 7
+};
+
+const PUBLISHED_CHAPTERS = Object.keys(CHAPTER_SCENE_COUNT).map(Number);
+
+const isPublishedChapter = (chapter) => PUBLISHED_CHAPTERS.includes(Number(chapter));
+
+const SCENE_KEY_REGEX = /^Chp(\d+)_scn(\d+)$/i;
+
+const toSortedUniqueNumbers = (values, min = 1) => {
+    const unique = new Set(
+        (values || [])
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value) && value >= min)
+    );
+    return Array.from(unique).sort((a, b) => a - b);
+};
+
+const parseChapterSceneKey = (sceneKey) => {
+    const raw = (sceneKey || '').trim();
+    const match = raw.match(SCENE_KEY_REGEX);
+    if (!match) return null;
+    return { chapter: Number(match[1]), scene: Number(match[2]) };
+};
+
+const ensureChapterProgress = (save, chapter) => {
+    const chapterNum = Number(chapter);
+    if (!Number.isFinite(chapterNum)) return null;
+    save.chapterProgress = save.chapterProgress ?? {};
+    const existing = save.chapterProgress[chapterNum] ?? {};
+    const totalScenes = Number(CHAPTER_SCENE_COUNT[chapterNum] ?? 0);
+    const reachedScenes = toSortedUniqueNumbers(existing.reachedScenes, 1).filter((scene) => totalScenes === 0 || scene <= totalScenes);
+    const completedScenes = toSortedUniqueNumbers(existing.completedScenes, 1).filter((scene) => totalScenes === 0 || scene <= totalScenes);
+    const questionResults = existing.questionResults && typeof existing.questionResults === 'object'
+        ? existing.questionResults
+        : {};
+    const normalized = {
+        reachedScenes: reachedScenes.length ? reachedScenes : [1],
+        completedScenes,
+        lastScene: Number.isFinite(existing.lastScene) ? Math.max(1, existing.lastScene) : 1,
+        questionResults,
+    };
+
+    if (totalScenes > 0) {
+        normalized.lastScene = Math.min(totalScenes, normalized.lastScene);
+    }
+    if (!normalized.reachedScenes.includes(normalized.lastScene)) {
+        normalized.reachedScenes.push(normalized.lastScene);
+        normalized.reachedScenes = toSortedUniqueNumbers(normalized.reachedScenes, 1);
+    }
+    save.chapterProgress[chapterNum] = normalized;
+    return normalized;
+};
+
+const ensureSaveShape = (save) => {
+    const base = save ?? {};
+    const normalized = {
+        name: base.name || localStorage.getItem('playerName') || 'Jugador',
+        createdAt: Number(base.createdAt) || Date.now(),
+        completedChapters: toSortedUniqueNumbers(base.completedChapters, 1).filter(isPublishedChapter),
+        unlockedChapters: toSortedUniqueNumbers(base.unlockedChapters, 1).filter(isPublishedChapter),
+        lastChapter: isPublishedChapter(base.lastChapter) ? Number(base.lastChapter) : 1,
+        chapterProgress: base.chapterProgress ?? {},
+    };
+
+    if (!normalized.unlockedChapters.length) normalized.unlockedChapters = [1];
+
+    normalized.chapterProgress = Object.fromEntries(
+        Object.entries(normalized.chapterProgress)
+            .filter(([chapterKey]) => isPublishedChapter(chapterKey))
+    );
+
+    PUBLISHED_CHAPTERS.forEach((chapter) => {
+        ensureChapterProgress(normalized, chapter);
+    });
+
+    return normalized;
+};
+
+export const GameStorage = {
+    getName() {
+        return localStorage.getItem('playerName');
+    },
+
+    setName(name) {
+        localStorage.setItem('playerName', name);
+    },
+
+    clear() {
+        localStorage.removeItem('playerName');
+        localStorage.removeItem('gameSave');
+    },
+
+    hasName() {
+        return !!localStorage.getItem('playerName');
+    },
+
+    getLanguage() {
+        return localStorage.getItem('gameLanguage');
+    },
+
+    setLanguage(lang) {
+        localStorage.setItem('gameLanguage', lang);
+    },
+
+    getSave() {
+        const raw = localStorage.getItem('gameSave');
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            return ensureSaveShape(parsed);
+        } catch (error) {
+            return null;
+        }
+    },
+
+    setSave(save) {
+        const normalized = ensureSaveShape(save);
+        localStorage.setItem('gameSave', JSON.stringify(normalized));
+    },
+
+    clearSave() {
+        localStorage.removeItem('gameSave');
+    },
+
+    hasSave() {
+        return !!this.getSave();
+    },
+
+    getChapterSceneCount(chapter) {
+        return Number(CHAPTER_SCENE_COUNT[chapter] ?? 0);
+    },
+
+    parseChapterSceneKey,
+
+    startNewGame(name) {
+        const trimmed = name?.trim?.() ?? '';
+        if (trimmed) {
+            this.setName(trimmed);
+        }
+        const save = ensureSaveShape({
+            name: trimmed || this.getName() || 'Jugador',
+            createdAt: Date.now(),
+            completedChapters: [],
+            unlockedChapters: [1],
+            lastChapter: 1,
+            chapterProgress: {},
+        });
+        this.setSave(save);
+        return save;
+    },
+
+    getProgress() {
+        const save = this.getSave();
+        if (!save) {
+            const fallback = ensureSaveShape({
+                completedChapters: [],
+                unlockedChapters: [1],
+                lastChapter: 1,
+                chapterProgress: {},
+            });
+            return {
+                completedChapters: fallback.completedChapters,
+                unlockedChapters: fallback.unlockedChapters,
+                lastChapter: fallback.lastChapter,
+                chapterProgress: fallback.chapterProgress,
+            };
+        }
+        return {
+            completedChapters: save.completedChapters ?? [],
+            unlockedChapters: save.unlockedChapters ?? [1],
+            lastChapter: save.lastChapter ?? 1,
+            chapterProgress: save.chapterProgress ?? {},
+        };
+    },
+
+    ensureGameSave() {
+        return this.getSave() ?? this.startNewGame(this.getName() || 'Jugador');
+    },
+
+    commitChapterSession() {
+        return this.ensureGameSave();
+    },
+
+    touchChapterScene(chapter, scene) {
+        const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
+        const sceneNum = Math.max(1, Number(scene) || 1);
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, chapterNum);
+        if (!chapterProgress) return save;
+
+        if (!chapterProgress.reachedScenes.includes(sceneNum)) {
+            chapterProgress.reachedScenes.push(sceneNum);
+            chapterProgress.reachedScenes = toSortedUniqueNumbers(chapterProgress.reachedScenes, 1);
+        }
+        chapterProgress.lastScene = sceneNum;
+        save.lastChapter = chapterNum;
+        const unlocked = new Set(save.unlockedChapters ?? [1]);
+        unlocked.add(chapterNum);
+        save.unlockedChapters = Array.from(unlocked).sort((a, b) => a - b);
+        this.setSave(save);
+        return save;
+    },
+
+    touchChapterSceneBySceneKey(sceneKey) {
+        const parsed = parseChapterSceneKey(sceneKey);
+        if (!parsed) return this.getSave();
+        const save = this.touchChapterScene(parsed.chapter, parsed.scene);
+        this.resetSceneQuestionAttempts(sceneKey);
+        return save;
+    },
+
+    resetSceneQuestionAttempts(sceneKey) {
+        const save = this.ensureGameSave();
+        const parsed = parseChapterSceneKey(sceneKey);
+        if (!parsed) return save;
+        if (!isPublishedChapter(parsed.chapter)) return save;
+        const chapterProgress = ensureChapterProgress(save, parsed.chapter);
+        const questionResults = chapterProgress.questionResults ?? {};
+        const scenePrefix = `${sceneKey}#q`;
+        Object.keys(questionResults).forEach((key) => {
+            if (key.startsWith(scenePrefix)) delete questionResults[key];
+        });
+        chapterProgress.questionResults = questionResults;
+        this.setSave(save);
+        return save;
+    },
+
+    registerSceneQuestionResult(sceneKey, questionIndex, awardedPoint) {
+        const parsed = parseChapterSceneKey(sceneKey);
+        if (!parsed) return this.ensureGameSave();
+        if (!isPublishedChapter(parsed.chapter)) return this.ensureGameSave();
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, parsed.chapter);
+        const questionResults = chapterProgress.questionResults ?? {};
+        const key = `${sceneKey}#q${Number(questionIndex) || 1}`;
+        questionResults[key] = {
+            sceneKey,
+            questionIndex: Number(questionIndex) || 1,
+            awarded: !!awardedPoint,
+        };
+        chapterProgress.questionResults = questionResults;
+        this.setSave(save);
+        return save;
+    },
+
+    markSceneCompleted(chapter, scene) {
+        const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
+        const sceneNum = Math.max(1, Number(scene) || 1);
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, chapterNum);
+        if (!chapterProgress) return save;
+        if (!chapterProgress.completedScenes.includes(sceneNum)) {
+            chapterProgress.completedScenes.push(sceneNum);
+            chapterProgress.completedScenes = toSortedUniqueNumbers(chapterProgress.completedScenes, 1);
+        }
+        if (!chapterProgress.reachedScenes.includes(sceneNum)) {
+            chapterProgress.reachedScenes.push(sceneNum);
+            chapterProgress.reachedScenes = toSortedUniqueNumbers(chapterProgress.reachedScenes, 1);
+        }
+
+        this.setSave(save);
+        return this.completeChapterIfReady(chapterNum);
+    },
+
+    markSceneCompletedBySceneKey(sceneKey) {
+        const parsed = parseChapterSceneKey(sceneKey);
+        if (!parsed) return this.getSave();
+        return this.markSceneCompleted(parsed.chapter, parsed.scene);
+    },
+
+    setLastScene(chapter, scene) {
+        const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
+        const sceneNum = Math.max(1, Number(scene) || 1);
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, chapterNum);
+        if (!chapterProgress) return save;
+        chapterProgress.lastScene = sceneNum;
+        if (!chapterProgress.reachedScenes.includes(sceneNum)) {
+            chapterProgress.reachedScenes.push(sceneNum);
+            chapterProgress.reachedScenes = toSortedUniqueNumbers(chapterProgress.reachedScenes, 1);
+        }
+        save.lastChapter = chapterNum;
+        this.setSave(save);
+        return save;
+    },
+
+    transitionScene(fromSceneKey, toSceneKey) {
+        const from = parseChapterSceneKey(fromSceneKey);
+        const to = parseChapterSceneKey(toSceneKey);
+
+        if (from) {
+            this.markSceneCompleted(from.chapter, from.scene);
+        }
+        if (to) {
+            this.touchChapterScene(to.chapter, to.scene);
+        }
+        return this.getSave();
+    },
+
+    jumpToScene(fromSceneKey, toSceneKey) {
+        const from = parseChapterSceneKey(fromSceneKey);
+        const to = parseChapterSceneKey(toSceneKey);
+        if (to) {
+            this.touchChapterScene(to.chapter, to.scene);
+        }
+        return this.getSave();
+    },
+
+    getChapterProgress(chapter) {
+        if (!isPublishedChapter(chapter)) {
+            return {
+                reachedScenes: [],
+                completedScenes: [],
+                lastScene: 1,
+                questionResults: {},
+            };
+        }
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, chapter);
+        return {
+            ...chapterProgress,
+            reachedScenes: [...chapterProgress.reachedScenes],
+            completedScenes: [...chapterProgress.completedScenes],
+            questionResults: { ...(chapterProgress.questionResults ?? {}) },
+        };
+    },
+
+    getChapterProgressSummary(chapter) {
+        const chapterNum = Number(chapter);
+        const progress = this.getChapterProgress(chapterNum);
+        const totalScenes = this.getChapterSceneCount(chapterNum);
+        const completedScenes = progress.completedScenes.filter((scene) => totalScenes === 0 || scene <= totalScenes).length;
+        const reachedScenes = progress.reachedScenes.filter((scene) => totalScenes === 0 || scene <= totalScenes).length;
+        const isCompleted = completedScenes >= totalScenes && totalScenes > 0;
+        const questionResults = Object.values(progress.questionResults ?? {});
+        const totalQuestions = questionResults.length;
+        const earnedPoints = questionResults.filter((result) => !!result.awarded).length;
+        const ratio = totalQuestions > 0 ? earnedPoints / totalQuestions : 0;
+        const stars = !isCompleted
+            ? 0
+            : (totalQuestions <= 0
+                ? 1
+                : (earnedPoints === totalQuestions
+                    ? 3
+                    : (ratio > 0.3 ? 2 : 1)));
+        return {
+            chapter: chapterNum,
+            totalScenes,
+            completedScenes,
+            reachedScenes,
+            isCompleted,
+            totalQuestions,
+            earnedPoints,
+            stars,
+            lastScene: progress.lastScene,
+        };
+    },
+
+    getResumeScene(chapter) {
+        const chapterNum = Number(chapter);
+        const summary = this.getChapterProgressSummary(chapterNum);
+        if (summary.isCompleted) return 1;
+        return Math.max(1, summary.lastScene || 1);
+    },
+
+    completeChapterIfReady(chapter) {
+        const chapterNum = Number(chapter);
+        if (!isPublishedChapter(chapterNum)) return this.ensureGameSave();
+        const save = this.ensureGameSave();
+        const chapterProgress = ensureChapterProgress(save, chapterNum);
+        if (!chapterProgress) return save;
+        const totalScenes = this.getChapterSceneCount(chapterNum);
+        if (totalScenes <= 0) {
+            this.setSave(save);
+            return save;
+        }
+
+        const completedCount = chapterProgress.completedScenes.filter((scene) => scene <= totalScenes).length;
+        if (completedCount < totalScenes) {
+            this.setSave(save);
+            return save;
+        }
+
+        chapterProgress.lastScene = 1;
+
+        const completed = new Set(save.completedChapters ?? []);
+        completed.add(chapterNum);
+        save.completedChapters = Array.from(completed).sort((a, b) => a - b);
+
+        const unlocked = new Set(save.unlockedChapters ?? [1]);
+        unlocked.add(chapterNum);
+        if (isPublishedChapter(chapterNum + 1)) unlocked.add(chapterNum + 1);
+        save.unlockedChapters = Array.from(unlocked).filter(isPublishedChapter).sort((a, b) => a - b);
+        save.lastChapter = chapterNum;
+
+        this.setSave(save);
+        return save;
+    },
+
+    completeChapter(chapter) {
+        const chapterNum = Number(chapter);
+        const save = this.ensureGameSave();
+        const totalScenes = this.getChapterSceneCount(chapterNum);
+        if (totalScenes > 0) {
+            const chapterProgress = ensureChapterProgress(save, chapterNum);
+            chapterProgress.completedScenes = Array.from({ length: totalScenes }, (_, index) => index + 1);
+            chapterProgress.reachedScenes = [...chapterProgress.completedScenes];
+            this.setSave(save);
+        }
+        return this.completeChapterIfReady(chapterNum);
+    },
+
+    isChapterCompleted(chapter) {
+        const chapterNum = Number(chapter);
+        return this.getChapterProgressSummary(chapterNum).isCompleted;
+    },
+
+    isChapterUnlocked(chapter) {
+        const { unlockedChapters } = this.getProgress();
+        return unlockedChapters.includes(Number(chapter));
+    },
+
+    isSceneReached(chapter, scene) {
+        const progress = this.getChapterProgress(Number(chapter));
+        return progress.reachedScenes.includes(Number(scene));
+    },
+
+    setLastChapter(chapter) {
+        const save = this.ensureGameSave();
+        save.lastChapter = Number(chapter) || 1;
+        this.setSave(save);
+    },
+
+    getLastChapter() {
+        return this.getProgress().lastChapter;
+    },
+
+    async downloadProgressCertificate() {
+        const save = this.ensureGameSave();
+        const playerName = save.name || this.getName() || 'Jugador';
+        const date = new Date();
+        const canvas = document.createElement('canvas');
+        canvas.width = 1600;
+        canvas.height = 1000;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const drawRoundedRect = (x, y, w, h, r, color) => {
+            const radius = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.arcTo(x + w, y, x + w, y + h, radius);
+            ctx.arcTo(x + w, y + h, x, y + h, radius);
+            ctx.arcTo(x, y + h, x, y, radius);
+            ctx.arcTo(x, y, x + w, y, radius);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        };
+
+        const drawCircle = (x, y, radius, color) => {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        };
+
+        // Fondo naranja con formas.
+        ctx.fillStyle = '#f68943';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawCircle(1480, 50, 260, '#ff9f61');
+        drawCircle(80, 940, 260, '#ff7f32');
+        drawCircle(1450, 900, 220, '#ff7f32');
+
+        // Tarjeta principal estilo certificado.
+        drawRoundedRect(120, 110, 1360, 780, 26, '#f4f4f4');
+        drawCircle(280, 110, 60, '#f68943');
+        drawCircle(1460, 110, 120, '#82d9e8');
+        drawCircle(1160, 110, 90, '#6b31ca');
+        drawCircle(260, 840, 160, '#f2dc55');
+        drawCircle(1360, 860, 150, '#ff4fa1');
+
+        // Título.
+        ctx.fillStyle = '#2a2a7c';
+        ctx.font = '700 52px fredoka, Arial, sans-serif';
+        ctx.fillText('CERTIFICADO DE PROGRESO', 220, 250);
+        ctx.fillStyle = '#6b31ca';
+        ctx.font = '700 92px fredoka, Arial, sans-serif';
+        ctx.fillText(playerName, 650, 340);
+        ctx.strokeStyle = '#efb27c';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(650, 360);
+        ctx.lineTo(1280, 360);
+        ctx.stroke();
+
+        // Subtítulos.
+        ctx.fillStyle = '#4e4e4e';
+        ctx.font = '500 34px fredoka, Arial, sans-serif';
+        ctx.fillText(`Fecha: ${date.toLocaleDateString()}`, 220, 320);
+        ctx.fillText('Miiruku - Cuidado del agua y del molino', 220, 370);
+
+        const loadImage = (src) => new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+        const starHolderImg = await loadImage('assets/ui/star-holder.png');
+        const starImg = await loadImage('assets/ui/star.png');
+
+        // Bloque de progreso + estrellas.
+        let y = 450;
+        Object.keys(CHAPTER_SCENE_COUNT).forEach((chapterKey) => {
+            const chapter = Number(chapterKey);
+            const summary = this.getChapterProgressSummary(chapter);
+            ctx.fillStyle = '#2a2a7c';
+            ctx.font = '700 38px fredoka, Arial, sans-serif';
+            ctx.fillText(`Capitulo ${chapter}`, 220, y);
+            ctx.fillStyle = '#4e4e4e';
+            ctx.font = '500 31px fredoka, Arial, sans-serif';
+            ctx.fillText(`Escenas: ${summary.completedScenes}/${summary.totalScenes}`, 460, y);
+            ctx.fillText(`Puntos: ${summary.earnedPoints}/${summary.totalQuestions || 0}`, 840, y);
+            const starsXStart = 1180;
+            const starY = y - 26;
+            for (let i = 0; i < 3; i += 1) {
+                const x = starsXStart + i * 66;
+                if (starHolderImg) {
+                    ctx.drawImage(starHolderImg, x, starY, 56, 56);
+                } else {
+                    drawCircle(x + 28, starY + 28, 24, '#d8d8d8');
+                }
+                if (i < summary.stars) {
+                    if (starImg) {
+                        ctx.drawImage(starImg, x + 10, starY + 10, 36, 36);
+                    } else {
+                        drawCircle(x + 28, starY + 28, 12, '#ffcf3a');
+                    }
+                }
+            }
+            y += 78;
+        });
+
+        ctx.fillStyle = '#6b31ca';
+        ctx.font = '600 34px fredoka, Arial, sans-serif';
+        ctx.fillText('Gracias por aprender y cuidar el agua en comunidad.', 220, 790);
+
+        const url = canvas.toDataURL('image/png');
+        const anchor = document.createElement('a');
+        const safeName = String(playerName).replace(/[^a-zA-Z0-9_-]/g, '_');
+        anchor.href = url;
+        anchor.download = `certificado_progreso_${safeName}.png`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    },
+
+    getMusicEnabled() {
+        const raw = localStorage.getItem('musicEnabled');
+        if (raw === null) return true;
+        return raw === 'true';
+    },
+
+    setMusicEnabled(enabled) {
+        localStorage.setItem('musicEnabled', enabled ? 'true' : 'false');
+    },
+
+    getMusicVolume() {
+        const raw = Number(localStorage.getItem('musicVolume'));
+        if (!Number.isFinite(raw)) return 0.7;
+        return Math.min(1, Math.max(0, raw));
+    },
+
+    setMusicVolume(volume) {
+        const safe = Math.min(1, Math.max(0, Number(volume) || 0));
+        localStorage.setItem('musicVolume', String(safe));
+    },
+};

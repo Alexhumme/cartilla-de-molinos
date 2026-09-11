@@ -1,7 +1,26 @@
 {
-  "name": "sennova-guajira-site",
+  "name": "miiruku",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "upload": "bash scripts/upload.sh"
+    "dev": "python3 -m http.server 8080",
+    "build": "mkdir -p dist && cp -R assets src phaser.js favicon.ico index.html dist/ && cp -R .well-known dist/ 2>/dev/null || true",
+    "serve": "python3 -m http.server 8080",
+    "upload": "bash scripts/upload.sh",
+    "cap:add:android": "npx cap add android",
+    "cap:sync:android": "npx cap sync android",
+    "cap:open:android": "npx cap open android",
+    "android:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
+    "cap:add:ios": "npx cap add ios",
+    "cap:sync:ios": "npx cap sync ios",
+    "cap:open:ios": "npx cap open ios",
+    "ios:build": "npm run build && npx cap sync ios && xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphoneos CODE_SIGNING_REQUIRED=NO"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2"
   }
 }

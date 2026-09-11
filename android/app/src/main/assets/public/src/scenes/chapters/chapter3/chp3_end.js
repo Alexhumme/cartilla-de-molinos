@@ -1,0 +1,104 @@
+import { GameStorage } from '../../../utils/storage.js';
+import { UIHelpers } from '../../../utils/ui.js';
+import { addFullScreenImage } from '../../../utils/backgrounds.js';
+
+export class Chp3_end extends Phaser.Scene {
+    constructor() {
+        super('Chp3_end');
+    }
+
+    preload() {
+        this.load.audio('pop', 'assets/sounds/pop.mp3');
+        this.load.audio('chapter-completed', 'assets/sounds/chapter-completed.mp3');
+        this.load.image('gradient', 'assets/background_gradient.png');
+        this.load.image('gears', 'assets/background_gears.svg');
+        this.load.image('cap3f', 'assets/chapters/cap3f.png');
+    }
+
+    createButton(x, y, label, callback) {
+        const paddingX = 50;
+        const paddingY = 10;
+
+        const text = this.add.text(0, 0, label, {
+            fontSize: '64px',
+            fill: '#FCE1B4',
+            fontFamily: 'fredoka',
+        }).setOrigin(0.5);
+
+        const width = text.width + paddingX * 2;
+        const height = text.height + paddingY * 2;
+
+        const border = this.add.graphics();
+        border.fillStyle(0xfce1b4);
+        border.fillRoundedRect(0 - width / 2, 0 - height / 2, width + 10, height + 10, 16);
+        const body = this.add.graphics();
+        body.fillStyle(0x63a711);
+        body.fillRoundedRect(0 - width / 2, 0 - height / 2, width, height, 16);
+
+        body.setAbove(border);
+        text.setAbove(body);
+
+        const button = this.add.container(x, y, [border, body, text]);
+        button.setSize(width, height);
+        button.setInteractive({ useHandCursor: true });
+
+        button.on('pointerdown', () => {
+            this.popSound.play();
+            callback();
+        });
+
+        button.on('pointerover', () => button.setScale(1.05));
+        button.on('pointerout', () => button.setScale(1));
+        button.on('pointerdown', () => button.setScale(0.95));
+        button.on('pointerup', () => button.setScale(1.05));
+
+        UIHelpers.attachHoverPop(this, button, 0.35);
+        return button;
+    }
+
+    create() {
+        UIHelpers.setGameCursor(this);
+        GameStorage.commitChapterSession(3);
+        this.cameras.main.fadeIn(600, 0, 0, 0);
+        this.popSound = this.sound.add('pop', { volume: 0.5 });
+        this.chapterCompletedSound = this.sound.add('chapter-completed', { volume: 0.75 });
+        this.chapterCompletedSound.play();
+
+        addFullScreenImage(this, 'gradient');
+        this.gears = this.add.tileSprite(
+            0, 0,
+            this.scale.width,
+            this.scale.height, 'gears'
+        ).setOrigin(0, 0);
+
+        this.add.text(960, 120, '¡Capítulo completado!', {
+            fontFamily: 'fredoka',
+            fontSize: '96px',
+            color: '#FCE1B4',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.add.text(960, 240, '¡El molino está como nuevo!', {
+            fontFamily: 'fredoka',
+            fontSize: '48px',
+            color: '#FCE1B4'
+        }).setOrigin(0.5);
+
+        this.add.image(960, 560, 'cap3f').setOrigin(0.5).setScale(0.8);
+
+        this.createButton(960, 920, 'Volver a capítulos', () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.cameras.main.once('camerafadeoutcomplete', () => {
+                this.scene.start('Capitulos', {
+                    gearsOffsetX: this.gears.tilePositionX,
+                    gearsOffsetY: this.gears.tilePositionY,
+                });
+            });
+        });
+    }
+
+    update() {
+        this.gears.tilePositionY += 0.3;
+        this.gears.tilePositionX += 0.1;
+    }
+}
