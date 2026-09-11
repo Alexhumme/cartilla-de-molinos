@@ -348,6 +348,8 @@ export class StartScene extends Phaser.Scene {
         this.menuButtons.push(newGameBtn, continueBtn, settingsBtn, infoBtn);
         this.menuButtons.forEach((btn) => btn.setDepth(5));
 
+        this.createWebsiteButton(120, 1020, 'Sennova');
+
         const name = GameStorage.getName();
         if (name) {
             const greeting = this.add.text(1770, 75, `${UIHelpers.getText('hello')}, ${name}`, {
@@ -443,6 +445,58 @@ export class StartScene extends Phaser.Scene {
         } else {
             button.setAlpha(0.7);
         }
+
+        return button;
+    }
+
+    createWebsiteButton(x, y, label = 'Sennova') {
+        const text = this.add.text(0, 0, label, {
+            fontSize: '28px',
+            fill: '#FCE1B4',
+            fontFamily: 'fredoka',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const paddingX = 28;
+        const paddingY = 12;
+        const width = text.width + paddingX * 2;
+        const height = text.height + paddingY * 2;
+
+        const border = this.add.graphics();
+        border.fillStyle(0x6f2a67);
+        border.fillRoundedRect(-width / 2, -height / 2, width + 10, height + 10, 16);
+        const body = this.add.graphics();
+        body.fillStyle(0x3d214d);
+        body.fillRoundedRect(-width / 2, -height / 2, width, height, 16);
+
+        body.setAbove(border);
+        text.setAbove(body);
+
+        const button = this.add.container(x, y, [border, body, text]);
+        button.setSize(width, height);
+        button.setInteractive({ useHandCursor: true });
+        button.on('pointerdown', () => {
+            this.sound.play('pop', { volume: 0.8 });
+            const siteUrl = 'https://appsennovaguajira.com';
+            if (window.open) {
+                window.open(siteUrl, '_blank', 'noopener,noreferrer');
+            } else {
+                window.location.href = siteUrl;
+            }
+        });
+        button.on('pointerover', () => {
+            button.setScale(1.05);
+        });
+        button.on('pointerout', () => {
+            button.setScale(1);
+        });
+        button.on('pointerdown', () => {
+            button.setScale(0.96);
+        });
+        button.on('pointerup', () => {
+            button.setScale(1.05);
+        });
+        UIHelpers.attachHoverPop(this, button, 0.35);
 
         return button;
     }
