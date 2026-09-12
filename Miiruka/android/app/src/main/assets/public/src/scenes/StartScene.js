@@ -348,7 +348,7 @@ export class StartScene extends Phaser.Scene {
         this.menuButtons.push(newGameBtn, continueBtn, settingsBtn, infoBtn);
         this.menuButtons.forEach((btn) => btn.setDepth(5));
 
-        this.createWebsiteButton(960, 1090, 'Sennova');
+        this.createWebsiteButton(120, 1020, 'Sennova');
 
         const name = GameStorage.getName();
         if (name) {
