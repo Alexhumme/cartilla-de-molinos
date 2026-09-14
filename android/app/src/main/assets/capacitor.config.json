@@ -1,8 +1,0 @@
-{
-	"appId": "com.miiruku.app",
-	"appName": "Miiruku",
-	"webDir": "dist",
-	"server": {
-		"androidScheme": "https"
-	}
-}
